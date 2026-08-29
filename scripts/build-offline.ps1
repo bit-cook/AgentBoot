@@ -42,13 +42,13 @@ function Get-Url([string]$url, [string]$out) {
     }
 }
 
-# 平台映射：node 包名 / npm os / npm cpu
+# 平台映射：node 包名 / npm os / npm cpu / libc
 $Map = @{
-    'linux-x64'    = @{ file = "node-$NodeVersion-linux-x64.tar.gz";   os = 'linux';  cpu = 'x64' }
-    'linux-arm64'  = @{ file = "node-$NodeVersion-linux-arm64.tar.gz"; os = 'linux';  cpu = 'arm64' }
-    'darwin-x64'   = @{ file = "node-$NodeVersion-darwin-x64.tar.gz";  os = 'darwin'; cpu = 'x64' }
-    'darwin-arm64' = @{ file = "node-$NodeVersion-darwin-arm64.tar.gz"; os = 'darwin'; cpu = 'arm64' }
-    'win-x64'      = @{ file = "node-$NodeVersion-win-x64.zip";        os = 'win32';  cpu = 'x64' }
+    'linux-x64'    = @{ file = "node-$NodeVersion-linux-x64.tar.gz";   os = 'linux';  cpu = 'x64';   libc = 'glibc' }
+    'linux-arm64'  = @{ file = "node-$NodeVersion-linux-arm64.tar.gz"; os = 'linux';  cpu = 'arm64'; libc = 'glibc' }
+    'darwin-x64'   = @{ file = "node-$NodeVersion-darwin-x64.tar.gz";  os = 'darwin'; cpu = 'x64';   libc = $null }
+    'darwin-arm64' = @{ file = "node-$NodeVersion-darwin-arm64.tar.gz"; os = 'darwin'; cpu = 'arm64'; libc = $null }
+    'win-x64'      = @{ file = "node-$NodeVersion-win-x64.zip";        os = 'win32';  cpu = 'x64';   libc = $null }
 }
 
 Write-Step "AgentBoot 离线包构建 $Tag · 平台：$Platforms"
@@ -115,7 +115,10 @@ foreach ($a in $registry.agents) {
         $prefix = Join-Path $Stage "payloads\agents\$($a.id)\$plat"
         New-Item -ItemType Directory -Path $prefix -Force | Out-Null
         Write-Step "载荷 $($a.id) [$plat] ← $($a.npm)"
-        & $npm install --global-style --prefix $prefix --os $m.os --cpu $m.cpu `
+        $extra = @()
+        if ($m.libc) { $extra += @('--libc', $m.libc) }
+        if ($a.npm_install_flags) { $extra += @($a.npm_install_flags) }
+        & $npm install --global-style --prefix $prefix --os $m.os --cpu $m.cpu @extra `
             $a.npm --registry https://registry.npmmirror.com --no-audit --no-fund --loglevel=error
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $prefix 'node_modules'))) {
             Write-Err "载荷安装失败：$($a.id)@$plat（继续其他载荷）"
@@ -151,26 +154,45 @@ $manifest += ""
 $manifest += "用法见《安装指南.md》：解压后运行 install-offline.sh / install-offline.ps1"
 $manifest | Set-Content (Join-Path $Stage 'MANIFEST.txt') -Encoding UTF8
 
-# ---------- 6. 打包 ----------
-Write-Step '打包 tar.gz / zip …'
-$outGz  = Join-Path $Dist "AgentBoot-offline-$Tag.tar.gz"
-$outZip = Join-Path $Dist "AgentBoot-offline-$Tag.zip"
-if (Test-Path $outGz)  { Remove-Item $outGz -Force }
-if (Test-Path $outZip) { Remove-Item $outZip -Force }
-& $Tar -czf $outGz -C (Join-Path $Dist 'offline') AgentBoot
-& $Tar -a -cf $outZip -C (Join-Path $Dist 'offline') AgentBoot
-Write-Ok ("tar.gz：{0:N1} MB" -f ((Get-Item $outGz).Length / 1MB))
-Write-Ok ("zip   ：{0:N1} MB" -f ((Get-Item $outZip).Length / 1MB))
+# ---------- 6. 按平台打包（每台目标机只需自己平台的包） ----------
+Write-Step '按平台打包 …'
+$plats = $Platforms -split ','
+foreach ($plat in $plats) {
+    $ex = @()
+    foreach ($other in $plats) {
+        if ($other -ne $plat) {
+            $ex += @('--exclude', "AgentBoot/payloads/agents/*/$other",
+                     '--exclude', "AgentBoot/payloads/node/$other")
+        }
+    }
+    if ($plat -ne 'win-x64') { $ex += @('--exclude', 'AgentBoot/payloads/python') }
+    Push-Location (Join-Path $Dist 'offline')
+    try {
+        if ($plat -eq 'win-x64') {
+            $out = Join-Path $Dist "AgentBoot-offline-$Tag-$plat.zip"
+            if (Test-Path $out) { Remove-Item $out -Force }
+            & $Tar -a -cf $out $ex AgentBoot
+        } else {
+            $out = Join-Path $Dist "AgentBoot-offline-$Tag-$plat.tar.gz"
+            if (Test-Path $out) { Remove-Item $out -Force }
+            & $Tar -czf $out $ex AgentBoot
+        }
+        Write-Ok ("{0}  {1:N0} MB" -f (Split-Path $out -Leaf), ((Get-Item $out).Length / 1MB))
+    } finally { Pop-Location }
+}
 
-# ---------- 7. POSIX 自解压安装器 ----------
+# ---------- 7. POSIX 自解压安装器（非 Windows 平台） ----------
 $pyB = (Get-Command python -ErrorAction SilentlyContinue).Source
 if ($pyB) {
-    Write-Step '生成自解压安装器（sfx.sh）…'
-    $sfx = Join-Path $Dist "AgentBoot-offline-$Tag-sfx.sh"
-    $header = @'
+    foreach ($plat in ($plats | Where-Object { $_ -ne 'win-x64' })) {
+        $gz = Join-Path $Dist "AgentBoot-offline-$Tag-$plat.tar.gz"
+        if (-not (Test-Path $gz)) { continue }
+        Write-Step "生成自解压安装器 [$plat] …"
+        $sfx = Join-Path $Dist "AgentBoot-offline-$Tag-$plat-sfx.sh"
+        $header = @'
 #!/bin/sh
 # AgentBoot 离线自解压安装器：目标机器无需任何解压软件，直接运行
-#   sh AgentBoot-offline-vX.Y.Z-sfx.sh
+#   sh AgentBoot-offline-vX.Y.Z-<平台>-sfx.sh
 set -eu
 SKIP=$(awk '/^__AGENTBOOT_PAYLOAD_BELOW__$/{print NR+1; exit}' "$0")
 tmp="$(mktemp -d 2>/dev/null || echo /tmp/agentboot-sfx-$$)"
@@ -180,9 +202,10 @@ tail -n +"$SKIP" "$0" | { base64 -d 2>/dev/null || base64 -D 2>/dev/null || open
 exec sh "$tmp/AgentBoot/install-offline.sh" "$@"
 __AGENTBOOT_PAYLOAD_BELOW__
 '@
-    [IO.File]::WriteAllText($sfx, ($header -replace "`r`n", "`n"), (New-Object System.Text.UTF8Encoding($false)))
-    & $pyB (Join-Path $Root 'scripts\tools\sfx_append.py') $outGz $sfx
-    Write-Ok ("sfx.sh：{0:N1} MB" -f ((Get-Item $sfx).Length / 1MB))
+        [IO.File]::WriteAllText($sfx, ($header -replace "`r`n", "`n"), (New-Object System.Text.UTF8Encoding($false)))
+        & $pyB (Join-Path $Root 'scripts\tools\sfx_append.py') $gz $sfx
+        Write-Ok ("sfx.sh [{0}]：{1:N0} MB" -f $plat, ((Get-Item $sfx).Length / 1MB))
+    }
 } else {
     Write-Err '本机无 python，跳过自解压包生成（可在 POSIX 上用 build-offline.sh 生成）'
 }

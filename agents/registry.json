@@ -49,6 +49,7 @@
       "node": ">=18",
       "offline": true,
       "script": "https://opencode.ai/install",
+      "npm_install_flags": ["--ignore-scripts"],
       "notes": ["也可用官方脚本安装：curl -fsSL https://opencode.ai/install | bash"]
     },
     {

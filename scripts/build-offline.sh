@@ -98,17 +98,21 @@ PYEOF
     [ -n "$PKG" ] || { err "注册表中无 Agent：$AID"; continue; }
     for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
         case "$PLAT" in
-            win-x64)      OSV=win32;  CPUV=x64 ;;
-            linux-x64)    OSV=linux;  CPUV=x64 ;;
-            linux-arm64)  OSV=linux;  CPUV=arm64 ;;
-            darwin-x64)   OSV=darwin; CPUV=x64 ;;
-            darwin-arm64) OSV=darwin; CPUV=arm64 ;;
+            win-x64)      OSV=win32;  CPUV=x64;   LIBCV="" ;;
+            linux-x64)    OSV=linux;  CPUV=x64;   LIBCV=glibc ;;
+            linux-arm64)  OSV=linux;  CPUV=arm64; LIBCV=glibc ;;
+            darwin-x64)   OSV=darwin; CPUV=x64;   LIBCV="" ;;
+            darwin-arm64) OSV=darwin; CPUV=arm64; LIBCV="" ;;
+        esac
+        case "$AID" in
+            opencode) EXTRA="--ignore-scripts" ;;
+            *)        EXTRA="" ;;
         esac
         step "载荷 $AID [$PLAT] ← $PKG"
         PREFIX="$STAGE/payloads/agents/$AID/$PLAT"
         mkdir -p "$PREFIX"
-        if npm install --global-style --prefix "$PREFIX" --os "$OSV" --cpu "$CPUV" \
-               "$PKG" --registry "$NPM_MIRROR" --no-audit --no-fund --loglevel=error; then
+        if npm install --global-style --prefix "$PREFIX" --os "$OSV" --cpu "$CPUV" ${LIBCV:+--libc "$LIBCV"} \
+               $EXTRA "$PKG" --registry "$NPM_MIRROR" --no-audit --no-fund --loglevel=error; then
             ok "$AID [$PLAT] 完成"
         else
             err "载荷安装失败：$AID@$PLAT（继续其他载荷）"
@@ -141,24 +145,39 @@ cp "$ROOT/scripts/install-offline.ps1" "$STAGE/"
     echo "用法见《安装指南.md》：解压后运行 install-offline.sh / install-offline.ps1"
 } > "$STAGE/MANIFEST.txt"
 
-# ---------- 6. 打包 ----------
-step '打包 tar.gz / zip …'
+# ---------- 6. 按平台打包 ----------
+step '按平台打包 …'
 mkdir -p "$DIST"
-tar -czf "$DIST/AgentBoot-offline-$TAG.tar.gz" -C "$DIST/offline" AgentBoot
-if command -v python3 >/dev/null 2>&1; then
-    python3 -c "import shutil,sys;shutil.make_archive(sys.argv[1],'zip',root_dir=sys.argv[2],base_dir=sys.argv[3])" \
-        "$DIST/AgentBoot-offline-$TAG" "$DIST/offline" AgentBoot
-fi
-ls -lh "$DIST" | grep AgentBoot-offline || true
+for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
+    EX=""
+    for OTHER in $(echo "$PLATFORMS" | tr ',' ' '); do
+        [ "$OTHER" = "$PLAT" ] && continue
+        EX="$EX --exclude=AgentBoot/payloads/agents/*/$OTHER --exclude=AgentBoot/payloads/node/$OTHER"
+    done
+    [ "$PLAT" != "win-x64" ] && EX="$EX --exclude=AgentBoot/payloads/python"
+    if [ "$PLAT" = "win-x64" ]; then
+        OUT="$DIST/AgentBoot-offline-$TAG-$PLAT.zip"
+        (cd "$DIST/offline" && tar $EX -cf "$OUT" --zip AgentBoot) 2>/dev/null || \
+        (cd "$DIST/offline" && python3 -c "import zipfile,os,sys;[zipfile.ZipFile(sys.argv[1],'w',zipfile.ZIP_DEFLATED).write(os.path.join(r,f),os.path.relpath(os.path.join(r,f),sys.argv[2])) for r,ds,fs in os.walk(sys.argv[2]) for f in fs]" "$OUT" "$DIST/offline/AgentBoot")
+    else
+        OUT="$DIST/AgentBoot-offline-$TAG-$PLAT.tar.gz"
+        (cd "$DIST/offline" && tar $EX -czf "$OUT" AgentBoot)
+    fi
+    ok "$(basename "$OUT")：$(du -h "$OUT" | cut -f1)"
+done
 
-# ---------- 7. POSIX 自解压安装器 ----------
+# ---------- 7. POSIX 自解压安装器（非 Windows 平台） ----------
 if command -v python3 >/dev/null 2>&1; then
-    step '生成自解压安装器（sfx.sh）…'
-    SFX="$DIST/AgentBoot-offline-$TAG-sfx.sh"
-    cat > "$SFX" <<'HF'
+    for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
+        [ "$PLAT" = "win-x64" ] && continue
+        GZ="$DIST/AgentBoot-offline-$TAG-$PLAT.tar.gz"
+        [ -f "$GZ" ] || continue
+        step "生成自解压安装器 [$PLAT] …"
+        SFX="$DIST/AgentBoot-offline-$TAG-$PLAT-sfx.sh"
+        cat > "$SFX" <<'HF'
 #!/bin/sh
 # AgentBoot 离线自解压安装器：目标机器无需任何解压软件，直接运行
-#   sh AgentBoot-offline-vX.Y.Z-sfx.sh
+#   sh AgentBoot-offline-vX.Y.Z-<平台>-sfx.sh
 set -eu
 SKIP=$(awk '/^__AGENTBOOT_PAYLOAD_BELOW__$/{print NR+1; exit}' "$0")
 tmp="$(mktemp -d 2>/dev/null || echo /tmp/agentboot-sfx-$$)"
@@ -168,15 +187,16 @@ tail -n +"$SKIP" "$0" | { base64 -d 2>/dev/null || base64 -D 2>/dev/null || open
 exec sh "$tmp/AgentBoot/install-offline.sh" "$@"
 __AGENTBOOT_PAYLOAD_BELOW__
 HF
-    python3 - "$DIST/AgentBoot-offline-$TAG.tar.gz" "$SFX" <<'PYEOF'
+        python3 - "$GZ" "$SFX" <<'PYEOF'
 import base64, sys
 with open(sys.argv[1], 'rb') as src:
     with open(sys.argv[2], 'ab') as dst:
         dst.write(base64.b64encode(src.read()))
         dst.write(b'\n')
 PYEOF
-    chmod +x "$SFX"
-    ok "sfx.sh：$(du -h "$SFX" | cut -f1)"
+        chmod +x "$SFX"
+        ok "sfx.sh [$PLAT]：$(du -h "$SFX" | cut -f1)"
+    done
 fi
 
 step '构建完成'
