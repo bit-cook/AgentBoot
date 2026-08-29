@@ -1122,48 +1122,8 @@ def pick_agents(agents, title, allow_custom=False):
 
 
 def menu_model(cfg):
-    while True:
-        p = agent.get_provider(cfg)
-        print("\n---- 模型配置 ----")
-        print("当前：%s · %s @ %s" % (p["name"], p.get("model"), p.get("base_url")))
-        print(" [1] 使用 Agnes 免费模型（官方预设，推荐）")
-        print(" [2] 自定义 OpenAI 兼容接口（中转/私有部署）")
-        print(" [3] 本地 Ollama（http://127.0.0.1:11434/v1）")
-        print(" [4] 本地 LM Studio（http://127.0.0.1:1234/v1）")
-        print(" [5] 测试当前模型连通性")
-        print(" [6] 查看当前配置")
-        print(" [0] 返回")
-        c = input("选择: ").strip()
-        if c == "1":
-            cfg["active"] = "agnes"
-            agent.save_config(cfg)
-            log_ok("已切换到 Agnes 免费模型")
-        elif c == "2":
-            print("示例：Agnes=https://apihub.agnes-ai.com/v1 · vLLM=http://1.2.3.4:8000/v1 · OpenAI=https://api.openai.com/v1")
-            base = input("Base URL: ").strip()
-            key = input("API Key（可留空）: ").strip()
-            model = input("模型 ID: ").strip()
-            if base and model:
-                agent.set_provider(cfg, "custom", base, key, model)
-                log_ok("已保存自定义模型")
-            else:
-                log_err("Base URL 与模型 ID 不能为空")
-        elif c == "3":
-            model = input("Ollama 模型名（回车=qwen2.5:7b）: ").strip() or "qwen2.5:7b"
-            agent.set_provider(cfg, "ollama", "http://127.0.0.1:11434/v1", "", model)
-            log_ok("已切换到 Ollama（请确保已 ollama pull 模型）")
-        elif c == "4":
-            model = input("LM Studio 模型名（回车=local-model）: ").strip() or "local-model"
-            agent.set_provider(cfg, "lmstudio", "http://127.0.0.1:1234/v1", "", model)
-            log_ok("已切换到 LM Studio（请确保服务已启动）")
-        elif c == "5":
-            print("⏳ 测试中 …")
-            ok, msg = agent.test_provider(cfg)
-            log_ok("连通正常：%s" % msg) if ok else log_err("失败：%s" % msg)
-        elif c == "6":
-            agent.show_status(cfg)
-        else:
-            return
+    """模型配置：与 ab /model 同一套提供商管理器（列表/切换/添加/删除/故障切换/测速）。"""
+    agent.choose_model(cfg)
 
 
 # ---------------------------------------------------------------- 自定义离线包构建

@@ -112,11 +112,12 @@ def get_provider(cfg, name=None):
     return p
 
 
-def set_provider(cfg, name, base_url, api_key, model):
+def set_provider(cfg, name, base_url, api_key, model, activate=True):
     cfg.setdefault("providers", {})[name] = {
         "base_url": base_url, "api_key": api_key, "model": model,
     }
-    cfg["active"] = name
+    if activate:
+        cfg["active"] = name
     save_config(cfg)
 
 
@@ -838,39 +839,66 @@ HELP_TEXT = """命令：
 
 
 def choose_model(cfg):
-    names = list(PRESETS.keys()) + [n for n in (cfg.get("providers") or {}) if n not in PRESETS]
-    print("\n可用模型源：")
-    for i, n in enumerate(names, 1):
-        p = get_provider(cfg, n)
-        mark = " ← 当前" if n == cfg.get("active") else ""
-        print("  [%d] %-10s %s  (%s)%s" % (i, n, p.get("model", ""), p.get("label", "自定义"), mark))
-    print("  [n] 新增自定义 OpenAI 兼容模型（支持本地模型）")
-    print("  [0] 取消")
-    choice = input("选择: ").strip().lower()
-    if choice == "0" or choice == "":
-        return
-    if choice == "n":
-        print("示例：Agnes=https://apihub.agnes-ai.com/v1 · Ollama=http://127.0.0.1:11434/v1 · LM Studio=http://127.0.0.1:1234/v1")
-        base = input("Base URL: ").strip()
-        key = input("API Key（可留空）: ").strip()
-        model = input("模型 ID: ").strip()
-        if not base or not model:
-            print("✗ Base URL 与模型 ID 不能为空")
+    """模型提供商管理器：列出/切换/添加/删除/故障切换/测速（ab 与菜单共用）。"""
+    while True:
+        names = list(PRESETS.keys()) + [n for n in (cfg.get("providers") or {}) if n not in PRESETS]
+        print("\n---- 模型提供商管理 ----")
+        for i, n in enumerate(names, 1):
+            p = get_provider(cfg, n)
+            mark = " ← 当前" if n == cfg.get("active") else ""
+            fb = " · 备用" if n in (cfg.get("fallback") or []) else ""
+            print("  [%d] %-12s %-28s (%s)%s%s" % (i, n, p.get("model", ""), p.get("base_url", ""), mark, fb))
+        print("  [s] 切换当前模型源   [a] 添加自定义提供商   [d] 删除自定义提供商")
+        print("  [f] 设置故障切换顺序 [t] 测试当前模型        [0] 完成")
+        c = input("选择: ").strip().lower()
+        if c in ("0", ""):
             return
-        name = "custom-%d" % (len([n for n in (cfg.get("providers") or {}) if n.startswith("custom")]) + 1)
-        set_provider(cfg, name, base, key, model)
-    else:
-        try:
-            name = names[int(choice) - 1]
-        except (ValueError, IndexError):
-            print("✗ 无效选择")
-            return
-        cfg["active"] = name
-        save_config(cfg)
-    p = get_provider(cfg)
-    print("⏳ 正在测试 %s（%s）…" % (p["name"], p["model"]))
-    ok, msg = test_provider(cfg)
-    print(("✓ 连通正常：%s" % msg) if ok else ("✗ 测试失败：%s" % msg))
+        if c == "s":
+            k = input("切换到编号: ").strip()
+            if k.isdigit() and 1 <= int(k) <= len(names):
+                cfg["active"] = names[int(k) - 1]
+                save_config(cfg)
+                p = get_provider(cfg)
+                print("✓ 当前模型源：%s（%s @ %s）" % (p["name"], p.get("model"), p.get("base_url")))
+        elif c == "a":
+            print("示例：Agnes=https://apihub.agnes-ai.com/v1 · Ollama=http://127.0.0.1:11434/v1 · LM Studio=http://127.0.0.1:1234/v1 · vLLM=http://1.2.3.4:8000/v1")
+            base = input("Base URL: ").strip()
+            key = input("API Key（可留空）: ").strip()
+            model = input("模型 ID: ").strip()
+            if not base or not model:
+                print("✗ Base URL 与模型 ID 不能为空")
+                continue
+            pid = input("提供商名称（回车=custom）: ").strip() or "custom"
+            pid = re.sub(r"[^a-z0-9_-]+", "-", pid.lower()).strip("-") or "custom"
+            set_provider(cfg, pid, base, key, model)
+            print("✓ 已添加并切换到：%s（%s @ %s）" % (pid, model, base))
+        elif c == "d":
+            customs = [n for n in (cfg.get("providers") or {}) if n not in PRESETS]
+            if not customs:
+                print("（没有可删除的自定义提供商）")
+                continue
+            k = input("删除哪一个 %s: " % customs).strip()
+            if k in customs:
+                (cfg.get("providers") or {}).pop(k)
+                if cfg.get("fallback") and k in cfg["fallback"]:
+                    cfg["fallback"] = [n for n in cfg["fallback"] if n != k]
+                if cfg.get("active") == k:
+                    cfg["active"] = DEFAULT_ACTIVE
+                save_config(cfg)
+                print("✓ 已删除：%s" % k)
+            else:
+                print("✗ 无效名称（只能删除自定义提供商）")
+        elif c == "f":
+            print("主模型失败时按顺序自动切换。可用：%s" % ", ".join(names))
+            raw = input("备用顺序（逗号分隔，回车=清除）: ").strip()
+            fb = [t.strip() for t in raw.replace("，", ",").split(",") if t.strip() in names]
+            cfg["fallback"] = fb
+            save_config(cfg)
+            print("✓ 故障切换顺序：%s" % (fb or "无"))
+        elif c == "t":
+            print("⏳ 测试中 …")
+            ok, msg = test_provider(cfg)
+            print(("✓ 连通正常：%s" % msg) if ok else ("✗ 测试失败：%s" % msg))
 
 
 def show_status(cfg):
