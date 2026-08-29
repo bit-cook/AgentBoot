@@ -115,6 +115,18 @@
       "notes": ["需要较新 Node（22.22+ 或 24+），旧版 Node 仅警告仍可尝试", "文档：https://docs.openclaw.ai"]
     },
     {
+      "id": "pi",
+      "name": "Pi Coding Agent",
+      "vendor": "Earendil Works",
+      "desc": "极简编码 Agent CLI（pi.dev，read/bash/edit/write 工具集）",
+      "bin": "pi",
+      "method": "npm",
+      "npm": "@earendil-works/pi-coding-agent",
+      "node": ">=22",
+      "offline": false,
+      "notes": ["与 pi.dev 官方安装器同源的 npm 包", "文档：https://pi.dev"]
+    },
+    {
       "id": "gemini-cli",
       "name": "Gemini CLI",
       "vendor": "Google",

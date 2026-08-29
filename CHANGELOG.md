@@ -14,4 +14,4 @@
 - 一键在线安装（Linux/macOS/Windows）与一键离线安装（含自解压包）。
 - Cloudflare Worker 分发：`curl -fsSL https://boot.ide.pub/install.sh | sh`。
 - GitHub Pages 分发入口：`curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh`。
-- 新增 Agent：Hermes Agent（自我进化智能体，需 Git）、OpenClaw（多渠道个人 AI 网关）。
+- 新增 Agent：Hermes Agent（自我进化智能体，需 Git）、OpenClaw（多渠道个人 AI 网关）、Pi Coding Agent（pi.dev 同源 npm 包）。

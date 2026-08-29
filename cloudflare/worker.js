@@ -97,7 +97,7 @@ function page() {
 </head>
 <body>
 <h1>AgentBoot</h1>
-<p>极简 · 极速 · 开箱即用的 AI Agent 启动器（Linux / macOS / Windows）。内置最小 Agent（默认 Agnes 免费模型），可从菜单一键安装 Claude Code、Codex、Qwen Code、OpenCode、CodeBuddy、MiMo Code、Cline、Hermes Agent、OpenClaw 等。</p>
+<p>极简 · 极速 · 开箱即用的 AI Agent 启动器（Linux / macOS / Windows）。内置最小 Agent（默认 Agnes 免费模型），可从菜单一键安装 Claude Code、Codex、Qwen Code、OpenCode、CodeBuddy、MiMo Code、Cline、Hermes Agent、OpenClaw、Pi 等。</p>
 
 <h2>一键在线安装</h2>
 <h3>Linux / macOS</h3>
