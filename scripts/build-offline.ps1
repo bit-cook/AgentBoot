@@ -74,9 +74,16 @@ Write-Ok "npm：$npm"
 
 # ---------- 1. 复制项目到暂存区 ----------
 Write-Step '复制项目文件 …'
-if (Test-Path $Stage) { Remove-Item $Stage -Recurse -Force }
+if (Test-Path $Stage) {
+    # 载荷里有超长路径（如 cline 的深层 node_modules），Remove-Item 不支持，用 robocopy /MIR 清空
+    $emptyDir = Join-Path $Dist 'empty-dir'
+    New-Item -ItemType Directory -Path $emptyDir -Force | Out-Null
+    robocopy $emptyDir $Stage /MIR /NFL /NDL /NJH /NJS | Out-Null
+    Remove-Item $emptyDir -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item $Stage -Recurse -Force -ErrorAction SilentlyContinue
+}
 New-Item -ItemType Directory -Path $Stage -Force | Out-Null
-robocopy $Root $Stage /E /NFL /NDL /NJH /NJS /XD .git dist payloads node_modules __pycache__ .zcode /XF *.pyc | Out-Null
+robocopy $Root $Stage /E /NFL /NDL /NJH /NJS /XD .git dist payloads node_modules __pycache__ .zcode pages /XF *.pyc | Out-Null
 if ($LASTEXITCODE -ge 8) { Write-Err "robocopy 失败（code=$LASTEXITCODE）"; exit 1 }
 $global:LASTEXITCODE = 0
 

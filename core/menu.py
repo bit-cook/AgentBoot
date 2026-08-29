@@ -852,7 +852,16 @@ def offline_install(ids, payload_dir=None):
         if os.path.exists(dst_nm):
             shutil.rmtree(dst_nm, ignore_errors=True)
         log_info("部署 %s（约 %.1f MB）…" % (a["name"], dir_size_mb(src)))
-        shutil.copytree(src, dst_nm)
+        if POSIX:
+            shutil.copytree(src, dst_nm)
+        else:
+            # Windows：载荷可能含超长路径，robocopy 原生支持（exit<8 均为成功）
+            r = subprocess.run(["robocopy", src, dst_nm, "/E", "/NFL", "/NDL", "/NJH", "/NJS"],
+                               capture_output=True)
+            if r.returncode >= 8:
+                log_err("robocopy 部署失败（code=%d）：%s" % (r.returncode, aid))
+                fail_list.append(aid)
+                continue
         if aid == "hermes":
             fixup_hermes_venv(os.path.join(pdir, "agents", "hermes", pid), dst_nm)
         shim = write_shim(a)
@@ -1144,6 +1153,103 @@ def menu_model(cfg):
             return
 
 
+# ---------------------------------------------------------------- 自定义离线包构建
+
+BUILD_PLATFORMS = [
+    ("linux-x64", "Linux x64（Intel/AMD 服务器、桌面）"),
+    ("linux-arm64", "Linux arm64（ARM 服务器、国产化设备）"),
+    ("win-x64", "Windows 10/11 x64"),
+    ("darwin-x64", "macOS Intel"),
+    ("darwin-arm64", "macOS Apple Silicon (M 系列)"),
+]
+
+
+def pick_platforms():
+    """多选目标平台，返回平台 id 列表。空输入 = 常用三平台。"""
+    print("\n选择目标平台（可多选，空格/逗号分隔；回车 = 常用三平台）：")
+    for i, (pid, desc) in enumerate(BUILD_PLATFORMS, 1):
+        print("  [%d] %-14s %s" % (i, pid, desc))
+    raw = input("平台编号: ").strip().lower()
+    if not raw:
+        return ["linux-x64", "win-x64", "darwin-arm64"]
+    ids = []
+    for tok in re.split(r"[\s,，]+", raw):
+        if tok.isdigit() and 1 <= int(tok) <= len(BUILD_PLATFORMS):
+            ids.append(BUILD_PLATFORMS[int(tok) - 1][0])
+        elif tok in [p[0] for p in BUILD_PLATFORMS]:
+            ids.append(tok)
+    if not ids:
+        log_err("未识别任何平台，使用默认三平台")
+        return ["linux-x64", "win-x64", "darwin-arm64"]
+    return sorted(set(ids), key=lambda x: [p[0] for p in BUILD_PLATFORMS].index(x))
+
+
+def pick_offline_agents():
+    """多选要打进离线包的 Agent（默认全选支持离线的）。返回 id 列表。"""
+    capable = [a for a in load_registry() if a.get("method") == "npm" or a.get("id") == "coco"]
+    print("\n选择要打入离线包的 Agent（可多选；回车 = 全选）：")
+    for i, a in enumerate(capable, 1):
+        print("  [%2d] %-14s %-22s %s" % (i, a["id"], a["name"], a.get("desc", "")))
+    print("  （aider 为 pip 生态暂不支持离线，已自动排除）")
+    raw = input("Agent 编号: ").strip().lower()
+    if raw == "a" or not raw:
+        return [a["id"] for a in capable]
+    ids = []
+    for tok in re.split(r"[\s,，]+", raw):
+        if tok.isdigit() and 1 <= int(tok) <= len(capable):
+            ids.append(capable[int(tok) - 1]["id"])
+        elif tok in [a["id"] for a in capable]:
+            ids.append(tok)
+    return sorted(set(ids), key=lambda x: [a["id"] for a in capable].index(x))
+
+
+def build_offline_run(platforms, agents_ids):
+    """调用 scripts/build-offline.* 构建自定义离线包（跨平台分发到对应脚本）。"""
+    if not platforms or not agents_ids:
+        log_err("平台与 Agent 列表不能为空")
+        return False
+    log_info("开始构建：平台=%s · Agent=%s" % (",".join(platforms), ",".join(agents_ids)))
+    print("（首次构建会自动下载便携 Node/Python 与各 Agent 依赖，耗时取决于网速，请耐心等待）\n")
+    env = child_env()
+    if POSIX:
+        script = os.path.join(APP_DIR, "scripts", "build-offline.sh")
+        env.update({"PLATFORMS": ",".join(platforms), "AGENTS": ",".join(agents_ids), "TAG": "v1.0.0"})
+        cmd = ["sh", script]
+    else:
+        script = os.path.join(APP_DIR, "scripts", "build-offline.ps1")
+        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
+               "-Tag", "v1.0.0", "-Platforms", ",".join(platforms), "-Agents", ",".join(agents_ids)]
+    r = subprocess.run(cmd, env=env)
+    ok = r.returncode == 0
+    if ok:
+        dist = os.path.join(APP_DIR, "dist")
+        print("")
+        log_ok("构建完成，产物在 %s：" % dist)
+        try:
+            for fn in sorted(os.listdir(dist)):
+                if fn.startswith("AgentBoot-offline-v1.0.0-"):
+                    p = os.path.join(dist, fn)
+                    if os.path.isfile(p):
+                        print("  %-52s %8.1f MB" % (fn, os.path.getsize(p) / 1048576.0))
+        except OSError:
+            pass
+    else:
+        log_err("构建脚本退出码 %s" % r.returncode)
+    return ok
+
+
+def build_offline_wizard():
+    platforms = pick_platforms()
+    agents_ids = pick_offline_agents()
+    if not agents_ids:
+        log_err("未选择任何 Agent")
+        return
+    print("\n即将构建：平台 %s · Agent %s" % (", ".join(platforms), ", ".join(agents_ids)))
+    if input("确认开始? [Y/n] ").strip().lower() in ("n", "no"):
+        return
+    build_offline_run(platforms, agents_ids)
+
+
 def menu_mirror():
     while True:
         print("\n---- 镜像与代理 ----")
@@ -1191,6 +1297,7 @@ def main_menu():
         print("  [4] 模型配置（Agnes 免费预设 / 自定义 / 本地模型）")
         print("  [5] 镜像与代理设置（中国网络自适应）")
         print("  [6] 启动内置 Agent（ab）")
+        print("  [7] 构建自定义离线安装包（选平台/选 Agent，瘦身）")
         print("  [0] 退出")
         c = input("\n选择: ").strip()
         if c == "1":
@@ -1213,6 +1320,8 @@ def main_menu():
             input("\n回车返回 …")
         elif c == "6":
             agent.repl(cfg)
+        elif c == "7":
+            build_offline_wizard()
         elif c == "0":
             print("再见！")
             return
@@ -1285,6 +1394,14 @@ def main():
             log_ok("已添加自定义 Agent：%s（%s）" % (aid, pkg))
         else:
             print(__doc__)
+    elif cmd == "build-offline":
+        # 用法：build-offline <平台列表> <Agent列表>（逗号分隔），无参数进入向导
+        if len(argv) >= 3:
+            plats = [t for t in re.split(r"[,\s]+", argv[1]) if t]
+            ids = [t for t in re.split(r"[,\s]+", argv[2]) if t]
+            build_offline_run(plats, ids)
+        else:
+            build_offline_wizard()
     elif cmd in ("version", "--version"):
         print("AgentBoot 控制台 v%s" % VERSION)
     elif cmd == "menu":
