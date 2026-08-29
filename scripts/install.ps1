@@ -71,7 +71,8 @@ $sources = @(
 $dl = $false
 foreach ($u in $sources) {
     Write-Host "下载：$u"
-    if (Get-Url $u $pkg -and (Get-Item $pkg).Length -gt 10KB) { $dl = $true; break }
+    $ok = Get-Url $u $pkg
+    if ($ok -and (Test-Path $pkg) -and ((Get-Item $pkg).Length -gt 10KB)) { $dl = $true; break }
     Write-Err "该源不可用，尝试下一个 …"
 }
 if (-not $dl) { Write-Err '所有下载源均失败，请检查网络或改用离线安装包（见《安装指南.md》）'; exit 1 }
