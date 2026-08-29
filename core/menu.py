@@ -295,6 +295,12 @@ def install_online(ids):
             continue
         print("\n========== 安装 %s（%s）==========" % (a["name"], a.get("vendor", "")))
         print("  %s" % a.get("desc", ""))
+        missing = [t for t in (a.get("requires") or []) if not shutil.which(t)]
+        if missing:
+            log_err("%s 需要前置依赖：%s。请先安装后重试（Windows 建议 https://git-scm.com，"
+                    "Linux 用系统包管理器安装 git）" % (a["name"], " + ".join(missing)))
+            fail_list.append(aid)
+            continue
         method = a.get("method", "npm")
         ok = False
         if method == "npm":

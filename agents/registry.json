@@ -89,6 +89,31 @@
       "notes": ["VS Code 插件版用户请继续使用插件市场"]
     },
     {
+      "id": "hermes",
+      "name": "Hermes Agent",
+      "vendor": "Hermes",
+      "desc": "自我进化的自主 AI 智能体（从经验中形成技能）",
+      "bin": "hermes",
+      "method": "npm",
+      "npm": "hermes-agent",
+      "node": ">=20",
+      "requires": ["git"],
+      "offline": false,
+      "notes": ["通过社区 npm 桥接包安装，postinstall 会自动拉取官方 Hermes Agent", "需要本机已安装 Git（hermes 更新通道依赖）", "项目主页：https://github.com/wyrtensi/hermes-agent-npm"]
+    },
+    {
+      "id": "openclaw",
+      "name": "OpenClaw",
+      "vendor": "OpenClaw",
+      "desc": "多渠道个人 AI 网关（消息集成可扩展）",
+      "bin": "openclaw",
+      "method": "npm",
+      "npm": "openclaw",
+      "node": ">=22",
+      "offline": false,
+      "notes": ["需要较新 Node（22.22+ 或 24+），旧版 Node 仅警告仍可尝试", "文档：https://docs.openclaw.ai"]
+    },
+    {
       "id": "gemini-cli",
       "name": "Gemini CLI",
       "vendor": "Google",
