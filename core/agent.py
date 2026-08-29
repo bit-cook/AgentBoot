@@ -317,21 +317,30 @@ def _kb_sections():
 
 
 def linux_help(query):
-    """在离线知识库中检索最相关的段落。"""
+    """在离线知识库中检索最相关的段落。中文整句自动做 2 字词片段匹配。"""
     q = (query or "").strip()
     if not q:
         return "（请给出关键词，例如：磁盘满了怎么办）"
-    tokens = [t for t in re.split(r"[\s,，。/?]+", q.lower()) if t]
+    # 去掉疑问词后分词；整句无空格时再用 2 字滑动片段兜底
+    base = re.sub(r"(怎么办|怎么回事|怎么|如何|为什么|为啥|什么原因|咋|呢|吗|？|\?|！|。|，)", " ", q.lower())
+    toks = [(t, 3) for t in re.split(r"[\s,，。/?！]+", base) if t]
+    core = re.sub(r"[\s,，。/?！]+", "", base)
+    grams = [(core[i:i + 2], 1) for i in range(max(0, len(core) - 1))]
     scored = []
     for sec in _kb_sections():
         title = sec["title"].lower()
         body = (sec["title"] + "\n" + sec["body"]).lower()
         score = 0
-        for t in tokens:
+        for t, w in toks:
             if t in title:
-                score += 3
+                score += 3 * w
             if t in body:
-                score += 1
+                score += w
+        for g, w in grams:
+            if g in title:
+                score += 2 * w
+            elif g in body:
+                score += w
         if score:
             scored.append((score, sec))
     if not scored:
