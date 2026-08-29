@@ -42,6 +42,8 @@ NODE_MIRROR_CN = "https://registry.npmmirror.com/-/binary/node"
 NODE_MIRROR_GLOBAL = "https://nodejs.org/dist"
 PIP_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
+CUSTOM_AGENTS = os.path.join(AB_HOME, "custom-agents.json")
+
 POSIX = os.name != "nt"
 
 
@@ -115,9 +117,84 @@ def save_env_json(data):
 
 
 def load_registry():
+    """内置注册表 + 用户自定义（custom-agents.json），同名 id 以先出现的内置为准。"""
     path = os.path.join(APP_DIR, "agents", "registry.json")
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)["agents"]
+        agents = json.load(f)["agents"]
+    builtin_ids = {a["id"] for a in agents}
+    for c in load_custom_agents():
+        if c.get("id") in builtin_ids:
+            continue
+        c["custom"] = True
+        agents.append(c)
+    return agents
+
+
+def load_custom_agents():
+    try:
+        with open(CUSTOM_AGENTS, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def save_custom_agents(items):
+    os.makedirs(AB_HOME, exist_ok=True)
+    with open(CUSTOM_AGENTS, "w", encoding="utf-8") as f:
+        json.dump(items, f, ensure_ascii=False, indent=2)
+
+
+def custom_add_entry(entry):
+    """添加一条自定义 Agent（id 重复时拒绝）。返回是否成功。"""
+    items = load_custom_agents()
+    entry["offline"] = False
+    entry.setdefault("vendor", "自定义")
+    items.append(entry)
+    save_custom_agents(items)
+
+
+def custom_remove_entry(aid):
+    items = [a for a in load_custom_agents() if a.get("id") != aid]
+    save_custom_agents(items)
+
+
+def _slug(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "custom"
+
+
+def custom_add_wizard():
+    """交互式添加自定义 Agent 向导。返回新 id 或 None。"""
+    print("\n---- 添加自定义 Agent ----")
+    print("安装方式：[1] npm 包  [2] pip 包  [3] 安装脚本 URL")
+    m = {"1": "npm", "2": "pip", "3": "script"}.get(input("选择: ").strip())
+    if not m:
+        log_err("无效方式")
+        return None
+    if m == "npm":
+        pkg = input("npm 包名（如 @scope/xxx）: ").strip()
+    elif m == "pip":
+        pkg = input("pip 包名: ").strip()
+    else:
+        pkg = input("安装脚本 URL: ").strip()
+    if not pkg:
+        log_err("不能为空")
+        return None
+    default_id = _slug(pkg.split("/")[-1])
+    aid = input("id（回车=%s）: " % default_id).strip() or default_id
+    name = input("显示名（回车=%s）: " % aid).strip() or aid
+    default_bin = pkg.split("/")[-1].split("@")[-1] if m == "npm" else aid
+    bin_ = input("安装后的命令（回车=%s）: " % default_bin).strip() or default_bin
+    entry = {"id": aid, "name": name, "desc": "自定义 Agent", "bin": bin_, "method": m,
+             "requires": [], "notes": ["用户自定义条目"]}
+    if m == "npm":
+        entry["npm"] = pkg
+    elif m == "pip":
+        entry["pip"] = pkg
+    else:
+        entry["script"] = pkg
+    custom_add_entry(entry)
+    log_ok("已保存到 %s" % CUSTOM_AGENTS)
+    return aid
 
 
 def runtime_node_dir():
@@ -804,15 +881,22 @@ def doctor():
 
 # ---------------------------------------------------------------- 交互菜单
 
-def pick_agents(agents, title):
+def pick_agents(agents, title, allow_custom=False):
     print("\n%s" % title)
     for i, a in enumerate(agents, 1):
         offline_mark = "可离线" if a.get("offline") else "仅在线"
-        print("  [%2d] %-16s %-24s (%s) %s" % (i, a["id"], a["name"], offline_mark, a.get("desc", "")))
-    print("  [ a] 全选 npm 类 · [ 0] 返回")
+        mark = " ★" if a.get("custom") else ""
+        print("  [%2d] %-16s %-24s (%s) %s%s" % (i, a["id"], a["name"], offline_mark, a.get("desc", ""), mark))
+    extra = "  [ a] 全选 npm 类 · [ 0] 返回"
+    if allow_custom:
+        extra += " · [ +] 添加自定义 Agent"
+    print(extra)
     raw = input("输入编号（可多选，空格/逗号分隔）: ").strip().lower()
     if not raw or raw == "0":
         return []
+    if raw == "+":
+        nid = custom_add_wizard()
+        return [nid] if nid else []
     if raw == "a":
         return [a["id"] for a in agents if a.get("method") == "npm"]
     ids = []
@@ -980,6 +1064,36 @@ def main():
             set_proxy(argv[2] if len(argv) > 2 else None)
         else:
             print("用法: menu.py mirror auto|cn|off|proxy [url]")
+    elif cmd == "add-agent":
+        # 用法：
+        #   add-agent --list
+        #   add-agent --del <id>
+        #   add-agent <id> npm <包名> [bin]
+        #   add-agent <id> pip <包名> [bin]
+        #   add-agent <id> script <URL> <bin>
+        arg = argv[1] if len(argv) > 1 else ""
+        if arg in ("--list", "list"):
+            items = load_custom_agents()
+            print("自定义 Agent（%d 个）：%s" % (len(items), os.path.join(AB_HOME, "custom-agents.json")))
+            for a in items:
+                print("  %-16s %-10s %-32s bin=%s" % (a.get("id"), a.get("method"), a.get("npm") or a.get("pip") or a.get("script"), a.get("bin")))
+        elif arg in ("--del", "del", "remove"):
+            custom_remove_entry(argv[2])
+            log_ok("已删除自定义 Agent：%s" % argv[2])
+        elif len(argv) >= 4 and argv[2] in ("npm", "pip", "script"):
+            aid, m, pkg = argv[1], argv[2], argv[3]
+            entry = {"id": aid, "name": aid, "desc": "自定义 Agent", "bin": argv[4] if len(argv) > 4 else aid,
+                     "method": m, "requires": [], "notes": ["用户自定义条目"]}
+            if m == "npm":
+                entry["npm"] = pkg
+            elif m == "pip":
+                entry["pip"] = pkg
+            else:
+                entry["script"] = pkg
+            custom_add_entry(entry)
+            log_ok("已添加自定义 Agent：%s（%s）" % (aid, pkg))
+        else:
+            print(__doc__)
     elif cmd in ("version", "--version"):
         print("AgentBoot 控制台 v%s" % VERSION)
     elif cmd == "menu":
