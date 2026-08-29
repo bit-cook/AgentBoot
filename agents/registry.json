@@ -127,6 +127,19 @@
       "notes": ["与 pi.dev 官方安装器同源的 npm 包", "文档：https://pi.dev"]
     },
     {
+      "id": "coco",
+      "name": "CoCo Agent",
+      "vendor": "bit-cook",
+      "desc": "通用 AI 助手，终端起家 + CoCo Web（Linux/macOS）",
+      "bin": "coco",
+      "method": "script",
+      "script": "https://bit-cook.github.io/coco/install.sh",
+      "node": null,
+      "os": ["linux", "darwin"],
+      "offline": false,
+      "notes": ["官方安装脚本来自 github.com/bit-cook/coco（当前 v0.8.0）", "官方支持 Linux / macOS，Windows 无官方安装器"]
+    },
+    {
       "id": "gemini-cli",
       "name": "Gemini CLI",
       "vendor": "Google",

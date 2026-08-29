@@ -380,6 +380,12 @@ def install_online(ids):
                     "Linux 用系统包管理器安装 git）" % (a["name"], " + ".join(missing)))
             fail_list.append(aid)
             continue
+        os_limits = a.get("os") or []
+        if os_limits and plat_id().split("-")[0] not in os_limits:
+            log_err("%s 官方仅支持 %s，当前平台 %s 不在其列"
+                    % (a["name"], "/".join(os_limits), plat_id()))
+            fail_list.append(aid)
+            continue
         method = a.get("method", "npm")
         ok = False
         if a.get("special_install") == "hermes":
@@ -420,13 +426,21 @@ def install_via_script(a):
     url = a.get("script")
     if not url:
         return False
-    if POSIX:
-        cmd = ["sh", "-c", 'curl -fsSL "%s" | sh' % url]
-    else:
-        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
-               "iwr -useb %s | iex" % url]
-    log_info("$ %s" % " ".join(cmd))
-    return subprocess.run(cmd, env=child_env()).returncode == 0
+    urls = [url]
+    if cn_mode():
+        for p in ("https://gh-proxy.com/", "https://ghfast.top/"):
+            urls.append(p + url)
+    for u in urls:
+        if POSIX:
+            cmd = ["sh", "-c", 'curl -fsSL "%s" | sh' % u]
+        else:
+            cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                   "iwr -useb %s | iex" % u]
+        log_info("$ %s" % " ".join(cmd))
+        if subprocess.run(cmd, env=child_env()).returncode == 0:
+            return True
+        log_err("该脚本地址不可用，尝试下一个源 …")
+    return False
 
 
 def install_via_pip(a):
