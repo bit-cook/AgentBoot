@@ -19,3 +19,4 @@
 - 注册表支持 `os` 平台限制与 `requires` 前置依赖检查；脚本类安装自动加镜像兜底。
 - v1.0.0 调整：CoCo Agent 置顶（vendor 更名 BitCook）；除 Aider（pip 生态）外全部 Agent 支持离线安装，离线载荷补齐 Hermes（含完整 Python 运行时）/ OpenClaw / Pi / Gemini CLI / iFlow CLI。
 - 新增自定义离线包构建：菜单 [7] 向导或 `build-offline` 命令，自选平台与 Agent 生成瘦身离线包（如 win-x64 仅 Pi ≈ 89MB）。
+- 内置 Agent 深度优化：TLS 连接复用（每轮对话实测省约 440ms 首字延迟）、知识库预建索引（热查询亚毫秒）、上下文预算自动瘦身、会话持久化（`ab -c` / `/继续`）、新增跨平台 `search_files` 工具、模型源故障自动切换（`fallback`）、`/bench` 性能基准。

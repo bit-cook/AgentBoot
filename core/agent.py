@@ -13,7 +13,6 @@ AgentBoot 内置最小 Agent（命令 ab）
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 
@@ -139,11 +138,43 @@ def _split_base(base_url):
     return s.scheme, s.hostname, port, (s.path or "") + "/chat/completions"
 
 
-def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature=0.7):
-    """调用 OpenAI 兼容接口。返回 (content, tool_calls)。stream_cb 用于流式打印增量文本。"""
+# 连接池：复用 TLS 连接，砍掉每轮对话的握手开销（极限性能核心）
+_POOL = {}
+
+
+def _connect(scheme, host, port, timeout=180):
     import http.client
     import ssl
+    key = (scheme, host, port)
+    conn = _POOL.get(key)
+    if conn is not None:
+        return conn
+    if scheme == "https":
+        ctx = ssl.create_default_context()
+        if os.environ.get("AGENTBOOT_INSECURE") == "1":
+            ctx = ssl._create_unverified_context()
+        conn = http.client.HTTPSConnection(host, port, timeout=timeout, context=ctx)
+    else:
+        conn = http.client.HTTPConnection(host, port, timeout=timeout)
+    _POOL[key] = conn
+    return conn
 
+
+def _drop_pool(scheme, host, port):
+    conn = _POOL.pop((scheme, host, port), None)
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+class StreamInterrupted(ApiError):
+    """流式响应中断且未收到任何内容（可安全重试）。"""
+
+
+def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature=0.7):
+    """调用 OpenAI 兼容接口（连接复用 + 自动重试）。返回 (content, tool_calls)。"""
     p = get_provider(cfg)
     scheme, host, port, path = _split_base(p.get("base_url", ""))
     if not host:
@@ -157,69 +188,52 @@ def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature
     if stream_cb is not None:
         body["stream"] = True
 
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    headers = {"Content-Type": "application/json", "Accept": "application/json",
+               "Connection": "keep-alive"}
     if p.get("api_key"):
         headers["Authorization"] = "Bearer " + p["api_key"]
 
     payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
-    if scheme == "https":
-        ctx = ssl.create_default_context()
-        if os.environ.get("AGENTBOOT_INSECURE") == "1":
-            ctx = ssl._create_unverified_context()
-        conn = http.client.HTTPSConnection(host, port, timeout=180, context=ctx)
-    else:
-        conn = http.client.HTTPConnection(host, port, timeout=180)
 
     last_err = None
     for attempt in range(3):
         try:
+            conn = _connect(scheme, host, port)
             conn.request("POST", path, body=payload, headers=headers)
             resp = conn.getresponse()
             if resp.status != 200:
                 data = resp.read(8192).decode("utf-8", "replace")
-                conn.close()
                 try:
-                    j = json.loads(data)
-                    msg = j.get("error", {}).get("message") or data
+                    msg = json.loads(data).get("error", {}).get("message") or data
                 except Exception:
                     msg = data
-                if resp.status < 500:
-                    raise ApiError("HTTP %s：%s" % (resp.status, msg[:400]))
+                if resp.status >= 500:
+                    _drop_pool(scheme, host, port)   # 服务端异常：弃用连接后重试
+                    last_err = ApiError("HTTP %s：%s" % (resp.status, msg[:400]))
+                    if attempt < 2:
+                        time.sleep(1 + attempt)
+                        continue
+                    raise last_err
                 raise ApiError("HTTP %s：%s" % (resp.status, msg[:400]))
             if stream_cb is None:
                 data = json.loads(resp.read().decode("utf-8", "replace"))
-                conn.close()
                 choice = (data.get("choices") or [{}])[0]
                 msg = choice.get("message") or {}
                 return msg.get("content") or "", msg.get("tool_calls") or []
-            return _read_stream(resp, stream_cb, conn)
+            return _read_stream(resp, stream_cb, conn, scheme, host, port)
         except ApiError:
-            try:
-                conn.close()
-            except Exception:
-                pass
             raise
-        except Exception as e:  # 网络类错误：退避重试
+        except Exception as e:   # 网络类错误：连接可能已坏，弃用后重建重试
             last_err = e
-            try:
-                conn.close()
-            except Exception:
-                pass
+            _drop_pool(scheme, host, port)
             if attempt < 2:
                 time.sleep(1 + attempt)
-                if scheme == "https":
-                    ctx = ssl.create_default_context()
-                    if os.environ.get("AGENTBOOT_INSECURE") == "1":
-                        ctx = ssl._create_unverified_context()
-                    conn = http.client.HTTPSConnection(host, port, timeout=180, context=ctx)
-                else:
-                    conn = http.client.HTTPConnection(host, port, timeout=180)
     raise ApiError("无法连接模型接口：%s（若需代理，请先设置 HTTP_PROXY/HTTPS_PROXY）" % last_err)
 
 
-def _read_stream(resp, stream_cb, conn):
+def _read_stream(resp, stream_cb, conn, scheme, host, port):
     content_parts = []
-    tool_calls = {}  # index -> {"id","name","arguments"}
+    tool_calls = {}
 
     def flush_tc():
         out = []
@@ -263,17 +277,133 @@ def _read_stream(resp, stream_cb, conn):
                         slot["name"] = (slot["name"] + fn["name"]) if slot["name"] else fn["name"]
                     if fn.get("arguments"):
                         slot["arguments"] += fn["arguments"]
-    finally:
         try:
-            conn.close()
+            resp.read()   # 排空剩余分块，保持连接可复用
         except Exception:
             pass
-
+    except Exception:
+        partial = "".join(content_parts)
+        _drop_pool(scheme, host, port)
+        if partial:
+            return partial, flush_tc()   # 尽力而为：返回已收到的部分内容
+        raise StreamInterrupted("")
     content = "".join(content_parts)
     tcs = flush_tc()
     if not content and not tcs:
         raise ApiError("模型返回为空（流式）。")
     return content, tcs
+
+
+def chat_auto(cfg, messages, stream_cb=None, **kw):
+    """主模型源失败时自动切换备用源（cfg["fallback"]: 备用模型源名列表）。"""
+    order = [cfg.get("active") or DEFAULT_ACTIVE]
+    for n in (cfg.get("fallback") or []):
+        if n and n not in order:
+            order.append(n)
+    if len(order) == 1:
+        return chat(cfg, messages, stream_cb=stream_cb, **kw)
+    last = None
+    for i, name in enumerate(order):
+        c2 = dict(cfg)
+        c2["active"] = name
+        try:
+            return chat(c2, messages, stream_cb=stream_cb, **kw)
+        except ApiError as e:
+            last = e
+            if i < len(order) - 1:
+                sys.stdout.write("  ⚠ 模型源 %s 失败，自动切换 %s …\n" % (name, order[i + 1]))
+            continue
+    raise last
+
+
+def _ttfb(cfg, prompt="回复：1"):
+    """测量首包延迟（毫秒）：从发起到收到第一个 SSE 数据行（HTTP 层，不依赖正文）。"""
+    p = get_provider(cfg)
+    scheme, host, port, path = _split_base(p.get("base_url", ""))
+    body = {"model": p.get("model"), "messages": [{"role": "user", "content": prompt}],
+            "stream": True, "max_tokens": 8, "temperature": 0}
+    headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
+    if p.get("api_key"):
+        headers["Authorization"] = "Bearer " + p["api_key"]
+    payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    t0 = time.perf_counter()
+    try:
+        conn = _connect(scheme, host, port)
+        conn.request("POST", path, body=payload, headers=headers)
+        resp = conn.getresponse()
+        while True:
+            line = resp.readline()
+            if not line:
+                break
+            s = line.decode("utf-8", "replace").strip()
+            if s.startswith("data:") and s[5:].strip() not in ("", "[DONE]"):
+                try:
+                    resp.read()   # 排空，保持连接可复用
+                except Exception:
+                    pass
+                return (time.perf_counter() - t0) * 1000.0
+        return None
+    except Exception:
+        _drop_pool(scheme, host, port)
+        return None
+
+
+def _shrink(msgs, budget=60000, keep_recent=8):
+    """上下文预算控制：超出预算时，把较老的大段工具输出替换为省略标记。"""
+    total = sum(len(str(m.get("content") or "")) for m in msgs)
+    if total <= budget:
+        return
+    for i in range(len(msgs)):
+        if len(msgs) - i <= keep_recent or total <= budget:
+            break
+        m = msgs[i]
+        if m.get("role") == "tool":
+            c = str(m.get("content") or "")
+            if len(c) > 400:
+                total -= len(c) - 400
+                m["content"] = c[:300] + "\n…[已省略以节省上下文]"
+
+
+# ---------------------------------------------------------------- 会话持久化
+
+SESSION_FILE = os.path.join(AB_HOME, "last-session.json")
+
+
+def save_session(history):
+    try:
+        os.makedirs(AB_HOME, exist_ok=True)
+        with open(SESSION_FILE, "w", encoding="utf-8") as f:
+            json.dump({"saved": time.strftime("%Y-%m-%d %H:%M"),
+                       "history": history[-12:]}, f, ensure_ascii=False)
+    except OSError:
+        pass
+
+
+def load_session():
+    try:
+        with open(SESSION_FILE, "r", encoding="utf-8") as f:
+            return json.load(f).get("history") or []
+    except Exception:
+        return []
+
+
+def bench(cfg):
+    print("AgentBoot 性能基准")
+    t0 = time.perf_counter()
+    linux_help("端口占用")
+    cold = (time.perf_counter() - t0) * 1000.0
+    t0 = time.perf_counter()
+    linux_help("磁盘满了")
+    warm = (time.perf_counter() - t0) * 1000.0
+    print("知识库查询   : 冷 %.1f ms（含首载索引） · 热 %.1f ms" % (cold, warm))
+    t1 = _ttfb(cfg)
+    t2 = _ttfb(cfg)
+    if t1 and t2:
+        print("模型首字延迟 : 首次（含 TLS 握手）%.0f ms · 复用连接 %.0f ms" % (t1, t2))
+        if t1 > t2:
+            print("连接复用收益 : 每轮省约 %.0f ms" % (t1 - t2))
+    else:
+        print("模型首字延迟 : 测试失败（检查网络/模型源）")
 
 
 def test_provider(cfg, name=None):
@@ -311,7 +441,8 @@ def _kb_sections():
                 lines = part.splitlines()
                 title = lines[0].strip() if lines else fn
                 body = "\n".join(lines[1:]).strip()
-                sections.append({"file": fn, "title": title, "body": body})
+                tl, bl = title.lower(), (title + "\n" + body).lower()
+            sections.append({"file": fn, "title": title, "body": body, "title_l": tl, "body_l": bl})
     _KB_CACHE = sections
     return sections
 
@@ -328,8 +459,8 @@ def linux_help(query):
     grams = [(core[i:i + 2], 1) for i in range(max(0, len(core) - 1))]
     scored = []
     for sec in _kb_sections():
-        title = sec["title"].lower()
-        body = (sec["title"] + "\n" + sec["body"]).lower()
+        title = sec["title_l"]
+        body = sec["body_l"]
         score = 0
         for t, w in toks:
             if t in title:
@@ -483,6 +614,47 @@ def list_dir(path="."):
     return "\n".join(lines) or "（空目录）"
 
 
+def search_files(pattern, path=".", regex=False, max_results=40):
+    """跨平台文件内容/文件名搜索（Windows 上没有 grep 时的替代品）。"""
+    root = os.path.expanduser(path or ".")
+    if not os.path.isdir(root):
+        return "错误：目录不存在：%s" % root
+    try:
+        rx = re.compile(pattern) if regex else None
+    except re.error as e:
+        return "正则错误：%s" % e
+    low = pattern.lower()
+    skip = {".git", "node_modules", "__pycache__", ".venv", "venv", "dist", "build", ".agentboot"}
+    out = []
+    for base, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if d not in skip and not d.startswith(".")]
+        if len(out) >= max_results:
+            break
+        for fn in files:
+            if len(out) >= max_results:
+                break
+            fp = os.path.join(base, fn)
+            if rx and rx.search(fn):
+                out.append("[文件名] " + fp)
+                continue
+            try:
+                if os.path.getsize(fp) > 2 * 1024 * 1024:
+                    continue
+                with open(fp, "rb") as f:
+                    if b"\0" in f.read(1024):
+                        continue
+                with open(fp, "r", encoding="utf-8", errors="ignore") as f:
+                    for ln, line in enumerate(f, 1):
+                        hit = rx.search(line) if rx else low in line.lower()
+                        if hit:
+                            out.append("%s:%d: %s" % (fp, ln, line.strip()[:160]))
+                            if len(out) >= max_results:
+                                break
+            except OSError:
+                continue
+    return "\n".join(out) if out else "（无匹配）"
+
+
 def http_get(url):
     if not re.match(r"^https?://", url or ""):
         return "错误：仅支持 http/https 地址"
@@ -516,6 +688,8 @@ TOOLS = [
      "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "关键词，如：查看端口占用 / systemd 服务管理 / 磁盘满了"}}, "required": ["query"]}}},
     {"type": "function", "function": {"name": "http_get", "description": "抓取一个网页/接口的文本内容（上限300KB）。",
      "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
+    {"type": "function", "function": {"name": "search_files", "description": "在目录中搜索文件名或文件内容（跨平台，Windows 上替代 grep）。支持正则。",
+     "parameters": {"type": "object", "properties": {"pattern": {"type": "string", "description": "搜索关键词或正则"}, "path": {"type": "string", "description": "起始目录，默认当前目录"}, "regex": {"type": "boolean", "description": "是否按正则匹配，默认false"}}, "required": ["pattern"]}}},
 ]
 
 
@@ -550,6 +724,9 @@ def execute_tool(cfg, name, args, session_allow):
         return list_dir(args.get("path", ".")), False
     if name == "linux_help":
         return linux_help(args.get("query", "")), False
+    if name == "search_files":
+        return search_files(args.get("pattern", ""), args.get("path", "."),
+                            bool(args.get("regex"))), False
     if name == "http_get":
         return http_get(args.get("url", "")), False
     return "未知工具：%s" % name, False
@@ -596,11 +773,12 @@ def agent_loop(cfg, user_text, history=None, stream=True):
     session_allow = set()
     final = ""
     for _ in range(int(cfg.get("max_steps", 12))):
+        _shrink(msgs)   # 上下文预算控制：清理过老的大段工具输出
         cb = (lambda piece: (sys.stdout.write(piece), sys.stdout.flush())) if (stream and _is_interactive()) else None
         if cb:
             sys.stdout.write("\n")
             sys.stdout.flush()
-        content, tool_calls = chat(cfg, msgs, stream_cb=cb, tools=TOOLS)
+        content, tool_calls = chat_auto(cfg, msgs, stream_cb=cb, tools=TOOLS)
         if cb:
             sys.stdout.write("\n")
             sys.stdout.flush()
@@ -648,6 +826,8 @@ HELP_TEXT = """命令：
   /帮助 /help        显示本帮助
   /模型 /model       查看或切换模型（/model 可进入交互选择）
   /linux <关键词>    直接查离线 Linux 知识库
+  /继续              恢复上次会话的对话记忆
+  /bench             性能基准（知识库/首字延迟/连接复用）
   /清空 /clear       清空本轮对话历史
   /状态 /status      显示当前模型与配置
   /退出 /exit        退出
@@ -699,12 +879,17 @@ def show_status(cfg):
         p["name"], p.get("base_url"), p.get("model"), cfg.get("confirm"), CONFIG_PATH))
 
 
-def repl(cfg):
+def repl(cfg, resume=False):
     print(BANNER)
     p = get_provider(cfg)
     print("模型: %s @ %s（Agnes 官方免费预设，可用 /model 切换）" % (p.get("model"), p.get("base_url")))
     print(HELP_TEXT)
     history = []
+    if resume:
+        loaded = load_session()
+        if loaded:
+            history = loaded
+            print("↩ 已恢复上次会话（%d 条对话记忆，/继续 可随时恢复）" % len(history))
     while True:
         try:
             text = input("\n你 › ").strip()
@@ -715,7 +900,8 @@ def repl(cfg):
             continue
         low = text.lower()
         if low in ("/exit", "/quit", "/退出", "/q"):
-            print("再见！")
+            save_session(history)
+            print("再见！（会话已保存，下次 ab -c 可继续）")
             return
         if low in ("/help", "/帮助", "?"):
             print(HELP_TEXT)
@@ -729,6 +915,17 @@ def repl(cfg):
             q = text[6:].strip()
             print(linux_help(q) if q else "用法：/linux <关键词>")
             continue
+        if low in ("/继续", "/resume"):
+            loaded = load_session()
+            if loaded:
+                history = loaded
+                print("↩ 已恢复上次会话（%d 条）" % len(history))
+            else:
+                print("（没有已保存的会话）")
+            continue
+        if low in ("/bench", "/性能"):
+            bench(cfg)
+            continue
         if low in ("/clear", "/清空"):
             history = []
             print("已清空对话历史。")
@@ -738,6 +935,7 @@ def repl(cfg):
             continue
         try:
             _final, history = agent_loop(cfg, text, history)
+            save_session(history)
         except KeyboardInterrupt:
             print("\n（已中断本条任务）")
         except ApiError as e:
@@ -810,9 +1008,13 @@ def main():
         if final and not _is_interactive():
             print(final)
         return
+    if cmd == "bench":
+        bench(cfg)
+        return
     if cmd == "chat":
+        resume = "-c" in args or "--continue" in args
         if _is_interactive():
-            repl(cfg)
+            repl(cfg, resume=resume)
         else:
             text = sys.stdin.read().strip()
             if text:

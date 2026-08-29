@@ -41,6 +41,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 - **自定义 Agent（注册表之外）**：菜单向导或 `add-agent` 命令可添加任意 Agent（npm / pip / 安装脚本三种方式），存于用户目录 `~/.agentboot/custom-agents.json`，升级不丢失，与内置列表合并显示；
 - **自定义离线包构建**：菜单 `[7]` 或 `build-offline` 命令，自选目标平台与 Agent，按需生成瘦身离线包（例如只含 Pi 的 win-x64 包约 90MB，全量包 1.6GB）；
 - **Linux 助手**：`ab` 内置离线 Linux 知识库（9 大主题），可查用法、操作 Linux、修复常见问题；
+- **极致性能**：TLS 连接复用（实测每轮省约 440ms 首字延迟）、知识库预建索引（热查询 <1ms）、上下文预算自动瘦身、会话持久化、模型源故障自动切换、`/bench` 可随时复核性能；
 - **中国网络自适应**：自动探测并切换 npmmirror / Node 镜像 / 清华 PyPI / 多源下载容错 / 代理支持；
 - **一键离线安装**：离线包内置各平台 Node 运行时与 Agent 离线载荷，目标机**无需联网、无需解压软件**；
 - **跨平台**：Linux / macOS / Windows 同一套体验。
