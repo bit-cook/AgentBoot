@@ -117,10 +117,22 @@ PYEOF
         else
             err "载荷安装失败：$AID@$PLAT（继续其他载荷）"
         fi
+        # hermes 特殊：完整运行时（uv 预置 + postinstall）+ PACK_ROOT 标记
+        if [ "$AID" = "hermes" ] && [ -d "$PREFIX/node_modules/hermes-agent" ]; then
+            python3 "$ROOT/scripts/tools/seed_uv_generic.py" "$PREFIX/node_modules/hermes-agent"
+            GIT_CONFIG_COUNT=1 \
+            GIT_CONFIG_KEY_0="url.https://gh-proxy.com/https://github.com/.insteadOf" \
+            GIT_CONFIG_VALUE_0="https://github.com/" \
+            UV_PYTHON_INSTALL_MIRROR="https://ghfast.top/https://github.com/astral-sh/python-build-standalone/releases/download" \
+            UV_HTTP_TIMEOUT=300 \
+                node "$PREFIX/node_modules/hermes-agent/scripts/postinstall.js"
+            printf '%s' "$PREFIX/node_modules/hermes-agent" > "$PREFIX/PACK_ROOT.txt"
+            ok "hermes 完整运行时就绪 [$PLAT]"
+        fi
     done
 done
 
-# ---------- 4. 内置 Python（Windows 便携版） ----------
+# ---------- 4. 内置 Python（Windows 便携版）+ CoCo 离线载荷 ----------
 step '内置 Python（win-embed）…'
 mkdir -p "$STAGE/payloads/python"
 [ -f "$STAGE/payloads/python/win-embed.zip" ] || \
@@ -129,6 +141,27 @@ mkdir -p "$STAGE/payloads/python"
     || curl -fL -o "$STAGE/payloads/python/win-embed.zip" \
         "https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip"
 ok 'win-embed.zip 就绪'
+
+# CoCo（script 类）离线载荷：发行包 + sha256 + Agnes 密钥 + Node 22.23 运行时
+case " $WANT " in *" coco "*)
+    COCO_VER="0.8.0"
+    for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
+        [ "$PLAT" = "win-x64" ] && continue
+        CDIR="$STAGE/payloads/agents/coco/$PLAT"
+        mkdir -p "$CDIR"
+        for U in \
+            "https://github.com/bit-cook/coco/releases/download/v$COCO_VER/coco-$COCO_VER.tgz" \
+            "https://github.com/bit-cook/coco/releases/download/v$COCO_VER/coco-$COCO_VER.tgz.sha256" \
+            "https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
+        do
+            F="$CDIR/$(basename "$U")"
+            [ -f "$F" ] || curl -fL -o "$F" "https://gh-proxy.com/$U" || curl -fL -o "$F" "https://ghfast.top/$U" || err "CoCo 载荷下载失败：$(basename "$U")"
+        done
+        if [ "$PLAT" = "linux-x64" ]; then NF="node-v22.23.2-linux-x64.tar.gz"; else NF="node-v22.23.2-darwin-arm64.tar.gz"; fi
+        [ -f "$CDIR/$NF" ] || curl -fL -o "$CDIR/$NF" "https://registry.npmmirror.com/-/binary/node/v22.23.2/$NF"
+        ok "CoCo 离线载荷 [$PLAT] 就绪"
+    done
+;; esac
 
 # ---------- 5. 离线安装脚本 + 清单 ----------
 cp "$ROOT/scripts/install-offline.sh" "$STAGE/"

@@ -607,6 +607,159 @@ def install_hermes_special(a):
 
 # ---------------------------------------------------------------- 离线安装
 
+def fixup_hermes_venv(payload_plat_dir, dst_nm):
+    """hermes 离线载荷：三变体路径替换（原始/JSON 转义/正斜杠）+ 生成直调入口 runpy。
+
+    载荷在打包机完成 postinstall（含 venv），但 venv 的 .exe 启动器内嵌打包机绝对路径
+    无法搬移，因此安装后改写 pyvenv.cfg / editable finder / 状态文件的路径，
+    并用 venv python 直调 hermes_cli.main 的 runpy 绕过 .exe 启动器。
+    """
+    marker = os.path.join(payload_plat_dir, "PACK_ROOT.txt")
+    if not os.path.exists(marker):
+        log_err("hermes 载荷缺少 PACK_ROOT.txt（旧版载荷），跳过 venv 路径修复")
+        return
+    old_root = open(marker, "r", encoding="utf-8").read().strip().rstrip("\\/")
+    new_root = os.path.join(dst_nm, "hermes-agent")
+    old_variants = [old_root, old_root.replace("\\", "\\\\"), old_root.replace("\\", "/")]
+    new_variants = [new_root, new_root.replace("\\", "\\\\"), new_root.replace("\\", "/")]
+    text_ext = {".json", ".cfg", ".txt", ".cmd", ".sh", ".ps1", ".py", ".js", ".mjs", ".cjs",
+                ".ini", ".toml", ".yaml", ".yml", ".md", ".bat", ".nu", ""}
+    names = {"activate", "activate.bat", "activate.csh", "activate.fish", "activate.nu"}
+    fixed = 0
+    for base, _dirs, files in os.walk(dst_nm):
+        for fn in files:
+            p = os.path.join(base, fn)
+            ext = os.path.splitext(fn)[1].lower()
+            if ext not in text_ext and fn not in names:
+                continue
+            try:
+                if os.path.getsize(p) > 3 * 1024 * 1024:
+                    continue
+                t = open(p, encoding="utf-8", errors="ignore").read()
+            except OSError:
+                continue
+            if not any(v in t for v in old_variants):
+                continue
+            for v, nv in zip(old_variants, new_variants):
+                t = t.replace(v, nv)
+            with open(p, "w", encoding="utf-8", newline="") as f:
+                f.write(t)
+            fixed += 1
+    log_ok("hermes 离线路径修复：%d 个文件" % fixed)
+
+    # 直调入口 runpy（绕过内嵌绝对路径的 .exe 启动器）
+    runpy = os.path.join(AGENTS_DIR, "hermes", "hermes-run.py")
+    with open(runpy, "w", encoding="utf-8", newline="\n") as f:
+        f.write("import sys\nfrom hermes_cli.main import main\nsys.exit(main())\n")
+
+
+def coco_offline_install(a, payload):
+    """CoCo 离线安装（Linux/macOS）：本地复刻官方安装步骤，不联网。"""
+    import hashlib
+    import tarfile
+    tgz = os.path.join(payload, "coco-0.8.0.tgz")
+    side = tgz + ".sha256"
+    key_file = os.path.join(payload, "agnes.key")
+    if not (os.path.exists(tgz) and os.path.exists(side) and os.path.exists(key_file)):
+        log_err("CoCo 离线载荷不完整（缺 coco-0.8.0.tgz / .sha256 / agnes.key）")
+        return False
+    expected = open(side, "r", encoding="utf-8").read().split()[0].lower()
+    h = hashlib.sha256(open(tgz, "rb").read()).hexdigest()
+    if h != expected:
+        log_err("CoCo 发行包 SHA-256 校验失败")
+        return False
+    log_ok("CoCo 发行包校验通过")
+
+    home = os.path.expanduser("~")
+    install_dir = os.path.join(home, ".coco")
+    bin_dir = os.path.join(AB_HOME, "bin")
+    os.makedirs(bin_dir, exist_ok=True)
+
+    # Node：系统 >=22.19 优先，否则用载荷内置 Node 22.23.2
+    def _node_ok(p):
+        try:
+            out = subprocess.run([p, "--version"], capture_output=True, text=True, timeout=15)
+            major, minor = re.match(r"v?(\d+)\.(\d+)", out.stdout.strip()).groups()
+            return (int(major), int(minor)) >= (22, 19)
+        except Exception:
+            return False
+
+    node_bin = shutil.which("node")
+    if node_bin and _node_ok(node_bin):
+        log_ok("使用系统 Node")
+    else:
+        ntgz = next((os.path.join(payload, f) for f in os.listdir(payload)
+                     if f.startswith("node-v") and f.endswith(".tar.gz")), None)
+        if not ntgz:
+            log_err("系统 Node 过旧且载荷无内置 Node 运行时")
+            return False
+        runtime = os.path.join(install_dir, "runtime")
+        if os.path.isdir(runtime):
+            shutil.rmtree(runtime, ignore_errors=True)
+        os.makedirs(runtime, exist_ok=True)
+        with tarfile.open(ntgz, "r:gz") as t:
+            t.extractall(runtime, filter="tar")
+        inner = os.listdir(runtime)[0]
+        os.replace(os.path.join(runtime, inner), os.path.join(runtime, "node"))
+        node_bin = os.path.join(runtime, "node", "bin", "node")
+        os.chmod(node_bin, 0o755)
+        log_ok("使用载荷内置 Node：%s" % node_bin)
+
+    # 备份用户 agent 配置 → 换新发行包 → 还原配置
+    agent_dir = os.path.join(install_dir, "agent")
+    backup = agent_dir + ".agentboot-bak"
+    had_agent = os.path.isdir(agent_dir)
+    if had_agent:
+        shutil.move(agent_dir, backup)
+    if os.path.exists(install_dir):
+        shutil.rmtree(install_dir)
+    extract = install_dir + ".extract"
+    if os.path.isdir(extract):
+        shutil.rmtree(extract)
+    os.makedirs(extract, exist_ok=True)
+    with tarfile.open(tgz, "r:gz") as t:
+        t.extractall(extract, filter="tar")
+    os.replace(os.path.join(extract, "package"), install_dir)
+    shutil.rmtree(extract, ignore_errors=True)
+    if had_agent:
+        shutil.move(backup, agent_dir)
+    os.makedirs(os.path.join(agent_dir, "sessions"), exist_ok=True)
+    os.makedirs(os.path.join(agent_dir, "languages"), exist_ok=True)
+
+    # 写配置：models 骨架 + Agnes 密钥 + 默认设置
+    registry_path = os.path.join(install_dir, "resources", "provider-registry.v1.json")
+    providers = {}
+    if os.path.exists(registry_path):
+        reg = json.load(open(registry_path, "r", encoding="utf-8"))
+        for pid_, entry in (reg.get("providers") or {}).items():
+            providers[pid_] = {k: entry[k] for k in ("api", "authHeader", "baseUrl", "compat") if k in entry}
+            providers[pid_]["models"] = []
+    def _write_json(path, obj):
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False)
+        os.chmod(path, 0o600)
+    models_path = os.path.join(agent_dir, "models.json")
+    if not os.path.exists(models_path):
+        _write_json(models_path, {"providers": providers})
+    auth_path = os.path.join(agent_dir, "auth.json")
+    if not os.path.exists(auth_path):
+        agnes_key = open(key_file, "r", encoding="utf-8").read().strip()
+        _write_json(auth_path, {"agnes": {"type": "api_key", "key": agnes_key}})
+    settings_path = os.path.join(agent_dir, "settings.json")
+    if not os.path.exists(settings_path):
+        _write_json(settings_path, {"defaultProvider": "agnes", "defaultModel": "agnes-2.5-flash",
+                                    "defaultThinkingLevel": "max"})
+
+    # 命令 shim（AgentBoot 管理的 bin 目录，已在 PATH）
+    for name, arg in (("coco", ""), ("web", " web"), ("coweb", " web")):
+        shim = os.path.join(bin_dir, name)
+        with open(shim, "w", encoding="utf-8", newline="\n") as f:
+            f.write("#!/bin/sh\nexec \"%s\" \"%s\"%s \"$@\"\n" % (node_bin, os.path.join(install_dir, "bin", "coco"), arg))
+        os.chmod(shim, 0o755)
+    log_ok("%s 离线安装完成，命令：coco / web / coweb（预置 Agnes 免费模型）" % a["name"])
+    return True
+
+
 def find_payload_dir(explicit=None):
     cands = []
     if explicit:
@@ -669,6 +822,21 @@ def offline_install(ids, payload_dir=None):
             log_err("未知 Agent：%s" % aid)
             fail_list.append(aid)
             continue
+        if aid == "coco":
+            if not POSIX:
+                log_err("CoCo Agent 官方仅支持 Linux/macOS，Windows 无法离线安装")
+                fail_list.append(aid)
+                continue
+            plat_payload = os.path.join(pdir, "agents", "coco", pid)
+            if not os.path.isdir(plat_payload):
+                log_err("%s：离线包中没有 %s 平台的载荷" % (a["name"], pid))
+                fail_list.append(aid)
+                continue
+            if coco_offline_install(a, plat_payload):
+                ok_list.append(aid)
+            else:
+                fail_list.append(aid)
+            continue
         src = os.path.join(pdir, "agents", aid, pid, "node_modules")
         if not (a.get("method") == "npm" and os.path.isdir(src)):
             log_err("%s：离线包中没有 %s 平台的载荷（该 Agent 可能不适合离线安装）" % (a["name"], pid))
@@ -685,6 +853,8 @@ def offline_install(ids, payload_dir=None):
             shutil.rmtree(dst_nm, ignore_errors=True)
         log_info("部署 %s（约 %.1f MB）…" % (a["name"], dir_size_mb(src)))
         shutil.copytree(src, dst_nm)
+        if aid == "hermes":
+            fixup_hermes_venv(os.path.join(pdir, "agents", "hermes", pid), dst_nm)
         shim = write_shim(a)
         if shim:
             log_ok("%s 离线安装完成，命令：%s" % (a["name"], a["bin"]))
@@ -718,30 +888,37 @@ def write_shim(a):
             bin_dir = os.path.join(AB_HOME, "bin")
             os.makedirs(bin_dir, exist_ok=True)
             path = os.path.join(bin_dir, bin_)
+            if a.get("special_install") == "hermes":
+                venv_py = os.path.join(AGENTS_DIR, "hermes", "node_modules", "hermes-agent",
+                                       "runtime", "hermes-agent", "venv", "bin", "python")
+                runpy = os.path.join(AGENTS_DIR, "hermes", "hermes-run.py")
+                body = 'exec "%s" "%s" "$@"\n' % (venv_py, runpy)
+            else:
+                nd = runtime_node_dir()
+                body = ""
+                if os.path.isdir(nd):
+                    body += '[ -x "%s/bin/node" ] && export PATH="%s/bin:$PATH"\n' % (nd, nd)
+                body += 'export PATH="$AB_ROOT/agents/%s/node_modules/.bin:$PATH"\nexec "%s" "$@"\n' % (aid, bin_)
             with open(path, "w", encoding="utf-8", newline="\n") as f:
-                f.write(
-                    "#!/bin/sh\n"
-                    '# AgentBoot shim for %s\n'
-                    'AB_ROOT="$HOME/.agentboot"\n'
-                    'ND="$AB_ROOT/runtime/node-%s"\n'
-                    '[ -x "$ND/bin/node" ] && export PATH="$ND/bin:$PATH"\n'
-                    'export PATH="$AB_ROOT/agents/%s/node_modules/.bin:$PATH"\n'
-                    'exec "%s" "$@"\n' % (aid, plat_id(), aid, bin_)
-                )
+                f.write("#!/bin/sh\n# AgentBoot shim for %s\nAB_ROOT=\"$HOME/.agentboot\"\n%s" % (aid, body))
             os.chmod(path, 0o755)
         else:
             bin_dir = os.path.join(AB_HOME, "bin")
             os.makedirs(bin_dir, exist_ok=True)
             path = os.path.join(bin_dir, bin_ + ".cmd")
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(
-                    "@echo off\r\n"
-                    "rem AgentBoot shim for %s\r\n"
-                    'set "AB_ROOT=%%USERPROFILE%%\\.agentboot"\r\n'
-                    'if exist "%%AB_ROOT%%\\runtime\\node-win-x64\\node.exe" set "PATH=%%AB_ROOT%%\\runtime\\node-win-x64;%%PATH%%"\r\n'
-                    'set "PATH=%%AB_ROOT%%\\agents\\%s\\node_modules\\.bin;%%PATH%%"\r\n'
-                    '%s %%*\r\n' % (aid, aid, bin_)
-                )
+            if a.get("special_install") == "hermes":
+                venv_py = os.path.join(AGENTS_DIR, "hermes", "node_modules", "hermes-agent",
+                                       "runtime", "hermes-agent", "venv", "Scripts", "python.exe")
+                runpy = os.path.join(AGENTS_DIR, "hermes", "hermes-run.py")
+                body = '"%s" "%s" %%*\r\n' % (venv_py, runpy)
+            else:
+                body = ('if exist "%AB_ROOT%\\runtime\\node-win-x64\\node.exe" '
+                        'set "PATH=%AB_ROOT%\\runtime\\node-win-x64;%%PATH%%"\r\n'
+                        'set "PATH=%AB_ROOT%\\agents\\%s\\node_modules\\.bin;%%PATH%%"\r\n'
+                        '%s %%*\r\n' % (aid, bin_))
+            with open(path, "w", encoding="ascii", newline="") as f:
+                f.write("@echo off\r\nrem AgentBoot shim for %s\r\n"
+                        'set "AB_ROOT=%%USERPROFILE%%\\.agentboot"\r\n%s' % (aid, body))
         return True
     except Exception as e:
         log_err("写入 shim 失败：%s" % e)

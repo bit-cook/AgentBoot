@@ -34,8 +34,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 ## 特性
 
 - **极简极速**：核心仅两个 Python 文件 + 一个 JSON 注册表，零第三方依赖，启动亚秒级；
-- **菜单自选安装**（不是全家桶）：Claude Code、OpenAI Codex、Qwen Code、OpenCode、
-  CodeBuddy CLI（腾讯）、MiMo Code（小米）、Cline、Hermes Agent、OpenClaw、Pi（pi.dev）、Gemini CLI、iFlow CLI、Aider；
+- **菜单自选安装**（不是全家桶）：CoCo Agent（BitCook）、OpenCode、Hermes Agent、Cline、
+  CodeBuddy CLI（腾讯）、Pi（pi.dev）、Claude Code、OpenAI Codex、Qwen Code（阿里）、MiMo Code（小米）、OpenClaw、Gemini CLI、iFlow CLI、Aider；
 - **内置保底 Agent**：当其他 Agent 都装不上时，`ab` 一定能用 —— 默认 Agnes 免费模型，
   支持自定义任意 OpenAI 兼容接口与本地模型（Ollama / LM Studio）；
 - **自定义 Agent（注册表之外）**：菜单向导或 `add-agent` 命令可添加任意 Agent（npm / pip / 安装脚本三种方式），存于用户目录 `~/.agentboot/custom-agents.json`，升级不丢失，与内置列表合并显示；

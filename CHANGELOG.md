@@ -17,3 +17,4 @@
 - 新增 Agent：Hermes Agent（自我进化智能体，需 Git）、OpenClaw（多渠道个人 AI 网关）、Pi Coding Agent（pi.dev 同源 npm 包）、CoCo Agent（脚本安装，Linux/macOS）。
 - 新增自定义 Agent：菜单向导或 `add-agent` 命令可添加注册表之外的任意 Agent（存于用户目录，升级不丢）。
 - 注册表支持 `os` 平台限制与 `requires` 前置依赖检查；脚本类安装自动加镜像兜底。
+- v1.0.0 调整：CoCo Agent 置顶（vendor 更名 BitCook）；除 Aider（pip 生态）外全部 Agent 支持离线安装，离线载荷补齐 Hermes（含完整 Python 运行时）/ OpenClaw / Pi / Gemini CLI / iFlow CLI。

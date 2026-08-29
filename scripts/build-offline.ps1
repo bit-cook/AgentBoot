@@ -124,10 +124,26 @@ foreach ($a in $registry.agents) {
             Write-Err "载荷安装失败：$($a.id)@$plat（继续其他载荷）"
         } else { Write-Ok "$($a.id) [$plat] 完成" }
         $global:LASTEXITCODE = 0
+
+        # hermes 特殊：完整运行时（uv 预置 + postinstall），并写 PACK_ROOT 供离线安装时修复 venv 路径
+        if ($a.id -eq 'hermes' -and (Test-Path (Join-Path $prefix 'node_modules\hermes-agent'))) {
+            $pkg = Join-Path $prefix 'node_modules\hermes-agent'
+            & python (Join-Path $Root 'scripts\tools\seed_uv_generic.py') $pkg
+            $env:GIT_CONFIG_COUNT = '1'
+            $env:GIT_CONFIG_KEY_0 = 'url.https://gh-proxy.com/https://github.com/.insteadOf'
+            $env:GIT_CONFIG_VALUE_0 = 'https://github.com/'
+            $env:UV_PYTHON_INSTALL_MIRROR = 'https://ghfast.top/https://github.com/astral-sh/python-build-standalone/releases/download'
+            $env:UV_HTTP_TIMEOUT = '300'
+            & node (Join-Path $pkg 'scripts\postinstall.js')
+            [IO.File]::WriteAllText((Join-Path $prefix 'PACK_ROOT.txt'), $pkg)
+            $env:GIT_CONFIG_COUNT = $null; $env:GIT_CONFIG_KEY_0 = $null; $env:GIT_CONFIG_VALUE_0 = $null
+            Write-Ok "hermes 完整运行时就绪 [$plat]"
+        }
+        $global:LASTEXITCODE = 0
     }
 }
 
-# ---------- 4. 内置 Python（Windows 便携版） ----------
+# ---------- 4. 内置 Python（Windows 便携版）+ CoCo 离线载荷 ----------
 Write-Step '内置 Python（win-embed）…'
 $pyDir = Join-Path $Stage 'payloads\python'
 New-Item -ItemType Directory -Path $pyDir -Force | Out-Null
@@ -138,6 +154,36 @@ if (-not (Test-Path $pyZip)) {
     }
 }
 Write-Ok 'win-embed.zip 就绪'
+
+# CoCo（script 类）离线载荷：发行包 + sha256 + Agnes 密钥 + Node 22.23 运行时
+$wantCoco = ($want -contains 'coco')
+if ($wantCoco) {
+    $CocoVer = '0.8.0'
+    foreach ($plat in ($Platforms -split ',')) {
+        if ($plat -eq 'win-x64') { continue }   # CoCo 官方不支持 Windows
+        $cdir = Join-Path $Stage "payloads\agents\coco\$plat"
+        New-Item -ItemType Directory -Path $cdir -Force | Out-Null
+        $files = @(
+            @("https://gh-proxy.com/https://github.com/bit-cook/coco/releases/download/v$CocoVer/coco-$CocoVer.tgz", "coco-$CocoVer.tgz"),
+            @("https://gh-proxy.com/https://github.com/bit-cook/coco/releases/download/v$CocoVer/coco-$CocoVer.tgz.sha256", "coco-$CocoVer.tgz.sha256"),
+            @("https://gh-proxy.com/https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key", "agnes.key")
+        )
+        foreach ($f in $files) {
+            $dest = Join-Path $cdir $f[1]
+            if (-not (Test-Path $dest)) {
+                if (-not (Get-Url $f[0] $dest)) { Write-Err "CoCo 载荷下载失败：$($f[1])" }
+            }
+        }
+        if ($plat -eq 'linux-x64') { $nf = "node-v22.23.2-linux-x64.tar.gz" } else { $nf = "node-v22.23.2-darwin-arm64.tar.gz" }
+        $ndest = Join-Path $cdir $nf
+        if (-not (Test-Path $ndest)) {
+            if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/v22.23.2/$nf" $ndest)) {
+                Get-Url "https://nodejs.org/dist/v22.23.2/$nf" $ndest | Out-Null
+            }
+        }
+        Write-Ok "CoCo 离线载荷 [$plat] 就绪"
+    }
+}
 
 # ---------- 5. 离线安装脚本复制到包根目录 + 清单 ----------
 Copy-Item (Join-Path $Root 'scripts\install-offline.sh')  $Stage -Force

@@ -1,7 +1,84 @@
 {
-  "version": 1,
-  "updated": "2026-08-29",
+  "version": 2,
+  "updated": "2026-08-30",
   "agents": [
+    {
+      "id": "coco",
+      "name": "CoCo Agent",
+      "vendor": "BitCook",
+      "desc": "通用 AI 助手，终端起家 + CoCo Web（Linux/macOS，预置 Agnes）",
+      "bin": "coco",
+      "method": "script",
+      "script": "https://bit-cook.github.io/coco/install.sh",
+      "node": null,
+      "os": ["linux", "darwin"],
+      "offline": true,
+      "notes": ["官方安装脚本来自 github.com/bit-cook/coco（当前 v0.8.0）", "官方支持 Linux / macOS，Windows 无官方安装器", "离线安装由 AgentBoot 复刻官方安装步骤（载荷内置发行包 + Agnes 密钥 + Node 22.23 运行时）"]
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "vendor": "opencode.ai",
+      "desc": "开源终端 AI 编码 Agent（TUI）",
+      "bin": "opencode",
+      "method": "npm",
+      "npm": "opencode-ai",
+      "node": ">=18",
+      "offline": true,
+      "npm_install_flags": ["--ignore-scripts"],
+      "script": "https://opencode.ai/install",
+      "notes": ["也可用官方脚本安装：curl -fsSL https://opencode.ai/install | bash"]
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes Agent",
+      "vendor": "Hermes",
+      "desc": "自我进化的自主 AI 智能体（从经验中形成技能）",
+      "bin": "hermes",
+      "method": "npm",
+      "npm": "hermes-agent",
+      "node": ">=20",
+      "requires": ["git"],
+      "special_install": "hermes",
+      "offline": true,
+      "notes": ["通过社区 npm 桥接包安装，国内网络由 AgentBoot 自动走镜像（uv 预置 + git/Python 镜像）", "需要本机已安装 Git（hermes 更新通道依赖）", "离线载荷为完整运行时（含 Python venv），安装时自动修复路径", "项目主页：https://github.com/wyrtensi/hermes-agent-npm"]
+    },
+    {
+      "id": "cline",
+      "name": "Cline CLI",
+      "vendor": "Cline",
+      "desc": "自主编码 Agent 命令行版（读写文件/跑命令/浏览器）",
+      "bin": "cline",
+      "method": "npm",
+      "npm": "cline",
+      "node": ">=18",
+      "offline": true,
+      "notes": ["VS Code 插件版用户请继续使用插件市场"]
+    },
+    {
+      "id": "codebuddy",
+      "name": "CodeBuddy CLI",
+      "vendor": "Tencent",
+      "desc": "腾讯 CodeBuddy 终端 AI 编程助手",
+      "bin": "codebuddy",
+      "method": "npm",
+      "npm": "@tencent-ai/codebuddy-code",
+      "node": ">=18",
+      "offline": true,
+      "notes": ["首次使用需登录腾讯云/CodeBuddy 账号"]
+    },
+    {
+      "id": "pi",
+      "name": "Pi Coding Agent",
+      "vendor": "Earendil Works",
+      "desc": "极简编码 Agent CLI（pi.dev，read/bash/edit/write 工具集）",
+      "bin": "pi",
+      "method": "npm",
+      "npm": "@earendil-works/pi-coding-agent",
+      "node": ">=22",
+      "offline": true,
+      "notes": ["与 pi.dev 官方安装器同源的 npm 包", "文档：https://pi.dev"]
+    },
     {
       "id": "claude-code",
       "name": "Claude Code",
@@ -39,32 +116,6 @@
       "notes": ["支持 Qwen OAuth 免费额度或 DASHSCOPE_API_KEY"]
     },
     {
-      "id": "opencode",
-      "name": "OpenCode",
-      "vendor": "opencode.ai",
-      "desc": "开源终端 AI 编码 Agent（TUI）",
-      "bin": "opencode",
-      "method": "npm",
-      "npm": "opencode-ai",
-      "node": ">=18",
-      "offline": true,
-      "script": "https://opencode.ai/install",
-      "npm_install_flags": ["--ignore-scripts"],
-      "notes": ["也可用官方脚本安装：curl -fsSL https://opencode.ai/install | bash"]
-    },
-    {
-      "id": "codebuddy",
-      "name": "CodeBuddy CLI",
-      "vendor": "Tencent",
-      "desc": "腾讯 CodeBuddy 终端 AI 编程助手",
-      "bin": "codebuddy",
-      "method": "npm",
-      "npm": "@tencent-ai/codebuddy-code",
-      "node": ">=18",
-      "offline": true,
-      "notes": ["首次使用需登录腾讯云/CodeBuddy 账号"]
-    },
-    {
       "id": "mimo",
       "name": "MiMo Code",
       "vendor": "Xiaomi",
@@ -77,32 +128,6 @@
       "notes": ["支持小米账号登录与 MiMo V2.5 免费额度"]
     },
     {
-      "id": "cline",
-      "name": "Cline CLI",
-      "vendor": "Cline",
-      "desc": "自主编码 Agent 命令行版（读写文件/跑命令/浏览器）",
-      "bin": "cline",
-      "method": "npm",
-      "npm": "cline",
-      "node": ">=18",
-      "offline": true,
-      "notes": ["VS Code 插件版用户请继续使用插件市场"]
-    },
-    {
-      "id": "hermes",
-      "name": "Hermes Agent",
-      "vendor": "Hermes",
-      "desc": "自我进化的自主 AI 智能体（从经验中形成技能）",
-      "bin": "hermes",
-      "method": "npm",
-      "npm": "hermes-agent",
-      "node": ">=20",
-      "requires": ["git"],
-      "special_install": "hermes",
-      "offline": false,
-      "notes": ["通过社区 npm 桥接包安装，国内网络由 AgentBoot 自动走镜像（uv 预置 + git/Python 镜像）", "需要本机已安装 Git（hermes 更新通道依赖）", "项目主页：https://github.com/wyrtensi/hermes-agent-npm"]
-    },
-    {
       "id": "openclaw",
       "name": "OpenClaw",
       "vendor": "OpenClaw",
@@ -111,33 +136,8 @@
       "method": "npm",
       "npm": "openclaw",
       "node": ">=22",
-      "offline": false,
+      "offline": true,
       "notes": ["需要较新 Node（22.22+ 或 24+），旧版 Node 仅警告仍可尝试", "文档：https://docs.openclaw.ai"]
-    },
-    {
-      "id": "pi",
-      "name": "Pi Coding Agent",
-      "vendor": "Earendil Works",
-      "desc": "极简编码 Agent CLI（pi.dev，read/bash/edit/write 工具集）",
-      "bin": "pi",
-      "method": "npm",
-      "npm": "@earendil-works/pi-coding-agent",
-      "node": ">=22",
-      "offline": false,
-      "notes": ["与 pi.dev 官方安装器同源的 npm 包", "文档：https://pi.dev"]
-    },
-    {
-      "id": "coco",
-      "name": "CoCo Agent",
-      "vendor": "bit-cook",
-      "desc": "通用 AI 助手，终端起家 + CoCo Web（Linux/macOS）",
-      "bin": "coco",
-      "method": "script",
-      "script": "https://bit-cook.github.io/coco/install.sh",
-      "node": null,
-      "os": ["linux", "darwin"],
-      "offline": false,
-      "notes": ["官方安装脚本来自 github.com/bit-cook/coco（当前 v0.8.0）", "官方支持 Linux / macOS，Windows 无官方安装器"]
     },
     {
       "id": "gemini-cli",
@@ -148,7 +148,7 @@
       "method": "npm",
       "npm": "@google/gemini-cli",
       "node": ">=20",
-      "offline": false,
+      "offline": true,
       "notes": ["个人 Google 账号有免费额度"]
     },
     {
@@ -160,20 +160,20 @@
       "method": "npm",
       "npm": "@iflow-ai/iflow-cli",
       "node": ">=20",
-      "offline": false,
+      "offline": true,
       "notes": ["国内网络环境下通常无需代理"]
     },
     {
       "id": "aider",
       "name": "Aider",
       "vendor": "Aider AI",
-      "desc": "经典 AI 结对编程 CLI（Python）",
+      "desc": "经典 AI 结对编程 CLI（Python/pip 生态，暂不支持离线）",
       "bin": "aider",
       "method": "pip",
       "pip": "aider-install",
       "node": null,
       "offline": false,
-      "notes": ["通过 aider-install 安装，需要本机 Python 3.8+"]
+      "notes": ["通过 aider-install 安装，需要本机 Python 3.8+", "pip 包的离线分发需要按平台打包 wheel，暂未支持"]
     }
   ]
 }
