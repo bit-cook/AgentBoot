@@ -253,6 +253,8 @@ def prefix_bin_dirs():
         ap = os.environ.get("APPDATA")
         if ap:
             dirs.append(os.path.join(ap, "npm"))
+        if os.path.isdir(runtime_node_dir()):
+            dirs.append(runtime_node_dir())
     return [d for d in dirs if os.path.isdir(d)]
 
 
@@ -328,6 +330,7 @@ def install_online(ids):
     print("\n汇总：成功 %s · 失败 %s" % (ok_list or "无", fail_list or "无"))
     if not POSIX:
         print("提示：新安装的命令需要重新打开终端窗口才会进入 PATH。")
+    ensure_path_registered()
     return fail_list
 
 
