@@ -1,0 +1,10 @@
+# 行尾规范：shell 脚本与源码一律 LF，Windows 批处理一律 CRLF
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.zip binary
+*.gz binary
+*.xz binary
+*.exe binary

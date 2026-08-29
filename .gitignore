@@ -1,0 +1,13 @@
+# 运行时与构建产物
+dist/
+payloads/
+*.tar.gz
+*.tar.xz
+*.zip
+!/.github/**/*.zip
+__pycache__/
+*.pyc
+.agentboot/
+node_modules/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,191 @@
+﻿# =============================================================
+#  AgentBoot 离线安装包构建脚本（Windows 构建机）
+#  产物（dist/）：
+#    AgentBoot-offline-vX.Y.Z.tar.gz / .zip   —— 全平台离线包（含 payloads）
+#    AgentBoot-offline-vX.Y.Z-sfx.sh          —— POSIX 自解压安装器
+#  说明：
+#    - npm 不可用时自动下载便携 Node（npmmirror 镜像）
+#    - 跨平台载荷用 npm --os/--cpu 拉取对应二进制
+#  用法示例：
+#    powershell -File scripts\build-offline.ps1
+#    powershell -File scripts\build-offline.ps1 -Platforms linux-x64,win-x64 -Agents claude-code,codex
+# =============================================================
+param(
+    [string]$Tag = 'v1.0.0',
+    [string]$Platforms = 'linux-x64,win-x64,darwin-arm64',
+    [string]$Agents = '',
+    [string]$NodeVersion = 'v22.14.0'
+)
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
+
+$Root   = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$Dist   = Join-Path $Root 'dist'
+$Stage  = Join-Path $Dist "offline\AgentBoot"
+$Tar    = Join-Path $env:SystemRoot 'System32\tar.exe'
+
+function Write-Step($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
+function Write-Ok($m)   { Write-Host "OK $m" -ForegroundColor Green }
+function Write-Err($m)  { Write-Host "X  $m" -ForegroundColor Red }
+
+function Get-Url([string]$url, [string]$out) {
+    try {
+        $wc = New-Object Net.WebClient
+        $wc.Proxy = [Net.WebRequest]::GetSystemWebProxy()
+        $wc.Proxy.Credentials = [Net.CredentialCache]::DefaultCredentials
+        $wc.Headers.Add('User-Agent', 'AgentBoot/1.0')
+        $wc.DownloadFile($url, $out); return $true
+    } catch {
+        try { Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 120 | Out-Null; return $true }
+        catch { return $false }
+    }
+}
+
+# 平台映射：node 包名 / npm os / npm cpu
+$Map = @{
+    'linux-x64'    = @{ file = "node-$NodeVersion-linux-x64.tar.gz";   os = 'linux';  cpu = 'x64' }
+    'linux-arm64'  = @{ file = "node-$NodeVersion-linux-arm64.tar.gz"; os = 'linux';  cpu = 'arm64' }
+    'darwin-x64'   = @{ file = "node-$NodeVersion-darwin-x64.tar.gz";  os = 'darwin'; cpu = 'x64' }
+    'darwin-arm64' = @{ file = "node-$NodeVersion-darwin-arm64.tar.gz"; os = 'darwin'; cpu = 'arm64' }
+    'win-x64'      = @{ file = "node-$NodeVersion-win-x64.zip";        os = 'win32';  cpu = 'x64' }
+}
+
+Write-Step "AgentBoot 离线包构建 $Tag · 平台：$Platforms"
+
+# ---------- 0. 确保 npm 可用 ----------
+$npm = (Get-Command npm -ErrorAction SilentlyContinue).Source
+if (-not $npm) {
+    Write-Step 'npm 不可用，下载便携 Node …'
+    $ndir = Join-Path $Dist 'build-node'
+    $nzip = Join-Path $Dist 'node-portable.zip'
+    New-Item -ItemType Directory -Path $ndir -Force | Out-Null
+    $nfile = "node-$NodeVersion-win-x64.zip"
+    if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/$NodeVersion/$nfile" $nzip)) {
+        Get-Url "https://nodejs.org/dist/$NodeVersion/$nfile" $nzip | Out-Null
+    }
+    & $Tar -xf $nzip -C $ndir
+    Remove-Item $nzip -Force
+    $inner = Get-ChildItem $ndir | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+    $env:Path = "$($inner.FullName);$env:Path"
+    $npm = Join-Path $inner.FullName 'npm.cmd'
+}
+Write-Ok "npm：$npm"
+
+# ---------- 1. 复制项目到暂存区 ----------
+Write-Step '复制项目文件 …'
+if (Test-Path $Stage) { Remove-Item $Stage -Recurse -Force }
+New-Item -ItemType Directory -Path $Stage -Force | Out-Null
+robocopy $Root $Stage /E /NFL /NDL /NJH /NJS /XD .git dist payloads node_modules __pycache__ .zcode /XF *.pyc | Out-Null
+if ($LASTEXITCODE -ge 8) { Write-Err "robocopy 失败（code=$LASTEXITCODE）"; exit 1 }
+$global:LASTEXITCODE = 0
+
+# ---------- 2. 下载各平台 Node 运行时 ----------
+New-Item -ItemType Directory -Path (Join-Path $Stage 'payloads\node') -Force | Out-Null
+foreach ($plat in $Platforms -split ',') {
+    $m = $Map[$plat.Trim()]
+    if (-not $m) { Write-Err "未知平台：$plat"; exit 1 }
+    Write-Step "Node 运行时 [$plat] …"
+    $arc = Join-Path $Dist $m.file
+    if (-not (Test-Path $arc)) {
+        if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/$NodeVersion/$($m.file)" $arc)) {
+            if (-not (Get-Url "https://nodejs.org/dist/$NodeVersion/$($m.file)" $arc)) {
+                Write-Err "下载失败：$($m.file)"; exit 1
+            }
+        }
+    }
+    $tmpEx = Join-Path $Dist ("extract-" + [guid]::NewGuid().ToString('N').Substring(0, 6))
+    New-Item -ItemType Directory -Path $tmpEx -Force | Out-Null
+    & $Tar -xf $arc -C $tmpEx
+    $inner = Get-ChildItem $tmpEx | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+    $dest = Join-Path $Stage "payloads\node\$plat"
+    if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
+    Move-Item $inner.FullName $dest
+    Remove-Item $tmpEx -Recurse -Force
+    Write-Ok "Node [$plat] 就绪"
+}
+
+# ---------- 3. 逐 Agent × 平台 安装离线载荷 ----------
+$registry = Get-Content (Join-Path $Root 'agents\registry.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$want = if ($Agents) { $Agents -split ',' } else { @($registry.agents | Where-Object { $_.offline } | ForEach-Object { $_.id }) }
+foreach ($a in $registry.agents) {
+    if ($want -notcontains $a.id -or $a.method -ne 'npm') { continue }
+    foreach ($plat in $Platforms -split ',') {
+        $m = $Map[$plat.Trim()]
+        $prefix = Join-Path $Stage "payloads\agents\$($a.id)\$plat"
+        New-Item -ItemType Directory -Path $prefix -Force | Out-Null
+        Write-Step "载荷 $($a.id) [$plat] ← $($a.npm)"
+        & $npm install --global-style --prefix $prefix --os $m.os --cpu $m.cpu `
+            $a.npm --registry https://registry.npmmirror.com --no-audit --no-fund --loglevel=error
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $prefix 'node_modules'))) {
+            Write-Err "载荷安装失败：$($a.id)@$plat（继续其他载荷）"
+        } else { Write-Ok "$($a.id) [$plat] 完成" }
+        $global:LASTEXITCODE = 0
+    }
+}
+
+# ---------- 4. 内置 Python（Windows 便携版） ----------
+Write-Step '内置 Python（win-embed）…'
+$pyDir = Join-Path $Stage 'payloads\python'
+New-Item -ItemType Directory -Path $pyDir -Force | Out-Null
+$pyZip = Join-Path $pyDir 'win-embed.zip'
+if (-not (Test-Path $pyZip)) {
+    if (-not (Get-Url 'https://mirrors.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip' $pyZip)) {
+        Get-Url 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip' $pyZip | Out-Null
+    }
+}
+Write-Ok 'win-embed.zip 就绪'
+
+# ---------- 5. 离线安装脚本复制到包根目录 + 清单 ----------
+Copy-Item (Join-Path $Root 'scripts\install-offline.sh')  $Stage -Force
+Copy-Item (Join-Path $Root 'scripts\install-offline.ps1') $Stage -Force
+$manifest = @()
+$manifest += "AgentBoot Offline Bundle"
+$manifest += "version   : $Tag"
+$manifest += "built     : $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+$manifest += "node      : $NodeVersion"
+$manifest += "platforms : $Platforms"
+$manifest += "agents    : $($want -join ', ')"
+$manifest += "python    : 3.12.10 embed (windows)"
+$manifest += ""
+$manifest += "用法见《安装指南.md》：解压后运行 install-offline.sh / install-offline.ps1"
+$manifest | Set-Content (Join-Path $Stage 'MANIFEST.txt') -Encoding UTF8
+
+# ---------- 6. 打包 ----------
+Write-Step '打包 tar.gz / zip …'
+$outGz  = Join-Path $Dist "AgentBoot-offline-$Tag.tar.gz"
+$outZip = Join-Path $Dist "AgentBoot-offline-$Tag.zip"
+if (Test-Path $outGz)  { Remove-Item $outGz -Force }
+if (Test-Path $outZip) { Remove-Item $outZip -Force }
+& $Tar -czf $outGz -C (Join-Path $Dist 'offline') AgentBoot
+& $Tar -a -cf $outZip -C (Join-Path $Dist 'offline') AgentBoot
+Write-Ok ("tar.gz：{0:N1} MB" -f ((Get-Item $outGz).Length / 1MB))
+Write-Ok ("zip   ：{0:N1} MB" -f ((Get-Item $outZip).Length / 1MB))
+
+# ---------- 7. POSIX 自解压安装器 ----------
+$pyB = (Get-Command python -ErrorAction SilentlyContinue).Source
+if ($pyB) {
+    Write-Step '生成自解压安装器（sfx.sh）…'
+    $sfx = Join-Path $Dist "AgentBoot-offline-$Tag-sfx.sh"
+    $header = @'
+#!/bin/sh
+# AgentBoot 离线自解压安装器：目标机器无需任何解压软件，直接运行
+#   sh AgentBoot-offline-vX.Y.Z-sfx.sh
+set -eu
+SKIP=$(awk '/^__AGENTBOOT_PAYLOAD_BELOW__$/{print NR+1; exit}' "$0")
+tmp="$(mktemp -d 2>/dev/null || echo /tmp/agentboot-sfx-$$)"
+mkdir -p "$tmp"
+echo "==> AgentBoot 离线自解压安装：解压中，请稍候 …"
+tail -n +"$SKIP" "$0" | { base64 -d 2>/dev/null || base64 -D 2>/dev/null || openssl base64 -d -A; } | tar -xzf - -C "$tmp"
+exec sh "$tmp/AgentBoot/install-offline.sh" "$@"
+__AGENTBOOT_PAYLOAD_BELOW__
+'@
+    [IO.File]::WriteAllText($sfx, ($header -replace "`r`n", "`n"), (New-Object System.Text.UTF8Encoding($false)))
+    & $pyB (Join-Path $Root 'scripts\tools\sfx_append.py') $outGz $sfx
+    Write-Ok ("sfx.sh：{0:N1} MB" -f ((Get-Item $sfx).Length / 1MB))
+} else {
+    Write-Err '本机无 python，跳过自解压包生成（可在 POSIX 上用 build-offline.sh 生成）'
+}
+
+Write-Step '构建完成'
+Get-ChildItem $Dist -File | ForEach-Object { Write-Host ("  {0}  {1:N1} MB" -f $_.Name, ($_.Length / 1MB)) }

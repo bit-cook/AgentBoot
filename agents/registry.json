@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "updated": "2026-08-29",
+  "agents": [
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "vendor": "Anthropic",
+      "desc": "Anthropic 官方终端 AI 编程助手",
+      "bin": "claude",
+      "method": "npm",
+      "npm": "@anthropic-ai/claude-code",
+      "node": ">=22",
+      "offline": true,
+      "notes": ["首次使用需登录 Claude 账号或配置 ANTHROPIC_API_KEY"]
+    },
+    {
+      "id": "codex",
+      "name": "OpenAI Codex CLI",
+      "vendor": "OpenAI",
+      "desc": "OpenAI 官方终端编码智能体",
+      "bin": "codex",
+      "method": "npm",
+      "npm": "@openai/codex",
+      "node": ">=16",
+      "offline": true,
+      "notes": ["注意：必须用带 @openai/ 作用域的包，npm 上的裸 codex 是无关项目", "首次使用需 ChatGPT 登录或 OPENAI_API_KEY"]
+    },
+    {
+      "id": "qwen-code",
+      "name": "Qwen Code",
+      "vendor": "Alibaba",
+      "desc": "阿里通义千问开源编码 Agent（Qwen3-Coder）",
+      "bin": "qwen",
+      "method": "npm",
+      "npm": "@qwen-code/qwen-code",
+      "node": ">=22",
+      "offline": true,
+      "notes": ["支持 Qwen OAuth 免费额度或 DASHSCOPE_API_KEY"]
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "vendor": "opencode.ai",
+      "desc": "开源终端 AI 编码 Agent（TUI）",
+      "bin": "opencode",
+      "method": "npm",
+      "npm": "opencode-ai",
+      "node": ">=18",
+      "offline": true,
+      "script": "https://opencode.ai/install",
+      "notes": ["也可用官方脚本安装：curl -fsSL https://opencode.ai/install | bash"]
+    },
+    {
+      "id": "codebuddy",
+      "name": "CodeBuddy CLI",
+      "vendor": "Tencent",
+      "desc": "腾讯 CodeBuddy 终端 AI 编程助手",
+      "bin": "codebuddy",
+      "method": "npm",
+      "npm": "@tencent-ai/codebuddy-code",
+      "node": ">=18",
+      "offline": true,
+      "notes": ["首次使用需登录腾讯云/CodeBuddy 账号"]
+    },
+    {
+      "id": "mimo",
+      "name": "MiMo Code",
+      "vendor": "Xiaomi",
+      "desc": "小米 MiMo 终端原生编码智能体",
+      "bin": "mimo",
+      "method": "npm",
+      "npm": "@mimo-ai/cli",
+      "node": ">=18",
+      "offline": true,
+      "notes": ["支持小米账号登录与 MiMo V2.5 免费额度"]
+    },
+    {
+      "id": "cline",
+      "name": "Cline CLI",
+      "vendor": "Cline",
+      "desc": "自主编码 Agent 命令行版（读写文件/跑命令/浏览器）",
+      "bin": "cline",
+      "method": "npm",
+      "npm": "cline",
+      "node": ">=18",
+      "offline": true,
+      "notes": ["VS Code 插件版用户请继续使用插件市场"]
+    },
+    {
+      "id": "gemini-cli",
+      "name": "Gemini CLI",
+      "vendor": "Google",
+      "desc": "Google Gemini 官方终端 Agent",
+      "bin": "gemini",
+      "method": "npm",
+      "npm": "@google/gemini-cli",
+      "node": ">=20",
+      "offline": false,
+      "notes": ["个人 Google 账号有免费额度"]
+    },
+    {
+      "id": "iflow-cli",
+      "name": "iFlow CLI",
+      "vendor": "iFlow 心流",
+      "desc": "心流 AI 终端 Agent（国内直连友好）",
+      "bin": "iflow",
+      "method": "npm",
+      "npm": "@iflow-ai/iflow-cli",
+      "node": ">=20",
+      "offline": false,
+      "notes": ["国内网络环境下通常无需代理"]
+    },
+    {
+      "id": "aider",
+      "name": "Aider",
+      "vendor": "Aider AI",
+      "desc": "经典 AI 结对编程 CLI（Python）",
+      "bin": "aider",
+      "method": "pip",
+      "pip": "aider-install",
+      "node": null,
+      "offline": false,
+      "notes": ["通过 aider-install 安装，需要本机 Python 3.8+"]
+    }
+  ]
+}
