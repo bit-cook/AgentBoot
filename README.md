@@ -19,6 +19,9 @@ AgentBoot 解决一个实际问题：**各种 AI Agent CLI 五花八门、安装
 # Linux / macOS：一键安装
 curl -fsSL https://boot.ide.pub/install.sh | sh
 
+# 备用入口（GitHub Pages）：
+curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh
+
 # Windows（PowerShell）：
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"
 ```

@@ -44,6 +44,7 @@ mkdir -p "$STAGE"
 dl_ok=""
 for url in \
     "${BOOT_BASE}/rel/${TARBALL}" \
+    "https://bit-cook.github.io/AgentBoot/${TARBALL}" \
     "${GH}/${TARBALL}" \
     "https://ghfast.top/${GH}/${TARBALL}" \
     "https://gh-proxy.com/${GH}/${TARBALL}"

@@ -101,7 +101,9 @@ function page() {
 
 <h2>一键在线安装</h2>
 <h3>Linux / macOS</h3>
-<pre>curl -fsSL https://boot.ide.pub/install.sh | sh</pre>
+<pre>curl -fsSL https://boot.ide.pub/install.sh | sh
+# 备用入口（GitHub Pages）：
+curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh</pre>
 <h3>Windows（PowerShell）</h3>
 <pre>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</pre>
 

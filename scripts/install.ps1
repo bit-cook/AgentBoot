@@ -64,6 +64,7 @@ New-Item -ItemType Directory -Path $tmp, (Join-Path $tmp 'src') -Force | Out-Nul
 $pkg  = Join-Path $tmp $ZipName
 $sources = @(
     "$BootBase/rel/$ZipName",
+    "https://bit-cook.github.io/AgentBoot/$ZipName",
     "$GH/$ZipName",
     "https://ghfast.top/$GH/$ZipName",
     "https://gh-proxy.com/$GH/$ZipName"

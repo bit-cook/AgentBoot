@@ -13,3 +13,4 @@
 - 中国网络自适应：自动探测并切换 npmmirror、Node 运行时镜像、pip 清华源、代理支持。
 - 一键在线安装（Linux/macOS/Windows）与一键离线安装（含自解压包）。
 - Cloudflare Worker 分发：`curl -fsSL https://boot.ide.pub/install.sh | sh`。
+- GitHub Pages 分发入口：`curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh`。
