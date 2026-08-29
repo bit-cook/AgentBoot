@@ -98,8 +98,9 @@
       "npm": "hermes-agent",
       "node": ">=20",
       "requires": ["git"],
+      "special_install": "hermes",
       "offline": false,
-      "notes": ["通过社区 npm 桥接包安装，postinstall 会自动拉取官方 Hermes Agent", "需要本机已安装 Git（hermes 更新通道依赖）", "项目主页：https://github.com/wyrtensi/hermes-agent-npm"]
+      "notes": ["通过社区 npm 桥接包安装，国内网络由 AgentBoot 自动走镜像（uv 预置 + git/Python 镜像）", "需要本机已安装 Git（hermes 更新通道依赖）", "项目主页：https://github.com/wyrtensi/hermes-agent-npm"]
     },
     {
       "id": "openclaw",

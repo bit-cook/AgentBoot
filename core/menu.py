@@ -305,7 +305,12 @@ def install_online(ids):
             continue
         method = a.get("method", "npm")
         ok = False
-        if method == "npm":
+        if a.get("special_install") == "hermes":
+            log_info("使用 hermes 专用安装流程（自动适配网络）")
+            ok = install_hermes_special(a)
+            if not ok:
+                log_err("专用流程失败：可检查 Git 是否安装、或配置代理后重试")
+        elif method == "npm":
             ok = npm_install(a["npm"])
         elif method == "script":
             ok = install_via_script(a)
@@ -357,6 +362,156 @@ def install_via_pip(a):
         cmd += ["-i", PIP_MIRROR]
     log_info("$ %s" % " ".join(cmd))
     return subprocess.run(cmd).returncode == 0
+
+
+# ---------------------------------------------------------------- hermes-agent 国内专用安装
+
+def _npm_global_root(env):
+    try:
+        r = subprocess.run([npm_cmd() or "npm", "root", "-g"], capture_output=True,
+                           text=True, timeout=60, env=env)
+        return r.stdout.strip()
+    except Exception:
+        return ""
+
+
+def _hermes_uv_meta(pkg_root):
+    """从已安装的 uv-installer.js 解析 UV_VERSION 与当前平台的 uv 资产名/sha256。"""
+    import re as _re
+    path = os.path.join(pkg_root, "lib", "uv-installer.js")
+    try:
+        text = open(path, "r", encoding="utf-8").read()
+    except OSError:
+        return None, None, None
+    m = _re.search(r'UV_VERSION\s*=\s*"([^"]+)"', text)
+    version = m.group(1) if m else None
+    if sys.platform == "win32":
+        target = "aarch64-pc-windows-msvc" if platform.machine().lower() in ("arm64", "aarch64") else "x86_64-pc-windows-msvc"
+        asset = "uv-%s.zip" % target
+        member = "uv.exe"
+    else:
+        target = ("aarch64-apple-darwin" if platform.machine().lower() in ("arm64", "aarch64")
+                  else "x86_64-apple-darwin") if sys.platform == "darwin" else (
+                  "aarch64-unknown-linux-gnu" if platform.machine().lower() in ("arm64", "aarch64")
+                  else "x86_64-unknown-linux-gnu")
+        asset = "uv-%s.tar.gz" % target
+        member = target + "/uv"
+    m = _re.search(r'"%s":\s*"([0-9a-f]{64})"' % _re.escape(asset), text)
+    sha = m.group(1) if m else None
+    return version, (asset, member), sha
+
+
+def _download_mirror(urls, dest):
+    import urllib.request
+    for u in urls:
+        try:
+            req = urllib.request.Request(u, headers={"User-Agent": "AgentBoot/1.0"})
+            with urllib.request.urlopen(req, timeout=90) as r, open(dest, "wb") as f:
+                while True:
+                    chunk = r.read(1 << 20)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+            return True
+        except Exception:
+            continue
+    return False
+
+
+def _seed_uv(pkg_root):
+    """预置 uv 二进制到 <pkg>/.uv_bin 并写入 marker，绕过 postinstall 的 GitHub 直连下载。"""
+    import tarfile
+    import zipfile
+    version, asset_info, sha = _hermes_uv_meta(pkg_root)
+    if not (version and asset_info and sha):
+        log_err("无法解析 hermes uv 安装参数（包结构变化？），回退官方流程")
+        return False
+    asset, member = asset_info
+    uv_dir = os.path.join(pkg_root, ".uv_bin")
+    exe = os.path.join(uv_dir, "uv.exe" if sys.platform == "win32" else "uv")
+    marker = os.path.join(uv_dir, "install.json")
+    if os.path.exists(marker) and os.path.exists(exe):
+        try:
+            m = json.load(open(marker, "r", encoding="utf-8"))
+            if m.get("version") == version and m.get("sha256") == sha:
+                return True  # 已预置
+        except Exception:
+            pass
+    base = "https://github.com/astral-sh/uv/releases/download/%s/%s" % (version, asset)
+    urls = [base]
+    for p in ("https://ghfast.top/", "https://gh-proxy.com/"):
+        urls.append(p + base)
+    os.makedirs(uv_dir, exist_ok=True)
+    archive = os.path.join(uv_dir, asset)
+    log_info("从镜像下载 uv %s …" % version)
+    if not _download_mirror(urls, archive):
+        log_err("uv 镜像下载失败")
+        return False
+    if asset.endswith(".zip"):
+        with zipfile.ZipFile(archive) as z:
+            data = z.read(member)
+    else:
+        with tarfile.open(archive, "r:gz") as t:
+            data = t.extractfile(member).read()
+    with open(exe, "wb") as f:
+        f.write(data)
+    if POSIX:
+        os.chmod(exe, 0o755)
+    with open(marker, "w", encoding="utf-8") as f:
+        json.dump({"version": version, "asset": asset, "sha256": sha}, f, indent=2)
+    try:
+        os.remove(archive)
+    except OSError:
+        pass
+    log_ok("uv 已就绪（%.1f MB，镜像预置）" % (len(data) / 1048576.0))
+    return True
+
+
+def _github_git_reachable():
+    """探测 github.com 的 git 端点是否可用（决定 hermes 安装是否启用镜像重写）。"""
+    try:
+        r = subprocess.run(["git", "ls-remote", "https://github.com/NousResearch/hermes-agent.git", "HEAD"],
+                           capture_output=True, timeout=30, env=child_env())
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def install_hermes_special(a):
+    """hermes-agent：分步安装（包体 → uv 预置 → postinstall，git/Python/PyPI 自动适配网络）。"""
+    # 1) 包体（跳过会直连 GitHub 的 postinstall）
+    cmd = [npm_cmd() or "npm", "install", "--ignore-scripts", "-g", a["npm"], "--no-audit", "--no-fund"]
+    if cn_mode():
+        cmd += ["--registry", NPM_MIRROR]
+    log_info("$ %s" % " ".join(cmd))
+    env = child_env()
+    if subprocess.run(cmd, env=env).returncode != 0:
+        return False
+    root = _npm_global_root(env)
+    pkg_root = os.path.join(root, "hermes-agent")
+    if not os.path.isdir(pkg_root):
+        log_err("未定位到 hermes-agent 包目录")
+        return False
+    # 2) 预置 uv（官方地址优先，镜像兜底）
+    if not _seed_uv(pkg_root):
+        return False
+    # 3) 执行官方 postinstall：git 不可达时启用镜像重写；Python/PyPI 镜像对全球用户同样可用
+    env = child_env()
+    if not _github_git_reachable():
+        log_info("github.com git 端点不可达：启用镜像重写")
+        env.update({
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "url.https://gh-proxy.com/https://github.com/.insteadOf",
+            "GIT_CONFIG_VALUE_0": "https://github.com/",
+        })
+    env.update({
+        "UV_PYTHON_INSTALL_MIRROR": "https://ghfast.top/https://github.com/astral-sh/python-build-standalone/releases/download",
+        "UV_HTTP_TIMEOUT": "180",
+    })
+    node = shutil.which("node") or node_exe()
+    script = os.path.join(pkg_root, "scripts", "postinstall.js")
+    r = subprocess.run([node, script], env=env)
+    return r.returncode == 0
 
 
 # ---------------------------------------------------------------- 离线安装
