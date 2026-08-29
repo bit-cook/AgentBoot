@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AgentBoot · 一键安装 AI Agent 启动器</title>
+<style>
+  body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+       max-width:820px;margin:40px auto;padding:0 20px;line-height:1.7;color:#222}
+  code,pre{background:#f4f4f5;border-radius:6px;font-size:14px}
+  pre{padding:14px;overflow-x:auto;border:1px solid #e4e4e7}
+  h1{border-bottom:2px solid #111;padding-bottom:8px}
+  .tip{background:#fffbeb;border:1px solid #fde68a;padding:10px 14px;border-radius:6px}
+  a{color:#0969da}
+</style>
+</head>
+<body>
+<h1>AgentBoot</h1>
+<p>极简 · 极速 · 开箱即用的 AI Agent 启动器（Linux / macOS / Windows）。内置最小 Agent（默认 Agnes 免费模型），可从菜单一键安装 Claude Code、Codex、Qwen Code、OpenCode、CodeBuddy、MiMo Code、Cline 等。</p>
+
+<h2>一键在线安装</h2>
+<h3>Linux / macOS</h3>
+<pre>curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh</pre>
+<h3>Windows（PowerShell）</h3>
+<pre>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://bit-cook.github.io/AgentBoot/install.ps1'))"</pre>
+
+<h2>安装后</h2>
+<pre>agentboot   # 控制台菜单（安装其他 Agent / 模型配置 / 镜像代理）
+ab          # 内置最小 Agent（默认 Agnes 免费模型，开箱即用）</pre>
+
+<p class="tip">本页为 GitHub Pages 分发入口。安装脚本内部会自动按顺序尝试多个下载源
+（Cloudflare boot.ide.pub → GitHub Pages → GitHub Releases → 国内加速镜像）；
+中国大陆网络建议优先使用 <a href="https://boot.ide.pub">boot.ide.pub</a>。
+<a href="https://github.com/bit-cook/AgentBoot">GitHub 仓库</a></p>
+</body>
+</html>
+<!-- rebuild trigger -->  
