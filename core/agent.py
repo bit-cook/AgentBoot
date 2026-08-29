@@ -16,6 +16,9 @@ import re
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import i18n  # noqa: E402
+
 VERSION = "1.0.0"
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
@@ -75,6 +78,7 @@ def default_config():
         "providers": {},
         "confirm": "smart",   # smart=危险命令需确认 / always=全部放行 / safe=只放行只读命令
         "max_steps": 12,
+        "lang": "zh",         # 界面语言：zh（默认）/ en
     }
 
 
@@ -312,7 +316,7 @@ def chat_auto(cfg, messages, stream_cb=None, **kw):
         except ApiError as e:
             last = e
             if i < len(order) - 1:
-                sys.stdout.write("  ⚠ 模型源 %s 失败，自动切换 %s …\n" % (name, order[i + 1]))
+                sys.stdout.write(i18n.t("agent.failover") % (name, order[i + 1]))
             continue
     raise last
 
@@ -389,22 +393,22 @@ def load_session():
 
 
 def bench(cfg):
-    print("AgentBoot 性能基准")
+    print(i18n.t("agent.bench_title"))
     t0 = time.perf_counter()
     linux_help("端口占用")
     cold = (time.perf_counter() - t0) * 1000.0
     t0 = time.perf_counter()
     linux_help("磁盘满了")
     warm = (time.perf_counter() - t0) * 1000.0
-    print("知识库查询   : 冷 %.1f ms（含首载索引） · 热 %.1f ms" % (cold, warm))
+    print(i18n.t("agent.bench_kb") % (cold, warm))
     t1 = _ttfb(cfg)
     t2 = _ttfb(cfg)
     if t1 and t2:
-        print("模型首字延迟 : 首次（含 TLS 握手）%.0f ms · 复用连接 %.0f ms" % (t1, t2))
+        print(i18n.t("agent.bench_ttfb") % (t1, t2))
         if t1 > t2:
-            print("连接复用收益 : 每轮省约 %.0f ms" % (t1 - t2))
+            print(i18n.t("agent.bench_gain") % (t1 - t2))
     else:
-        print("模型首字延迟 : 测试失败（检查网络/模型源）")
+        print(i18n.t("agent.bench_fail"))
 
 
 def test_provider(cfg, name=None):
@@ -530,6 +534,7 @@ def classify_cmd(cmd):
 
 
 def run_cmd(cmd, timeout=60):
+    import subprocess   # 惰性导入：保持启动极速
     timeout = min(max(int(timeout or 60), 5), 300)
     shell = ["cmd", "/c", cmd] if os.name == "nt" else ["/bin/sh", "-c", cmd]
     try:
@@ -825,7 +830,7 @@ BANNER = r"""
 
 HELP_TEXT = """命令：
   /帮助 /help        显示本帮助
-  /模型 /model       查看或切换模型（/model 可进入交互选择）
+  /模型 /model       模型提供商管理器（添加/切换/删除/故障切换）
   /linux <关键词>    直接查离线 Linux 知识库
   /继续              恢复上次会话的对话记忆
   /bench             性能基准（知识库/首字延迟/连接复用）
@@ -837,47 +842,65 @@ HELP_TEXT = """命令：
   nginx 起不来怎么排查？
 """
 
+HELP_EN = """Commands:
+  /help              Show this help
+  /model             Model provider manager (add / switch / remove / failover)
+  /linux <keywords>  Query offline Linux knowledge base
+  /resume            Restore last session memory
+  /bench             Performance benchmark (KB / TTFB / connection reuse)
+  /clear             Clear conversation history
+  /status            Show current model & config
+  /exit              Exit
+Type a question or task directly, e.g.:
+  check disk usage and suggest cleanup
+  why won't nginx start?
+"""
+
+
+def help_text():
+    return HELP_EN if i18n.get_lang() == "en" else HELP_TEXT
+
 
 def choose_model(cfg):
     """模型提供商管理器：列出/切换/添加/删除/故障切换/测速（ab 与菜单共用）。"""
     while True:
         names = list(PRESETS.keys()) + [n for n in (cfg.get("providers") or {}) if n not in PRESETS]
-        print("\n---- 模型提供商管理 ----")
+        print("\n" + i18n.t("agent.mm_title"))
         for i, n in enumerate(names, 1):
             p = get_provider(cfg, n)
-            mark = " ← 当前" if n == cfg.get("active") else ""
-            fb = " · 备用" if n in (cfg.get("fallback") or []) else ""
-            print("  [%d] %-12s %-28s (%s)%s%s" % (i, n, p.get("model", ""), p.get("base_url", ""), mark, fb))
-        print("  [s] 切换当前模型源   [a] 添加自定义提供商   [d] 删除自定义提供商")
-        print("  [f] 设置故障切换顺序 [t] 测试当前模型        [0] 完成")
-        c = input("选择: ").strip().lower()
-        if c in ("0", ""):
+            mark = i18n.t("agent.mm_current") if n == cfg.get("active") else ""
+            fb = i18n.t("agent.mm_fallback") if n in (cfg.get("fallback") or []) else ""
+            print("  [%d] %-12s %-30s (%s)%s%s" % (i, n, p.get("model", ""), p.get("base_url", ""), mark, fb))
+        print(i18n.t("agent.mm_menu"))
+        print(i18n.t("agent.mm_menu2"))
+        c = input(i18n.t("agent.mm_pick")).strip().lower()
+        if c in (i18n.t("agent.mm_done"), ""):
             return
         if c == "s":
-            k = input("切换到编号: ").strip()
+            k = input(i18n.t("agent.mm_switch_to")).strip()
             if k.isdigit() and 1 <= int(k) <= len(names):
                 cfg["active"] = names[int(k) - 1]
                 save_config(cfg)
                 p = get_provider(cfg)
-                print("✓ 当前模型源：%s（%s @ %s）" % (p["name"], p.get("model"), p.get("base_url")))
+                print(i18n.t("agent.mm_switched") % (p["name"], p.get("model"), p.get("base_url")))
         elif c == "a":
-            print("示例：Agnes=https://apihub.agnes-ai.com/v1 · Ollama=http://127.0.0.1:11434/v1 · LM Studio=http://127.0.0.1:1234/v1 · vLLM=http://1.2.3.4:8000/v1")
-            base = input("Base URL: ").strip()
-            key = input("API Key（可留空）: ").strip()
-            model = input("模型 ID: ").strip()
+            print(i18n.t("agent.mm_add_hint"))
+            base = input(i18n.t("agent.mm_base")).strip()
+            key = input(i18n.t("agent.mm_key")).strip()
+            model = input(i18n.t("agent.mm_model")).strip()
             if not base or not model:
-                print("✗ Base URL 与模型 ID 不能为空")
+                print(i18n.t("agent.mm_need_base_model"))
                 continue
-            pid = input("提供商名称（回车=custom）: ").strip() or "custom"
+            pid = input(i18n.t("agent.mm_pid")).strip() or "custom"
             pid = re.sub(r"[^a-z0-9_-]+", "-", pid.lower()).strip("-") or "custom"
             set_provider(cfg, pid, base, key, model)
-            print("✓ 已添加并切换到：%s（%s @ %s）" % (pid, model, base))
+            print(i18n.t("agent.mm_added") % (pid, model, base))
         elif c == "d":
             customs = [n for n in (cfg.get("providers") or {}) if n not in PRESETS]
             if not customs:
-                print("（没有可删除的自定义提供商）")
+                print(i18n.t("agent.mm_no_custom"))
                 continue
-            k = input("删除哪一个 %s: " % customs).strip()
+            k = input(i18n.t("agent.mm_del_which") % customs).strip()
             if k in customs:
                 (cfg.get("providers") or {}).pop(k)
                 if cfg.get("fallback") and k in cfg["fallback"]:
@@ -885,20 +908,20 @@ def choose_model(cfg):
                 if cfg.get("active") == k:
                     cfg["active"] = DEFAULT_ACTIVE
                 save_config(cfg)
-                print("✓ 已删除：%s" % k)
+                print(i18n.t("agent.mm_deleted") % k)
             else:
-                print("✗ 无效名称（只能删除自定义提供商）")
+                print(i18n.t("agent.mm_del_invalid"))
         elif c == "f":
-            print("主模型失败时按顺序自动切换。可用：%s" % ", ".join(names))
-            raw = input("备用顺序（逗号分隔，回车=清除）: ").strip()
-            fb = [t.strip() for t in raw.replace("，", ",").split(",") if t.strip() in names]
+            print(i18n.t("agent.mm_fb_hint") % ", ".join(names))
+            raw = input(i18n.t("agent.mm_fb_prompt")).strip()
+            fb = [x.strip() for x in raw.replace("，", ",").split(",") if x.strip() in names]
             cfg["fallback"] = fb
             save_config(cfg)
-            print("✓ 故障切换顺序：%s" % (fb or "无"))
+            print(i18n.t("agent.mm_fb_set") % (fb or i18n.t("agent.mm_fb_none")))
         elif c == "t":
-            print("⏳ 测试中 …")
+            print(i18n.t("agent.mm_testing"))
             ok, msg = test_provider(cfg)
-            print(("✓ 连通正常：%s" % msg) if ok else ("✗ 测试失败：%s" % msg))
+            print((i18n.t("agent.mm_test_ok") % msg) if ok else (i18n.t("agent.mm_test_fail") % msg))
 
 
 def show_status(cfg):
@@ -910,53 +933,53 @@ def show_status(cfg):
 def repl(cfg, resume=False):
     print(BANNER)
     p = get_provider(cfg)
-    print("模型: %s @ %s（Agnes 官方免费预设，可用 /model 切换）" % (p.get("model"), p.get("base_url")))
-    print(HELP_TEXT)
+    print(i18n.t("agent.banner_model") % (p.get("model"), p.get("base_url")))
+    print(help_text())
     history = []
     if resume:
         loaded = load_session()
         if loaded:
             history = loaded
-            print("↩ 已恢复上次会话（%d 条对话记忆，/继续 可随时恢复）" % len(history))
+            print(i18n.t("agent.banner_resume") % len(history))
     while True:
         try:
-            text = input("\n你 › ").strip()
+            text = input(i18n.t("agent.prompt")).strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n再见！")
+            print(i18n.t("agent.bye"))
             return
         if not text:
             continue
         low = text.lower()
         if low in ("/exit", "/quit", "/退出", "/q"):
             save_session(history)
-            print("再见！（会话已保存，下次 ab -c 可继续）")
+            print(i18n.t("agent.bye_saved"))
             return
         if low in ("/help", "/帮助", "?"):
-            print(HELP_TEXT)
+            print(help_text())
             continue
         if low in ("/model", "/模型"):
             choose_model(cfg)
             p = get_provider(cfg)
-            print("当前模型: %s @ %s" % (p.get("model"), p.get("base_url")))
+            print("model: %s @ %s" % (p.get("model"), p.get("base_url")))
             continue
         if low.startswith("/linux"):
             q = text[6:].strip()
-            print(linux_help(q) if q else "用法：/linux <关键词>")
+            print(linux_help(q) if q else "usage: /linux <keywords>")
             continue
         if low in ("/继续", "/resume"):
             loaded = load_session()
             if loaded:
                 history = loaded
-                print("↩ 已恢复上次会话（%d 条）" % len(history))
+                print(i18n.t("agent.resumed") % len(history))
             else:
-                print("（没有已保存的会话）")
+                print(i18n.t("agent.no_session"))
             continue
         if low in ("/bench", "/性能"):
             bench(cfg)
             continue
         if low in ("/clear", "/清空"):
             history = []
-            print("已清空对话历史。")
+            print(i18n.t("agent.cleared"))
             continue
         if low in ("/status", "/状态"):
             show_status(cfg)
@@ -965,11 +988,11 @@ def repl(cfg, resume=False):
             _final, history = agent_loop(cfg, text, history)
             save_session(history)
         except KeyboardInterrupt:
-            print("\n（已中断本条任务）")
+            print(i18n.t("agent.interrupted"))
         except ApiError as e:
             print("✗ %s" % e)
         except Exception as e:
-            print("✗ 出错：%s" % e)
+            print("✗ %s" % e)
 
 
 def doctor(cfg):
@@ -1004,9 +1027,17 @@ def doctor(cfg):
 def main():
     _utf8_console()
     cfg = load_config()
+    i18n.set_lang(os.environ.get("AGENTBOOT_LANG") or cfg.get("lang") or "zh")
     argv = sys.argv[1:]
     cmd = argv[0] if argv else "chat"
     args = argv[1:]
+    if cmd == "lang":
+        want = args[0] if args else "zh"
+        cfg["lang"] = "en" if want.lower().startswith("en") else "zh"
+        save_config(cfg)
+        i18n.set_lang(cfg["lang"])
+        print("Language: %s" % ("English" if cfg["lang"] == "en" else "中文（默认）"))
+        return
     if cmd in ("help", "--help", "-h"):
         print(__doc__)
         print("用法: ab [chat|run <任务>|model|doctor|linux <关键词>|version]")

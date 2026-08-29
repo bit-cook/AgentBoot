@@ -26,6 +26,9 @@ import platform
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import agent  # noqa: E402  复用配置与模型能力
+import i18n  # noqa: E402  双语支持
+
+t = i18n.t
 
 VERSION = "1.0.0"
 APP_DIR = agent.APP_DIR
@@ -372,18 +375,16 @@ def install_online(ids):
             log_err("未知 Agent：%s（用 2 号菜单查看可用列表）" % aid)
             fail_list.append(aid)
             continue
-        print("\n========== 安装 %s（%s）==========" % (a["name"], a.get("vendor", "")))
+        print("\n========== %s ==========" % t("menu.install_header") % (a["name"], a.get("vendor", "")))
         print("  %s" % a.get("desc", ""))
-        missing = [t for t in (a.get("requires") or []) if not shutil.which(t)]
+        missing = [x for x in (a.get("requires") or []) if not shutil.which(x)]
         if missing:
-            log_err("%s 需要前置依赖：%s。请先安装后重试（Windows 建议 https://git-scm.com，"
-                    "Linux 用系统包管理器安装 git）" % (a["name"], " + ".join(missing)))
+            log_err(t("menu.install_missing_dep") % (a["name"], " + ".join(missing)))
             fail_list.append(aid)
             continue
         os_limits = a.get("os") or []
         if os_limits and plat_id().split("-")[0] not in os_limits:
-            log_err("%s 官方仅支持 %s，当前平台 %s 不在其列"
-                    % (a["name"], "/".join(os_limits), plat_id()))
+            log_err(t("menu.install_os_limit") % (a["name"], "/".join(os_limits), plat_id()))
             fail_list.append(aid)
             continue
         method = a.get("method", "npm")
@@ -405,22 +406,22 @@ def install_online(ids):
                 env_extra, args_prefix = wire_agnes(a)
                 if env_extra or args_prefix:
                     write_online_shim(a, found, env_extra, args_prefix)
-                log_ok("%s 安装完成，命令：%s" % (a["name"], a["bin"]))
+                log_ok(t("menu.install_ok") % (a["name"], a["bin"]))
                 ok_list.append(aid)
             else:
-                log_err("%s 已执行安装，但未在 PATH 找到 %s，请重开终端后再试" % (a["name"], a["bin"]))
+                log_err(t("menu.install_ok_nobin") % (a["name"], a["bin"]))
                 fail_list.append(aid)
         elif ok:
-            log_ok("%s 安装完成" % a["name"])
+            log_ok(t("menu.install_done") % a["name"])
             ok_list.append(aid)
         else:
-            log_err("%s 安装失败（可尝试菜单[3]离线安装，或检查网络/代理）" % a["name"])
+            log_err(t("menu.install_fail") % a["name"])
             fail_list.append(aid)
         for note in a.get("notes", []) or []:
             print("  ℹ %s" % note)
-    print("\n汇总：成功 %s · 失败 %s" % (ok_list or "无", fail_list or "无"))
+    print("\n" + t("menu.install_summary") % (ok_list or "-", fail_list or "-"))
     if not POSIX:
-        print("提示：新安装的命令需要重新打开终端窗口才会进入 PATH。")
+        print(t("menu.install_hint_win"))
     ensure_path_registered()
     return fail_list
 
@@ -784,7 +785,7 @@ def offline_install(ids, payload_dir=None):
                 "或用 --payload 指定路径。")
         return [i for i in ids]
     pid = plat_id()
-    print("离线安装 · 平台 %s · 载荷目录 %s" % (pid, pdir))
+    print(t("menu.offline_header") % (pid, pdir))
 
     # 1) Node 运行时（系统没有 node 时启用内置运行时）
     have_node = bool(shutil.which("node")) and node_ok()
@@ -842,11 +843,11 @@ def offline_install(ids, payload_dir=None):
             continue
         src = os.path.join(pdir, "agents", aid, pid, "node_modules")
         if not (a.get("method") == "npm" and os.path.isdir(src)):
-            log_err("%s：离线包中没有 %s 平台的载荷（该 Agent 可能不适合离线安装）" % (a["name"], pid))
+            log_err(t("menu.offline_no_payload") % (a["name"], pid))
             fail_list.append(aid)
             continue
         if not have_node:
-            log_err("%s：缺少 Node 运行时，无法离线安装" % a["name"])
+            log_err(t("menu.offline_no_node") % a["name"])
             fail_list.append(aid)
             continue
         dst = os.path.join(AGENTS_DIR, aid)
@@ -854,7 +855,7 @@ def offline_install(ids, payload_dir=None):
         dst_nm = os.path.join(dst, "node_modules")
         if os.path.exists(dst_nm):
             shutil.rmtree(dst_nm, ignore_errors=True)
-        log_info("部署 %s（约 %.1f MB）…" % (a["name"], dir_size_mb(src)))
+        log_info(t("menu.offline_deploying") % (a["name"], dir_size_mb(src)))
         if POSIX:
             shutil.copytree(src, dst_nm)
         else:
@@ -870,15 +871,15 @@ def offline_install(ids, payload_dir=None):
         env_extra, args_prefix = wire_agnes(a)
         shim = write_shim(a, env_extra, args_prefix)
         if shim:
-            log_ok("%s 离线安装完成，命令：%s" % (a["name"], a["bin"]))
+            log_ok(t("menu.offline_ok") % (a["name"], a["bin"]))
             ok_list.append(aid)
         else:
             fail_list.append(aid)
         for note in a.get("notes", []) or []:
             print("  ℹ %s" % note)
     ensure_path_registered()
-    print("\n汇总：成功 %s · 失败 %s" % (ok_list or "无", fail_list or "无"))
-    print("提示：新命令需重新打开终端进入 PATH。")
+    print("\n" + t("menu.install_summary") % (ok_list or "-", fail_list or "-"))
+    print(t("menu.install_hint_win"))
     return fail_list
 
 
@@ -1053,13 +1054,13 @@ def write_env_scripts(url):
 
 def mirror_status():
     cn = cn_mode()
-    print("网络判定      : %s" % ("中国大陆网络（自动启用镜像）" if cn else "国际网络（官方源可达）"))
-    print("npm registry  : %s" % npm_current_registry())
-    print("npmmirror 可达: %s" % ("✓" if can_tcp("registry.npmmirror.com") else "✗"))
-    print("npmjs 可达    : %s" % ("✓" if can_tcp("registry.npmjs.org", 443, 1.5) else "✗"))
+    print(t("menu.mirror_net") % (t("menu.mirror_cn") if cn else t("menu.mirror_global")))
+    print(t("menu.mirror_npm") % npm_current_registry())
+    print(t("menu.mirror_npm_mirror") % ("✓" if can_tcp("registry.npmmirror.com") else "✗"))
+    print(t("menu.mirror_npmjs") % ("✓" if can_tcp("registry.npmjs.org", 443, 1.5) else "✗"))
     env = load_env_json()
-    print("HTTP 代理     : %s" % (env.get("proxy") or os.environ.get("HTTPS_PROXY") or "未设置"))
-    print("镜像开关      : AGENTBOOT_MIRROR=%s" % (os.environ.get("AGENTBOOT_MIRROR") or "自动"))
+    print(t("menu.mirror_proxy") % (env.get("proxy") or os.environ.get("HTTPS_PROXY") or "-"))
+    print(t("menu.mirror_switch") % (os.environ.get("AGENTBOOT_MIRROR") or "auto"))
 
 
 # ---------------------------------------------------------------- 环境体检
@@ -1096,15 +1097,16 @@ def doctor():
 
 def pick_agents(agents, title, allow_custom=False):
     print("\n%s" % title)
+    om, nm = t("menu.offline_mark"), t("menu.online_mark")
     for i, a in enumerate(agents, 1):
-        offline_mark = "可离线" if a.get("offline") else "仅在线"
+        offline_mark = om if a.get("offline") else nm
         mark = " ★" if a.get("custom") else ""
         print("  [%2d] %-16s %-24s (%s) %s%s" % (i, a["id"], a["name"], offline_mark, a.get("desc", ""), mark))
-    extra = "  [ a] 全选 npm 类 · [ 0] 返回"
+    extra = "  [ a] %s · [ 0] %s" % (t("menu.pick_all_a"), t("menu.pick_back"))
     if allow_custom:
-        extra += " · [ +] 添加自定义 Agent"
+        extra += t("menu.pick_custom")
     print(extra)
-    raw = input("输入编号（可多选，空格/逗号分隔）: ").strip().lower()
+    raw = input(t("menu.pick_prompt")).strip().lower()
     if not raw or raw == "0":
         return []
     if raw == "+":
@@ -1139,7 +1141,7 @@ BUILD_PLATFORMS = [
 
 def pick_platforms():
     """多选目标平台，返回平台 id 列表。空输入 = 常用三平台。"""
-    print("\n选择目标平台（可多选，空格/逗号分隔；回车 = 常用三平台）：")
+    print("\n" + t("menu.build_pick_platforms"))
     for i, (pid, desc) in enumerate(BUILD_PLATFORMS, 1):
         print("  [%d] %-14s %s" % (i, pid, desc))
     raw = input("平台编号: ").strip().lower()
@@ -1160,11 +1162,11 @@ def pick_platforms():
 def pick_offline_agents():
     """多选要打进离线包的 Agent（默认全选支持离线的）。返回 id 列表。"""
     capable = [a for a in load_registry() if a.get("method") == "npm" or a.get("id") == "coco"]
-    print("\n选择要打入离线包的 Agent（可多选；回车 = 全选）：")
+    print("\n" + t("menu.pick_offline_agents"))
     for i, a in enumerate(capable, 1):
         print("  [%2d] %-14s %-22s %s" % (i, a["id"], a["name"], a.get("desc", "")))
-    print("  （aider 为 pip 生态暂不支持离线，已自动排除）")
-    raw = input("Agent 编号: ").strip().lower()
+    print(t("menu.build_aider_hint"))
+    raw = input(t("menu.pick_prompt")).strip().lower()
     if raw == "a" or not raw:
         return [a["id"] for a in capable]
     ids = []
@@ -1179,10 +1181,10 @@ def pick_offline_agents():
 def build_offline_run(platforms, agents_ids):
     """调用 scripts/build-offline.* 构建自定义离线包（跨平台分发到对应脚本）。"""
     if not platforms or not agents_ids:
-        log_err("平台与 Agent 列表不能为空")
+        log_err(t("menu.build_empty"))
         return False
-    log_info("开始构建：平台=%s · Agent=%s" % (",".join(platforms), ",".join(agents_ids)))
-    print("（首次构建会自动下载便携 Node/Python 与各 Agent 依赖，耗时取决于网速，请耐心等待）\n")
+    log_info(t("menu.build_start") % (",".join(platforms), ",".join(agents_ids)))
+    print(t("menu.build_wait") + "\n")
     env = child_env()
     if POSIX:
         script = os.path.join(APP_DIR, "scripts", "build-offline.sh")
@@ -1197,7 +1199,7 @@ def build_offline_run(platforms, agents_ids):
     if ok:
         dist = os.path.join(APP_DIR, "dist")
         print("")
-        log_ok("构建完成，产物在 %s：" % dist)
+        log_ok(t("menu.build_done") % dist)
         try:
             for fn in sorted(os.listdir(dist)):
                 if fn.startswith("AgentBoot-offline-v1.0.0-"):
@@ -1207,7 +1209,7 @@ def build_offline_run(platforms, agents_ids):
         except OSError:
             pass
     else:
-        log_err("构建脚本退出码 %s" % r.returncode)
+        log_err(t("menu.build_fail") % r.returncode)
     return ok
 
 
@@ -1215,11 +1217,12 @@ def build_offline_wizard():
     platforms = pick_platforms()
     agents_ids = pick_offline_agents()
     if not agents_ids:
-        log_err("未选择任何 Agent")
+        log_err(t("menu.build_empty"))
         return
-    print("\n即将构建：平台 %s · Agent %s" % (", ".join(platforms), ", ".join(agents_ids)))
-    if input("确认开始? [Y/n] ").strip().lower() in ("n", "no"):
+    print("\n" + t("menu.build_plan") % (", ".join(platforms), ", ".join(agents_ids)))
+    if input(t("menu.build_confirm_yn")).strip().lower() in ("n", "no"):
         return
+    print(t("menu.build_wait"))
     build_offline_run(platforms, agents_ids)
 
 
@@ -1327,26 +1330,51 @@ def write_online_shim(a, found, env_extra, args_prefix=None):
 
 def menu_mirror():
     while True:
-        print("\n---- 镜像与代理 ----")
+        print("\n" + t("menu.mirror_title"))
         mirror_status()
-        print(" [1] 切换 npm 到 npmmirror 镜像（国内推荐）")
-        print(" [2] 恢复 npm 官方源")
-        print(" [3] 设置 HTTP 代理（npm + AgentBoot 下载共用）")
-        print(" [4] 清除代理")
-        print(" [0] 返回")
-        c = input("选择: ").strip()
+        print(" [1] " + t("menu.mirror_npm_to"))
+        print(" [2] " + t("menu.mirror_npm_off"))
+        print(" [3] " + t("menu.mirror_proxy_set"))
+        print(" [4] " + t("menu.mirror_proxy_clear"))
+        print(" [0] " + t("menu.pick_back"))
+        c = input(t("menu.pick")).strip()
         if c == "1":
             set_npm_registry(NPM_MIRROR)
         elif c == "2":
             set_npm_registry(NPM_OFFICIAL)
         elif c == "3":
-            url = input("代理地址（如 http://127.0.0.1:7890）: ").strip()
+            url = input(t("menu.proxy_addr")).strip()
             if url:
                 set_proxy(url)
         elif c == "4":
             set_proxy(None)
         else:
             return
+
+
+def resolve_lang():
+    """语言解析：环境变量 AGENTBOOT_LANG 优先，其次配置文件，默认中文。"""
+    lang = os.environ.get("AGENTBOOT_LANG") or agent.load_config().get("lang") or "zh"
+    i18n.set_lang(lang)
+
+
+def set_lang_persist(lang):
+    lang = "en" if str(lang or "").lower().startswith("en") else "zh"
+    i18n.set_lang(lang)
+    cfg = agent.load_config()
+    cfg["lang"] = lang
+    agent.save_config(cfg)
+    if lang == "en":
+        log_ok(i18n.t("menu.lang_saved_en"))
+    else:
+        log_ok(i18n.t("menu.lang_saved"))
+
+
+def lang_switch(cfg):
+    print(i18n.t("menu.lang_title"))
+    print(i18n.t("menu.lang_pick"))
+    c = input(i18n.t("menu.pick")).strip()
+    set_lang_persist("en" if c == "2" else "zh")
 
 
 def banner():
@@ -1356,59 +1384,67 @@ def banner():
   //_\\ / _` |/ _ \ '_ \| __/ _` |/ _` |/ _ \
  /  _  \ (_| |  __/ | | | || (_| | (_| |  __/
  \_/ \_/\__, |\___|_| |_|\__\__,_|\__,_|\___|
-        |___/   AgentBoot 控制台 v%s
+        |___/   AgentBoot Console v%s
 """ % VERSION)
-    print("极简 · 极速 · 开箱即用的 AI Agent 启动器（默认 Agnes 免费模型）\n")
+    print(i18n.t("menu.tagline") + "\n")
 
 
 def main_menu():
+    resolve_lang()
     cfg = agent.load_config()
     agents = load_registry()
     while True:
         banner()
-        print("  [1] 环境体检（推荐先跑一次）")
-        print("  [2] 在线安装 Agent（菜单多选）")
-        print("  [3] 离线安装 Agent（需离线安装包）")
-        print("  [4] 模型配置（Agnes 免费预设 / 自定义 / 本地模型）")
-        print("  [5] 镜像与代理设置（中国网络自适应）")
-        print("  [6] 启动内置 Agent（ab）")
-        print("  [7] 构建自定义离线安装包（选平台/选 Agent，瘦身）")
-        print("  [0] 退出")
-        c = input("\n选择: ").strip()
+        print("  [1] %s" % t("menu.m1"))
+        print("  [2] %s" % t("menu.m2"))
+        print("  [3] %s" % t("menu.m3"))
+        print("  [4] %s" % t("menu.m4"))
+        print("  [5] %s" % t("menu.m5"))
+        print("  [6] %s" % t("menu.m6"))
+        print("  [7] %s" % t("menu.m7"))
+        print("  [8] %s" % t("menu.m8"))
+        print("  [0] %s" % t("menu.bye"))
+        c = input("\n" + t("menu.pick")).strip()
         if c == "1":
             doctor()
-            input("\n回车返回 …")
+            input(t("menu.enter_back"))
         elif c == "2":
-            ids = pick_agents(agents, "---- 在线安装 Agent ----")
+            ids = pick_agents(agents, t("menu.pick2_title"), allow_custom=True)
             if ids:
                 install_online(ids)
-                input("\n回车返回 …")
+                input(t("menu.enter_back"))
         elif c == "3":
-            ids = pick_agents([a for a in agents if a.get("offline")], "---- 离线安装 Agent（仅列出支持离线的）----")
+            ids = pick_agents([a for a in agents if a.get("offline")], t("menu.pick3_title"))
             if ids:
                 offline_install(ids)
-                input("\n回车返回 …")
+                input(t("menu.enter_back"))
         elif c == "4":
             menu_model(cfg)
         elif c == "5":
             menu_mirror()
-            input("\n回车返回 …")
+            input(t("menu.enter_back"))
         elif c == "6":
             agent.repl(cfg)
         elif c == "7":
             build_offline_wizard()
+        elif c == "8":
+            lang_switch(cfg)
         elif c == "0":
-            print("再见！")
+            print(t("menu.bye"))
             return
 
 
 def main():
+    resolve_lang()
     agent._utf8_console()
     argv = sys.argv[1:]
     if not argv:
         main_menu()
         return
     cmd = argv[0]
+    if cmd == "lang":
+        set_lang_persist(argv[1] if len(argv) > 1 else "zh")
+        return
     if cmd == "doctor":
         doctor()
     elif cmd == "install":

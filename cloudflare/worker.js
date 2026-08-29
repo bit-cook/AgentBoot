@@ -43,7 +43,8 @@ export default {
         : `https://codeload.github.com/${REPO}/tar.gz/refs/heads/main`;
       return proxy(target, ext === "zip" ? "application/zip" : "application/x-gzip", 300);
     }
-    if (path === "/") return page();
+    if (path === "/") return page("zh");
+    if (path === "/en") return page("en");
 
     return text("AgentBoot Worker · 404 Not Found\n试：/install.sh 或 /rel/<release资产名>\n", 404);
   },
@@ -78,8 +79,7 @@ function json(obj, status = 200) {
   });
 }
 
-function page() {
-  const html = `<!doctype html>
+const PAGE_ZH = `<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -100,6 +100,7 @@ body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-se
      background:var(--bg);color:var(--fg);margin:0;line-height:1.75;}
 .wrap{max-width:980px;margin:0 auto;padding:0 22px}
 header{padding:64px 0 30px;border-bottom:1px solid var(--line)}
+.lang{font-size:14px;margin:0 0 10px;color:var(--muted)}
 h1{font-size:44px;margin:0 0 6px;letter-spacing:-.5px}
 h1 .g{background:linear-gradient(90deg,var(--brand),var(--brand2));
      -webkit-background-clip:text;background-clip:text;color:transparent}
@@ -149,6 +150,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
     <span>v1.0.0</span><span>Linux · macOS · Windows</span><span>界面中文</span>
     <span>14 个 Agent 自选</span><span>离线安装</span><span>中国镜像自适应</span><span>MIT</span>
   </div>
+  <p class="lang"><b>中文</b> | <a href="en/">English</a></p>
 </header>
 
 <h2>⚡ 一键安装</h2>
@@ -240,5 +242,171 @@ document.querySelectorAll('.copy').forEach(function(b){
 </script>
 </body>
 </html>`;
+
+const PAGE_EN = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AgentBoot · One-command AI Agent Launcher</title>
+<meta name="description" content="Minimal, fast, ready-to-run AI Agent launcher. One command to install, 14 mainstream agents to choose from, Agnes free model built in, full offline install, China-network adaptive.">
+<style>
+:root{
+  --bg:#fafafa;--fg:#18181b;--muted:#71717a;--card:#ffffff;--line:#e4e4e7;
+  --brand:#4f46e5;--brand2:#f97316;--code-bg:#18181b;--code-fg:#f4f4f5;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0f0f11;--fg:#f4f4f5;--muted:#a1a1aa;--card:#17171a;--line:#27272a;
+        --brand:#818cf8;--brand2:#fb923c;--code-bg:#000;--code-fg:#e4e4e7;}
+}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+     background:var(--bg);color:var(--fg);margin:0;line-height:1.75;}
+.wrap{max-width:980px;margin:0 auto;padding:0 22px}
+header{padding:64px 0 30px;border-bottom:1px solid var(--line)}
+.lang{font-size:14px;margin:0 0 10px;color:var(--muted)}
+h1{font-size:44px;margin:0 0 6px;letter-spacing:-.5px}
+h1 .g{background:linear-gradient(90deg,var(--brand),var(--brand2));
+     -webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{color:var(--muted);font-size:19px;margin:0 0 18px}
+.badges span{display:inline-block;background:var(--card);border:1px solid var(--line);
+  border-radius:99px;padding:2px 12px;font-size:13px;margin:0 6px 6px 0;color:var(--muted)}
+h2{font-size:26px;margin:54px 0 14px;padding-top:14px;border-top:1px solid var(--line)}
+h3{font-size:18px;margin:22px 0 8px}
+.cmd{position:relative;background:var(--code-bg);color:var(--code-fg);border-radius:10px;
+     padding:14px 16px;font-size:14.5px;overflow-x:auto;margin:10px 0 6px;font-family:ui-monospace,Consolas,monospace}
+.cmd .c{color:#7dd3fc}
+.copy{position:absolute;top:8px;right:8px;background:#3f3f46;color:#d4d4d8;border:0;
+      border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer}
+.copy:hover{background:#52525b}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin:18px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.card b{display:block;margin-bottom:6px;font-size:15.5px}
+.card p{margin:0;font-size:14px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;background:var(--card);
+      border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line)}
+th{background:var(--card);color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:0}
+.ok{color:#16a34a;font-weight:600}.no{color:var(--muted)}
+.steps{counter-reset:s;list-style:none;padding:0;margin:16px 0}
+.steps li{counter-increment:s;position:relative;padding:0 0 14px 46px}
+.steps li:before{content:counter(s);position:absolute;left:0;top:0;width:30px;height:30px;
+  border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;
+  justify-content:center;font-weight:700;font-size:15px}
+.note{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--brand2);
+  border-radius:8px;padding:10px 14px;font-size:14px;color:var(--muted);margin:14px 0}
+footer{border-top:1px solid var(--line);margin-top:60px;padding:26px 0 40px;
+       color:var(--muted);font-size:13.5px}
+a{color:var(--brand);text-decoration:none}a:hover{text-decoration:underline}
+code{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:.9em}
+pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px}
+@media(max-width:640px){h1{font-size:32px}.tag{font-size:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="lang"><b>English</b> | <a href="../">中文</a></p>
+  <h1><span class="g">AgentBoot</span></h1>
+  <p class="tag">Minimal, fast, ready-to-run AI Agent launcher — one command to install, mainstream agents to choose from.</p>
+  <div class="badges">
+    <span>v1.0.0</span><span>Linux · macOS · Windows</span><span>Chinese UI default</span>
+    <span>14 agents</span><span>Offline install</span><span>China-network adaptive</span><span>MIT</span>
+  </div>
+</header>
+
+<h2>⚡ One-command install</h2>
+<h3>Linux / macOS</h3>
+<div class="cmd"><span class="c">curl -fsSL https://boot.ide.pub/install.sh | sh</span>
+  <button class="copy" data-c="curl -fsSL https://boot.ide.pub/install.sh | sh">Copy</button></div>
+<h3>Windows (PowerShell)</h3>
+<div class="cmd"><span class="c">powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</span>
+  <button class="copy" data-c="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))&quot;">Copy</button></div>
+<div class="note">Fallback entries: GitHub Pages (this page) / GitHub Releases / China mirrors — the installer retries sources in order automatically. The CLI UI is Chinese by default; language can be switched to English (<code>agentboot lang en</code>).</div>
+
+<h2>🚀 Three steps</h2>
+<ol class="steps">
+  <li><b>Install AgentBoot</b><br>One command, ~10 seconds; only AgentBoot itself and the built-in agent are installed.</li>
+  <li><b>Open the console menu</b><br><code>agentboot</code> — environment check / pick agents to install / model providers / mirrors &amp; proxy / custom offline builds.</li>
+  <li><b>Or just chat</b><br><code>ab</code> — the built-in fallback agent with the <b>free Agnes model</b>, zero config.</li>
+</ol>
+
+<h2>✨ Features</h2>
+<div class="grid">
+  <div class="card"><b>📦 Choose what to install (no bundle bloat)</b><p>14 mainstream agents to pick from: Claude Code, Codex, Qwen Code, OpenCode, CodeBuddy, MiMo, Cline, Pi, CoCo…</p></div>
+  <div class="card"><b>🛟 Built-in fallback agent (ab)</b><p>Works when everything else fails: single file, zero dependencies, free Agnes model, offline Linux knowledge base, session persistence, /bench.</p></div>
+  <div class="card"><b>🧠 Model provider manager</b><p>Agnes out of the box; named custom providers; Ollama / LM Studio local models; failover order.</p></div>
+  <div class="card"><b>🇨🇳 China network adaptive</b><p>Auto-detects and switches to npmmirror / Node mirrors / Tsinghua PyPI; four-source download retry; one-click proxy.</p></div>
+  <div class="card"><b>📴 Full offline & slim builds</b><p>Offline packages bundle per-platform runtimes and agent payloads — no internet, no unzip software needed; menu [7] builds slim custom packages.</p></div>
+  <div class="card"><b>⚡ Extreme performance</b><p>TLS connection reuse (measured ~440ms off first-token latency per turn), pre-indexed KB (&lt;1ms warm), context auto-trimming, stream interruption protection.</p></div>
+</div>
+
+<h2>🤖 Supported agents (14)</h2>
+<table>
+<tr><th>#</th><th>Agent</th><th>Command</th><th>Vendor</th><th>Offline</th></tr>
+<tr><td>1</td><td>CoCo Agent</td><td><code>coco</code></td><td>BitCook</td><td class="ok">Linux/macOS</td></tr>
+<tr><td>2</td><td>OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td class="ok">✓</td></tr>
+<tr><td>3</td><td>Hermes Agent</td><td><code>hermes</code></td><td>Hermes</td><td class="ok">✓ (needs Git)</td></tr>
+<tr><td>4</td><td>Cline CLI</td><td><code>cline</code></td><td>Cline</td><td class="ok">✓</td></tr>
+<tr><td>5</td><td>CodeBuddy CLI</td><td><code>codebuddy</code></td><td>Tencent</td><td class="ok">✓</td></tr>
+<tr><td>6</td><td>Pi Coding Agent</td><td><code>pi</code></td><td>Earendil Works</td><td class="ok">✓</td></tr>
+<tr><td>7</td><td>Claude Code</td><td><code>claude</code></td><td>Anthropic</td><td class="ok">✓</td></tr>
+<tr><td>8</td><td>OpenAI Codex CLI</td><td><code>codex</code></td><td>OpenAI</td><td class="ok">✓ (Agnes preset)</td></tr>
+<tr><td>9</td><td>Qwen Code</td><td><code>qwen</code></td><td>Alibaba</td><td class="ok">✓ (Agnes preset)</td></tr>
+<tr><td>10</td><td>MiMo Code</td><td><code>mimo</code></td><td>Xiaomi</td><td class="ok">✓</td></tr>
+<tr><td>11</td><td>OpenClaw</td><td><code>openclaw</code></td><td>OpenClaw</td><td class="ok">✓</td></tr>
+<tr><td>12</td><td>Gemini CLI</td><td><code>gemini</code></td><td>Google</td><td class="ok">✓</td></tr>
+<tr><td>13</td><td>iFlow CLI</td><td><code>iflow</code></td><td>iFlow</td><td class="ok">✓</td></tr>
+<tr><td>14</td><td>Aider</td><td><code>aider</code></td><td>Aider AI</td><td class="no">online only (pip)</td></tr>
+</table>
+<div class="note">✓ = offline install supported (dependencies and runtimes bundled). Codex / Qwen are <b>auto-wired to the free Agnes model</b> after install. Add your own agents via menu <code>+</code> or the <code>add-agent</code> command.</div>
+
+<h2>📴 Offline install</h2>
+<p>No internet on the target machine? Two options:</p>
+<ul>
+  <li><b>Full offline package</b>: grab a platform package from Releases (~0.8–1.6GB), copy, extract, install — includes all 13 agent payloads plus Node/Python runtimes;</li>
+  <li><b>Slim offline package</b>: menu <code>[7]</code> or <code>build-offline</code> to pick platforms and agents (e.g. win-x64 with Pi only ≈ 89MB).</li>
+</ul>
+<p>No unzip software needed (Windows Explorer / system tar / self-extracting script), then run <code>install-offline.ps1</code> or <code>sh install-offline.sh</code>.</p>
+
+<h2>🧠 Models: works out of the box + fully customizable</h2>
+<ul>
+  <li><b>Agnes free model</b> (official preset): ab uses it with zero config; Codex / Qwen are auto-wired;</li>
+  <li><b>Custom providers</b>: any OpenAI-compatible endpoint, named and managed;</li>
+  <li><b>Local models</b>: Ollama / LM Studio / vLLM presets for fully-offline use;</li>
+  <li><b>Failover</b>: set a fallback order and the primary failure switches automatically.</li>
+</ul>
+
+<h2>📚 Docs</h2>
+<ul>
+  <li><a href="https://github.com/bit-cook/AgentBoot/blob/main/docs/en/install-guide.md">Installation Guide (EN)</a></li>
+  <li><a href="https://github.com/bit-cook/AgentBoot/blob/main/README.en.md">README (EN)</a></li>
+  <li><a href="https://github.com/bit-cook/AgentBoot/releases">Releases (online &amp; offline packages)</a></li>
+</ul>
+
+<footer>
+  MIT License · <a href="https://github.com/bit-cook/AgentBoot">github.com/bit-cook/AgentBoot</a>
+  · Primary entry <a href="https://boot.ide.pub">boot.ide.pub</a> (Cloudflare)
+  · Mirror <a href="https://bit-cook.github.io/AgentBoot/">GitHub Pages</a>
+  <br>The built-in ab agent defaults to the free Agnes model; dangerous commands are blocked by default.
+</footer>
+</div>
+<script>
+document.querySelectorAll('.copy').forEach(function(b){
+  b.addEventListener('click',function(){
+    navigator.clipboard.writeText(b.dataset.c).then(function(){
+      var t=b.textContent;b.textContent='Copied ✓';
+      setTimeout(function(){b.textContent='Copy'},1600);
+    });
+  });
+});
+</script>
+</body>
+</html>`;
+
+function page(lang) {
+  const html = lang === "en" ? PAGE_EN : PAGE_ZH;
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }

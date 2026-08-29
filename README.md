@@ -14,6 +14,8 @@
 
 **主入口**：[https://boot.ide.pub](https://boot.ide.pub)　·　**镜像**：[GitHub Pages](https://bit-cook.github.io/AgentBoot/)
 
+**语言 / Language**：中文（本页） | [English](README.en.md)
+
 </div>
 
 ---
