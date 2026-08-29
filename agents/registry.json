@@ -27,7 +27,7 @@
       "offline": true,
       "npm_install_flags": ["--ignore-scripts"],
       "script": "https://opencode.ai/install",
-      "notes": ["也可用官方脚本安装：curl -fsSL https://opencode.ai/install | bash"]
+      "notes": ["已预置 Agnes 免费模型（~/.config/opencode/opencode.json），安装即用", "也可用官方脚本安装：curl -fsSL https://opencode.ai/install | bash"]
     },
     {
       "id": "hermes",
@@ -77,7 +77,7 @@
       "npm": "@earendil-works/pi-coding-agent",
       "node": ">=22",
       "offline": true,
-      "notes": ["与 pi.dev 官方安装器同源的 npm 包", "文档：https://pi.dev"]
+      "notes": ["与 pi.dev 官方安装器同源的 npm 包", "文档：https://pi.dev", "模型：pi 需按官方方式配置 provider（pi.dev 文档）"]
     },
     {
       "id": "claude-code",
@@ -89,7 +89,7 @@
       "npm": "@anthropic-ai/claude-code",
       "node": ">=22",
       "offline": true,
-      "notes": ["首次使用需登录 Claude 账号或配置 ANTHROPIC_API_KEY"]
+      "notes": ["Anthropic 协议：需官方账号或兼容 Anthropic 格式的网关（Agnes 为 OpenAI 协议，不直接兼容）"]
     },
     {
       "id": "codex",
@@ -98,10 +98,10 @@
       "desc": "OpenAI 官方终端编码智能体",
       "bin": "codex",
       "method": "npm",
-      "npm": "@openai/codex",
+      "npm": "@openai/codex@0.90.0",
       "node": ">=16",
       "offline": true,
-      "notes": ["注意：必须用带 @openai/ 作用域的包，npm 上的裸 codex 是无关项目", "首次使用需 ChatGPT 登录或 OPENAI_API_KEY"]
+      "notes": ["已预置 Agnes 免费模型（config.toml + AGNES_API_KEY），安装即用", "钉住 0.90.0：0.100+ 移除了 chat 协议，且新版私有工具类型与 OpenAI 兼容网关不兼容", "如需官方 ChatGPT 登录，可自行升级 codex 后用官方方式配置"]
     },
     {
       "id": "qwen-code",
@@ -113,7 +113,7 @@
       "npm": "@qwen-code/qwen-code",
       "node": ">=22",
       "offline": true,
-      "notes": ["支持 Qwen OAuth 免费额度或 DASHSCOPE_API_KEY"]
+      "notes": ["已预置 Agnes 免费模型（OPENAI_* 环境变量随 shim 注入），安装即用", "支持 Qwen OAuth 免费额度或 DASHSCOPE_API_KEY"]
     },
     {
       "id": "mimo",

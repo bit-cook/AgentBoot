@@ -402,6 +402,9 @@ def install_online(ids):
         if ok and a.get("bin"):
             found = find_bin(a["bin"])
             if found:
+                env_extra, args_prefix = wire_agnes(a)
+                if env_extra or args_prefix:
+                    write_online_shim(a, found, env_extra, args_prefix)
                 log_ok("%s 安装完成，命令：%s" % (a["name"], a["bin"]))
                 ok_list.append(aid)
             else:
@@ -864,7 +867,8 @@ def offline_install(ids, payload_dir=None):
                 continue
         if aid == "hermes":
             fixup_hermes_venv(os.path.join(pdir, "agents", "hermes", pid), dst_nm)
-        shim = write_shim(a)
+        env_extra, args_prefix = wire_agnes(a)
+        shim = write_shim(a, env_extra, args_prefix)
         if shim:
             log_ok("%s 离线安装完成，命令：%s" % (a["name"], a["bin"]))
             ok_list.append(aid)
@@ -889,9 +893,11 @@ def dir_size_mb(path):
     return total / 1048576.0
 
 
-def write_shim(a):
+def write_shim(a, env_extra=None, args_prefix=None):
     """为离线安装的 Agent 生成启动 shim。"""
     aid, bin_ = a["id"], a["bin"]
+    env_extra = env_extra or {}
+    args_prefix = args_prefix or []
     try:
         if POSIX:
             bin_dir = os.path.join(AB_HOME, "bin")
@@ -903,11 +909,14 @@ def write_shim(a):
                 runpy = os.path.join(AGENTS_DIR, "hermes", "hermes-run.py")
                 body = 'exec "%s" "%s" "$@"\n' % (venv_py, runpy)
             else:
+                lines = _agnes_env_posix_lines(env_extra)
                 nd = runtime_node_dir()
-                body = ""
                 if os.path.isdir(nd):
-                    body += '[ -x "%s/bin/node" ] && export PATH="%s/bin:$PATH"\n' % (nd, nd)
-                body += 'export PATH="$AB_ROOT/agents/%s/node_modules/.bin:$PATH"\nexec "%s" "$@"\n' % (aid, bin_)
+                    lines.append('[ -x "%s/bin/node" ] && export PATH="%s/bin:$PATH"' % (nd, nd))
+                lines.append('export PATH="$AB_ROOT/agents/%s/node_modules/.bin:$PATH"' % aid)
+                pre = " ".join('"%s"' % x for x in args_prefix)
+                lines.append('exec "%s"%s "$@"' % (bin_, (" " + pre) if pre else ""))
+                body = "\n".join(lines) + "\n"
             with open(path, "w", encoding="utf-8", newline="\n") as f:
                 f.write("#!/bin/sh\n# AgentBoot shim for %s\nAB_ROOT=\"$HOME/.agentboot\"\n%s" % (aid, body))
             os.chmod(path, 0o755)
@@ -921,13 +930,17 @@ def write_shim(a):
                 runpy = os.path.join(AGENTS_DIR, "hermes", "hermes-run.py")
                 body = '"%s" "%s" %%*\r\n' % (venv_py, runpy)
             else:
-                body = ('if exist "%AB_ROOT%\\runtime\\node-win-x64\\node.exe" '
-                        'set "PATH=%AB_ROOT%\\runtime\\node-win-x64;%%PATH%%"\r\n'
-                        'set "PATH=%AB_ROOT%\\agents\\%s\\node_modules\\.bin;%%PATH%%"\r\n'
-                        '%s %%*\r\n' % (aid, bin_))
+                lines = ["rem AgentBoot shim (Agnes preset)"]
+                lines += _agnes_env_cmd_lines(env_extra)
+                lines.append('set "PATH=%AB_ROOT%\\agents\\%s\\node_modules\\.bin;%%PATH%%"' % aid)
+                pre = " ".join(args_prefix)
+                lines.append('"%s"%s %%*' % (bin_, (" " + pre) if pre else ""))
+                body = "\r\n".join(lines) + "\r\n"
             with open(path, "w", encoding="ascii", newline="") as f:
                 f.write("@echo off\r\nrem AgentBoot shim for %s\r\n"
-                        'set "AB_ROOT=%%USERPROFILE%%\\.agentboot"\r\n%s' % (aid, body))
+                        'set "AB_ROOT=%%USERPROFILE%%\\.agentboot"\r\n'
+                        'if exist "%AB_ROOT%\\runtime\\node-win-x64\\node.exe" '
+                        'set "PATH=%AB_ROOT%\\runtime\\node-win-x64;%%PATH%%"\r\n%s' % (aid, body))
         return True
     except Exception as e:
         log_err("写入 shim 失败：%s" % e)
@@ -1248,6 +1261,108 @@ def build_offline_wizard():
     if input("确认开始? [Y/n] ").strip().lower() in ("n", "no"):
         return
     build_offline_run(platforms, agents_ids)
+
+
+# ---------------------------------------------------------------- Agnes 预配置（安装即用）
+
+def wire_agnes(a):
+    """安装成功后按 Agent 类型预置 Agnes 免费模型。
+    返回需要注入启动 shim 的环境变量 dict（config 文件类已直接落盘）。"""
+    aid = a["id"]
+    home = os.path.expanduser("~")
+    agnes = agent.PRESETS["agnes"]
+    base, key, model = agnes["base_url"], agnes["api_key"], agnes["model"]
+
+    if aid == "codex":
+        d = os.path.join(home, ".codex")
+        os.makedirs(d, exist_ok=True)
+        p = os.path.join(d, "config.toml")
+        block = ('\n# >>> AgentBoot 预置 Agnes 免费模型 >>>\n'
+                 'model = "agnes-2.5-flash"\n'
+                 'model_provider = "agnes"\n\n'
+                 '[model_providers.agnes]\n'
+                 'name = "Agnes"\n'
+                 'base_url = "https://apihub.agnes-ai.com/v1"\n'
+                 'env_key = "AGNES_API_KEY"\n'
+                 'wire_api = "chat"\n'
+                 '# <<< AgentBoot <<<\n')
+        if not os.path.exists(p):
+            with open(p, "w", encoding="utf-8", newline="\n") as f:
+                f.write(block)
+        else:
+            cur = open(p, "r", encoding="utf-8").read()
+            if "model_providers.agnes" not in cur:
+                with open(p, "a", encoding="utf-8", newline="\n") as f:
+                    f.write(block)
+        log_ok("已预置 Agnes 免费模型（~/.codex/config.toml）")
+        return {"AGNES_API_KEY": key}, []
+
+    if aid == "qwen-code":
+        log_ok("已预置 Agnes 免费模型（OPENAI_* 环境变量随 shim 注入）")
+        return {"OPENAI_API_KEY": key, "OPENAI_BASE_URL": base, "OPENAI_MODEL": model}, []
+
+    if aid == "aider":
+        log_ok("已预置 Agnes 免费模型（shim 自动追加 --model openai/agnes-2.5-flash）")
+        return {"OPENAI_API_KEY": key, "OPENAI_API_BASE": base}, ["--model", "openai/" + model]
+
+    if aid == "opencode":
+        d = os.path.join(home, ".config", "opencode")
+        os.makedirs(d, exist_ok=True)
+        p = os.path.join(d, "opencode.json")
+        cfg = {
+            "$schema": "https://opencode.ai/config.json",
+            "provider": {
+                "agnes": {
+                    "npm": "@ai-sdk/openai-compatible",
+                    "name": "Agnes",
+                    "options": {"baseURL": base, "apiKey": key},
+                    "models": {model: {"name": "Agnes 2.5 Flash (free)"}}}},
+            "model": "agnes/" + model}
+        if not os.path.exists(p):
+            with open(p, "w", encoding="utf-8", newline="\n") as f:
+                json.dump(cfg, f, ensure_ascii=False, indent=2)
+            log_ok("已预置 Agnes 免费模型（~/.config/opencode/opencode.json）")
+        return {}, []
+
+    return {}, []  # claude-code/gemini-cli 等官方协议登录类，不强行接线
+
+
+def _agnes_env_cmd_lines(env_extra):
+    return ['set "%s=%s"' % (k, v) for k, v in env_extra.items()]
+
+
+def _agnes_env_posix_lines(env_extra):
+    return ['export %s="%s"' % (k, v) for k, v in env_extra.items()]
+
+
+def write_online_shim(a, found, env_extra, args_prefix=None):
+    """在线安装后写包装 shim（注入 Agnes 环境变量并转发到真实命令）。"""
+    aid, bin_ = a["id"], a["bin"]
+    args_prefix = args_prefix or []
+    bin_dir = os.path.join(AB_HOME, "bin")
+    os.makedirs(bin_dir, exist_ok=True)
+    try:
+        if POSIX:
+            p = os.path.join(bin_dir, bin_)
+            lines = ["#!/bin/sh", "# AgentBoot wrapper: Agnes 预置"]
+            lines += _agnes_env_posix_lines(env_extra or {})
+            pre = " ".join('"%s"' % x for x in args_prefix)
+            lines.append('exec "%s"%s "$@"' % (found, (" " + pre) if pre else ""))
+            with open(p, "w", encoding="utf-8", newline="\n") as f:
+                f.write("\n".join(lines) + "\n")
+            os.chmod(p, 0o755)
+        else:
+            p = os.path.join(bin_dir, bin_ + ".cmd")
+            lines = ["@echo off", "rem AgentBoot wrapper: Agnes preset"]
+            lines += _agnes_env_cmd_lines(env_extra or {})
+            pre = " ".join(args_prefix)
+            lines.append('"%s"%s %%*' % (found, (" " + pre) if pre else ""))
+            with open(p, "w", encoding="ascii", newline="") as f:
+                f.write("\r\n".join(lines) + "\r\n")
+        return True
+    except Exception as e:
+        log_err("写入包装 shim 失败：%s" % e)
+        return False
 
 
 def menu_mirror():
