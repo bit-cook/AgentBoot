@@ -24,7 +24,11 @@ function Write-Step($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 
 function Expand-Pkg([string]$pkg, [string]$dest) {
     $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
-    if (Test-Path $tar) { & $tar -xf $pkg -C $dest; return $true }
+    if (Test-Path $tar) {
+        & $tar -xf $pkg -C $dest
+        if ($LASTEXITCODE -eq 0 -and (Get-ChildItem $dest -Force | Select-Object -First 1)) { return $true }
+        $global:LASTEXITCODE = 0
+    }
     try {
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::ExtractToDirectory($pkg, $dest); return $true
@@ -32,7 +36,11 @@ function Expand-Pkg([string]$pkg, [string]$dest) {
     try {
         $sh = New-Object -ComObject Shell.Application
         $sh.NameSpace($dest).CopyHere($sh.NameSpace($pkg).Items(), 16)
-        Start-Sleep -Seconds 3; return $true
+        for ($i = 0; $i -lt 30; $i++) {
+            if (Get-ChildItem $dest -Force | Select-Object -First 1) { return $true }
+            Start-Sleep -Milliseconds 500
+        }
+        return $false
     } catch { return $false }
 }
 
@@ -44,6 +52,13 @@ $AbRoot     = Join-Path $env:USERPROFILE '.agentboot'
 
 Write-Step 'AgentBoot 离线安装（无需联网）'
 
+$launchers = @((Join-Path $BinDir 'agentboot.cmd'), (Join-Path $BinDir 'ab.cmd'))
+foreach ($launcher in $launchers) {
+    if ((Test-Path $launcher) -and -not (Select-String -Path $launcher -Pattern 'AgentBoot' -Quiet)) {
+        throw "拒绝覆盖不属于 AgentBoot 的命令：$launcher"
+    }
+}
+
 # ---------- 1. 校验载荷 ----------
 $PayloadDir = if ($Payload) { $Payload } else { Join-Path $ScriptDir 'payloads' }
 if (-not (Test-Path (Join-Path $PayloadDir 'agents'))) {
@@ -51,19 +66,39 @@ if (-not (Test-Path (Join-Path $PayloadDir 'agents'))) {
     Write-Err '请确认脚本位于完整解压后的离线包根目录，或用 -Payload 指定路径。'
     exit 1
 }
-Write-Ok "离线载荷校验通过：$PayloadDir"
+$sums = Join-Path $ScriptDir 'PAYLOAD_SHA256SUMS.txt'
+if (-not (Test-Path $sums)) { throw '缺少 PAYLOAD_SHA256SUMS.txt，拒绝安装未验证载荷' }
+foreach ($line in Get-Content $sums) {
+    if (-not $line.Trim()) { continue }
+    $parts = $line -split '\s+', 2
+    $file = Join-Path $ScriptDir $parts[1].Replace('/', [IO.Path]::DirectorySeparatorChar)
+    if (-not (Test-Path $file)) { throw "载荷缺失：$($parts[1])" }
+    if ((Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $parts[0].ToLowerInvariant()) {
+        throw "载荷 SHA-256 校验失败：$($parts[1])"
+    }
+}
+Write-Ok "离线载荷 SHA-256 校验通过：$PayloadDir"
 
 # ---------- 2. 安装程序本体 ----------
 Write-Step "安装程序到 $AppDir"
-New-Item -ItemType Directory -Path $AppDir -Force | Out-Null
+$suffix = [guid]::NewGuid().ToString('N').Substring(0, 8)
+$newApp = "$AppDir.new.$suffix"
+$oldApp = "$AppDir.old.$suffix"
+New-Item -ItemType Directory -Path $newApp -Force | Out-Null
 foreach ($d in 'core', 'agents', 'tools', 'scripts') {
     if (Test-Path (Join-Path $ScriptDir $d)) {
-        Copy-Item (Join-Path $ScriptDir $d) $AppDir -Recurse -Force
+        Copy-Item (Join-Path $ScriptDir $d) $newApp -Recurse -Force
     }
 }
-foreach ($f in 'README.md', '安装指南.md', 'LICENSE', 'CHANGELOG.md', 'install.sh', 'install.bat') {
-    if (Test-Path (Join-Path $ScriptDir $f)) { Copy-Item (Join-Path $ScriptDir $f) $AppDir -Force }
+foreach ($f in 'VERSION', 'README.md', '安装指南.md', 'LICENSE', 'CHANGELOG.md', 'install.sh', 'install.bat') {
+    if (Test-Path (Join-Path $ScriptDir $f)) { Copy-Item (Join-Path $ScriptDir $f) $newApp -Force }
 }
+if (-not (Test-Path (Join-Path $newApp 'core\menu.py')) -or -not (Test-Path (Join-Path $newApp 'core\agent.py'))) {
+    Remove-Item $newApp -Recurse -Force -ErrorAction SilentlyContinue; throw '离线包结构无效'
+}
+if (Test-Path $AppDir) { Move-Item $AppDir $oldApp }
+try { Move-Item $newApp $AppDir; if (Test-Path $oldApp) { Remove-Item $oldApp -Recurse -Force } }
+catch { if (Test-Path $oldApp) { Move-Item $oldApp $AppDir }; throw }
 
 # ---------- 3. Python：系统优先，否则用离线包内置便携版 ----------
 Write-Step '准备 Python 运行时（内置 Agent ab 需要）'
@@ -108,12 +143,16 @@ rem AgentBoot 控制台
 @"
 @echo off
 rem AgentBoot 内置最小 Agent
-"$pyRef" "$AppDir\core\agent.py" chat %*
+"$pyRef" "$AppDir\core\agent.py" %*
 "@ -replace '\r?\n', "`r`n" | Set-Content (Join-Path $BinDir 'ab.cmd') -Encoding ASCII
 Write-Ok "已写入 $BinDir"
 
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$add = @($BinDir, (Join-Path $AbRoot 'bin')) | Where-Object { $_ -and ($userPath -notlike "*$_*") }
+$pathItems = @($userPath -split ';' | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('\') })
+$add = @($BinDir, (Join-Path $AbRoot 'bin')) | Where-Object {
+    $candidate = $_.TrimEnd('\')
+    $_ -and -not ($pathItems | Where-Object { [string]::Equals($_, $candidate, [StringComparison]::OrdinalIgnoreCase) })
+}
 if ($add) {
     [Environment]::SetEnvironmentVariable('Path', (($add -join ';') + ';' + $userPath), 'User')
     $env:Path = ($add -join ';') + ';' + $env:Path
@@ -126,13 +165,18 @@ $menu = Join-Path $AppDir 'core\menu.py'
 if (($All -or $Agents) -and $pyExe) {
     $ids = @()
     if ($All) {
-        $ids = (& $pyExe -c "import json,sys;print(' '.join(a['id'] for a in json.load(open(sys.argv[1],encoding='utf-8'))['agents'] if a.get('offline')))" (Join-Path $AppDir 'agents\registry.json')) -split '\s+'
+        $manifest = Get-Content (Join-Path $ScriptDir 'MANIFEST.txt') | Where-Object { $_ -match '^agents\s*:' } | Select-Object -First 1
+        if (-not $manifest) { throw 'MANIFEST.txt 未列出 Agent' }
+        $packed = (($manifest -split ':', 2)[1]).Trim()
+        $ids = @($packed -split ',\s*' | Where-Object { $_ })
     } else {
-        $ids = @($Agents -split ',') | Where-Object { $_ }
+        $ids = @($Agents -split ',' | Where-Object { $_ })
     }
     if ($ids) {
         Write-Step "离线安装：$($ids -join ' ')"
-        & $pyRef $menu offline --payload $PayloadDir @ids
+        $menuArgs = @($menu, 'offline', '--payload', $PayloadDir) + @($ids)
+        & $pyRef @menuArgs
+        if ($LASTEXITCODE -ne 0) { throw "Agent 离线安装失败（exit=$LASTEXITCODE）" }
     }
 } elseif (($All -or $Agents) -and -not $pyExe) {
     Write-Err '缺少 Python 运行时，无法执行 Agent 离线安装（控制台菜单功能依赖 Python）'

@@ -23,23 +23,53 @@ step() { printf '\n==> %s\n' "$*"; }
 
 step "AgentBoot 离线安装（无需联网）"
 
+for launcher in "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"; do
+    if [ -e "$launcher" ] && ! grep -q "AgentBoot" "$launcher" 2>/dev/null; then
+        err "拒绝覆盖不属于 AgentBoot 的命令：$launcher"; exit 1
+    fi
+done
+
 # ---------- 1. 校验离线载荷 ----------
 if [ ! -d "${SCRIPT_DIR}/payloads/agents" ]; then
     err "未找到 payloads/ 离线载荷目录。请确认脚本位于完整解压后的离线包根目录。"
     exit 1
 fi
-ok "离线载荷校验通过：${SCRIPT_DIR}/payloads"
+SUMS="${SCRIPT_DIR}/PAYLOAD_SHA256SUMS.txt"
+[ -s "$SUMS" ] || { err "缺少 PAYLOAD_SHA256SUMS.txt，拒绝安装未验证载荷"; exit 1; }
+if command -v sha256sum >/dev/null 2>&1; then HASH_CMD="sha256sum"
+elif command -v shasum >/dev/null 2>&1; then HASH_CMD="shasum -a 256"
+else err "缺少 SHA-256 校验工具"; exit 1
+fi
+while read -r expected relative; do
+    [ -n "$expected" ] || continue
+    file="${SCRIPT_DIR}/${relative}"
+    [ -f "$file" ] || { err "载荷缺失：$relative"; exit 1; }
+    actual="$($HASH_CMD "$file" | awk '{print $1}')"
+    [ "$actual" = "$expected" ] || { err "载荷校验失败：$relative"; exit 1; }
+done < "$SUMS"
+ok "离线载荷 SHA-256 校验通过：${SCRIPT_DIR}/payloads"
 
 # ---------- 2. 安装程序本体 ----------
 step "安装程序到 ${APP_DIR}"
-mkdir -p "$APP_DIR"
-cp -R "${SCRIPT_DIR}/core"      "$APP_DIR/"
-cp -R "${SCRIPT_DIR}/agents"    "$APP_DIR/"
-cp -R "${SCRIPT_DIR}/tools"     "$APP_DIR/"
-cp -R "${SCRIPT_DIR}/scripts"   "$APP_DIR/"
-for f in README.md 安装指南.md LICENSE CHANGELOG.md install.sh install.bat install-offline.sh install-offline.ps1; do
-    [ -f "${SCRIPT_DIR}/$f" ] && cp -f "${SCRIPT_DIR}/$f" "$APP_DIR/" || true
+mkdir -p "$AB_ROOT"
+NEW_APP="${AB_ROOT}/app.new.$$"
+OLD_APP="${AB_ROOT}/app.old.$$"
+rm -rf "$NEW_APP" "$OLD_APP"
+mkdir -p "$NEW_APP"
+cp -R "${SCRIPT_DIR}/core"      "$NEW_APP/"
+cp -R "${SCRIPT_DIR}/agents"    "$NEW_APP/"
+cp -R "${SCRIPT_DIR}/tools"     "$NEW_APP/"
+cp -R "${SCRIPT_DIR}/scripts"   "$NEW_APP/"
+for f in VERSION README.md 安装指南.md LICENSE CHANGELOG.md install.sh install.bat install-offline.sh install-offline.ps1; do
+    [ -f "${SCRIPT_DIR}/$f" ] && cp -f "${SCRIPT_DIR}/$f" "$NEW_APP/" || true
 done
+if [ ! -f "$NEW_APP/core/menu.py" ] || [ ! -f "$NEW_APP/core/agent.py" ]; then
+    err "离线包结构无效，保留现有版本"; rm -rf "$NEW_APP"; exit 1
+fi
+[ -d "$APP_DIR" ] && mv "$APP_DIR" "$OLD_APP"
+if mv "$NEW_APP" "$APP_DIR"; then rm -rf "$OLD_APP"
+else [ -d "$OLD_APP" ] && mv "$OLD_APP" "$APP_DIR"; err "升级失败，已恢复旧版本"; exit 1
+fi
 
 # ---------- 3. Python 检查（ab 需要；绝大多数系统自带） ----------
 PY="$(command -v python3 || command -v python || true)"
@@ -55,13 +85,15 @@ step "创建命令：agentboot（控制台） / ab（内置 Agent）"
 mkdir -p "$BIN_DIR"
 cat > "${BIN_DIR}/agentboot" <<EOF
 #!/bin/sh
+# AgentBoot launcher
 PYTHON="\$(command -v python3 || command -v python)"
 exec "\$PYTHON" "\$HOME/.agentboot/app/core/menu.py" "\$@"
 EOF
 cat > "${BIN_DIR}/ab" <<EOF
 #!/bin/sh
+# AgentBoot launcher
 PYTHON="\$(command -v python3 || command -v python)"
-exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" chat "\$@"
+exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" "\$@"
 EOF
 chmod +x "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"
 
@@ -93,8 +125,9 @@ ARGS="${*:-}"
 if [ -n "$ARGS" ]; then
     step "离线安装指定 Agent：$ARGS"
     if [ "$ARGS" = "--all" ]; then
-        "$PY" "${APP_DIR}/core/menu.py" offline --payload "${SCRIPT_DIR}/payloads" \
-            "$("$PY" -c "import json,sys;print(' '.join(a['id'] for a in json.load(open(sys.argv[1]))['agents'] if a.get('offline')))" "${APP_DIR}/agents/registry.json")"
+        PACKED="$(awk -F: '/^agents[[:space:]]*:/ {gsub(/[[:space:]]/,"",$2); print $2}' "${SCRIPT_DIR}/MANIFEST.txt")"
+        [ -n "$PACKED" ] || { err "MANIFEST.txt 未列出 Agent"; exit 1; }
+        "$PY" "${APP_DIR}/core/menu.py" offline --payload "${SCRIPT_DIR}/payloads" "$PACKED"
     else
         "$PY" "${APP_DIR}/core/menu.py" offline --payload "${SCRIPT_DIR}/payloads" $ARGS
     fi

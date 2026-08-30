@@ -3,7 +3,21 @@ name: deploy-pages
 on:
   push:
     branches: [main]
-    paths: ["pages/**", ".github/workflows/deploy-pages.yml"]
+    paths:
+      - "agents/**"
+      - "cloudflare/**"
+      - "core/**"
+      - "docs/**"
+      - "scripts/**"
+      - "tools/**"
+      - "pages/**"
+      - "tests/**"
+      - "README*.md"
+      - "CHANGELOG.md"
+      - "VERSION"
+      - "install.*"
+      - "安装指南.md"
+      - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -16,8 +30,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Compile Python sources
+        run: python3 -m py_compile core/*.py scripts/tools/*.py scripts/build-online.py
+      - name: Build online packages
+        run: python3 scripts/build-online.py
+      - name: Verify package payload
+        shell: bash
+        run: |
+          tag="v$(cat VERSION)"
+          (cd pages && sha256sum -c "agentboot-online-${tag}.tar.gz.sha256" "agentboot-online-${tag}.zip.sha256")
+          tar -tzf "pages/agentboot-online-${tag}.tar.gz" | grep -F 'AgentBoot/core/menu.py'
+          python3 -m zipfile -l "pages/agentboot-online-${tag}.zip" | grep -F 'AgentBoot/core/menu.py'
+
   deploy:
-    runs-on: [self-hosted, windows]
+    needs: quality
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -26,6 +60,11 @@ jobs:
         uses: actions/checkout@v4
       - name: Configure Pages
         uses: actions/configure-pages@v5
+      - name: Build online packages
+        run: |
+          cp install.sh pages/install.sh
+          cp scripts/install.ps1 pages/install.ps1
+          python3 scripts/build-online.py
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "boot",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-30",
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "boot.ide.pub/*", "zone_name": "ide.pub" }
+  ]
+}

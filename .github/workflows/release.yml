@@ -1,0 +1,146 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate tag and version
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then test "$GITHUB_REF_NAME" = "v$(cat VERSION)"; fi
+          python3 -m unittest discover -s tests -v
+          python3 -m py_compile core/*.py scripts/*.py scripts/tools/*.py tests/*.py
+          sh -n install.sh scripts/*.sh pages/install.sh cloudflare/deploy.sh
+          node --check cloudflare/worker.js
+
+  online:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build online packages
+        run: |
+          cp install.sh pages/install.sh
+          cp scripts/install.ps1 pages/install.ps1
+          python3 scripts/build-online.py
+          cp install.sh scripts/install.ps1 VERSION pages/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: online
+          path: |
+            pages/agentboot-online-*
+            pages/install.sh
+            pages/install.ps1
+            pages/VERSION
+
+  offline-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build verified Codex offline package
+        run: AGENTS=codex PLATFORMS=linux-x64 TAG="v$(cat VERSION)" sh scripts/build-offline.sh
+      - name: Smoke install, execute, and uninstall
+        shell: bash
+        run: |
+          root="$(mktemp -d)"
+          mkdir -p "$root/extract" "$root/home"
+          tag="v$(cat VERSION)"
+          tar -xzf "dist/AgentBoot-offline-${tag}-linux-x64.tar.gz" -C "$root/extract"
+          app="$root/extract/AgentBoot"
+          HOME="$root/home" sh "$app/install-offline.sh" codex
+          AGENTBOOT_HOME="$root/home/.agentboot" HOME="$root/home" "$root/home/.agentboot/bin/codex" --version
+          AGENTBOOT_HOME="$root/home/.agentboot" HOME="$root/home" python3 "$root/home/.agentboot/app/core/menu.py" uninstall codex
+          test ! -e "$root/home/.agentboot/agents/codex"
+          mv "dist/AgentBoot-offline-${tag}-linux-x64.tar.gz" "dist/AgentBoot-offline-${tag}-linux-x64-codex.tar.gz"
+          mv "dist/AgentBoot-offline-${tag}-linux-x64-sfx.sh" "dist/AgentBoot-offline-${tag}-linux-x64-codex-sfx.sh"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offline-linux
+          path: dist/AgentBoot-offline-*-linux-x64-codex*
+
+  offline-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build verified Codex offline package
+        shell: powershell
+        run: .\scripts\build-offline.ps1 -Tag ('v' + (Get-Content VERSION -Raw).Trim()) -Platforms win-x64 -Agents codex
+      - name: Smoke install, execute, and uninstall
+        shell: powershell
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'agentboot-smoke'
+          $extract = Join-Path $root 'extract'
+          $smokeHome = Join-Path $root 'home'
+          New-Item -ItemType Directory -Path $extract, $smokeHome -Force | Out-Null
+          $tag = 'v' + (Get-Content VERSION -Raw).Trim()
+          tar -xf "dist\AgentBoot-offline-$tag-win-x64.zip" -C $extract
+          $app = Join-Path $extract 'AgentBoot'
+          $env:AGENTBOOT_HOME = Join-Path $smokeHome '.agentboot'
+          $env:USERPROFILE = $smokeHome
+          $env:LOCALAPPDATA = Join-Path $smokeHome 'LocalAppData'
+          & "$app\install-offline.ps1" -Agents codex
+          & "$smokeHome\.agentboot\bin\codex.cmd" --version
+          python "$env:LOCALAPPDATA\AgentBoot\app\core\menu.py" uninstall codex
+          if (Test-Path "$smokeHome\.agentboot\agents\codex") { throw 'Codex payload not removed' }
+          Move-Item "dist\AgentBoot-offline-$tag-win-x64.zip" "dist\AgentBoot-offline-$tag-win-x64-codex.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offline-windows
+          path: dist/AgentBoot-offline-*-win-x64-codex.zip
+
+  publish:
+    needs: [validate, online, offline-linux, offline-windows]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Generate checksums
+        run: (cd release && find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt)
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "AgentBoot $GITHUB_REF_NAME" \
+            --prerelease \
+            --generate-notes \
+            --verify-tag
+      - name: Wait for Pages deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 30); do
+            row=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow deploy-pages --branch main --limit 10 \
+              --json headSha,conclusion,status -q ".[] | select(.headSha == \"$GITHUB_SHA\") | [.status,.conclusion] | @tsv" | head -n 1)
+            status=$(printf '%s' "$row" | cut -f1)
+            conclusion=$(printf '%s' "$row" | cut -f2)
+            [ "$status" = completed ] && [ "$conclusion" = success ] && exit 0
+            [ "$status" = completed ] && [ "$conclusion" = failure ] && exit 1
+            sleep 10
+          done
+          exit 1
+      - name: Wait for primary and mirror endpoints
+        run: |
+          for attempt in $(seq 1 60); do
+            python3 scripts/verify-live-release.py && exit 0
+            sleep 10
+          done
+          exit 1
+      - name: Promote verified release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest

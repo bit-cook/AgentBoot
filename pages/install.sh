@@ -9,7 +9,7 @@
 set -eu
 
 REPO="bit-cook/AgentBoot"
-TAG="v1.0.0"
+TAG="v1.1.0"
 TARBALL="agentboot-online-${TAG}.tar.gz"
 BOOT_BASE="https://boot.ide.pub"
 GH="https://github.com/${REPO}/releases/download/${TAG}"
@@ -24,16 +24,48 @@ step() { printf '\n==> %s\n' "$*"; }
 
 # ---------- 下载器：curl 优先，wget 兜底 ----------
 fetch() { # fetch <url> <outfile>
+    rm -f "$2"
     if command -v curl >/dev/null 2>&1; then
-        curl -fL --connect-timeout 10 --retry 2 -o "$2" "$1" >/dev/null 2>&1
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q -T 15 -t 2 -O "$2" "$1" >/dev/null 2>&1
-    else
-        return 127
+        curl -fL --connect-timeout 10 --retry 2 -o "$2" "$1" >/dev/null 2>&1 || true
+        [ -s "$2" ] && return 0
+        rm -f "$2"
     fi
+    if command -v wget >/dev/null 2>&1; then
+        wget -q -T 30 -t 2 -O "$2" "$1" >/dev/null 2>&1 || true
+        [ -s "$2" ] && return 0
+        rm -f "$2"
+    fi
+    return 1
+}
+
+verify_sha256() { # verify_sha256 <file> <sidecar>
+    expected="$(awk 'NR==1 {print $1}' "$2" 2>/dev/null | tr 'A-F' 'a-f')"
+    case "$expected" in
+        *[!0-9a-f]*|"") return 1 ;;
+    esac
+    [ "${#expected}" -eq 64 ] || return 1
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual="$(sha256sum "$1" | awk '{print $1}')"
+    elif command -v shasum >/dev/null 2>&1; then
+        actual="$(shasum -a 256 "$1" | awk '{print $1}')"
+    elif command -v openssl >/dev/null 2>&1; then
+        actual="$(openssl dgst -sha256 "$1" | awk '{print $NF}')"
+    else
+        err "系统缺少 SHA-256 校验工具（sha256sum / shasum / openssl）"
+        return 1
+    fi
+    [ "$(printf '%s' "$actual" | tr 'A-F' 'a-f')" = "$expected" ]
 }
 
 step "AgentBoot 在线安装 ${TAG} · $(uname -s) $(uname -m)"
+
+# 在替换 app 前先保护用户已有的同名命令，避免应用已升级但 launcher 更新失败。
+for launcher in "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"; do
+    if [ -e "$launcher" ] && ! grep -q "AgentBoot" "$launcher" 2>/dev/null; then
+        err "拒绝覆盖不属于 AgentBoot 的命令：$launcher"
+        exit 1
+    fi
+done
 
 # ---------- 1. 下载在线包（多源容错：Cloudflare → GitHub → 国内加速镜像） ----------
 TMP="$(mktemp -d 2>/dev/null || echo /tmp/agentboot-install-$$)"
@@ -50,8 +82,13 @@ for url in \
     "https://gh-proxy.com/${GH}/${TARBALL}"
 do
     say "下载：${url}"
-    if fetch "$url" "${TMP}/${TARBALL}"; then
-        if [ -s "${TMP}/${TARBALL}" ]; then dl_ok="1"; break; fi
+    if fetch "$url" "${TMP}/${TARBALL}" && fetch "${url}.sha256" "${TMP}/${TARBALL}.sha256"; then
+        if [ -s "${TMP}/${TARBALL}" ] && verify_sha256 "${TMP}/${TARBALL}" "${TMP}/${TARBALL}.sha256"; then
+            dl_ok="1"
+            ok "SHA-256 校验通过"
+            break
+        fi
+        err "SHA-256 校验失败"
     fi
     err "该源不可用，尝试下一个 …"
 done
@@ -72,8 +109,26 @@ if [ "$(ls -A "$STAGE" | wc -l)" = "1" ] && [ -d "$STAGE/$(ls -A "$STAGE")" ]; t
 fi
 
 step "安装程序到 ${APP_DIR}"
-mkdir -p "$APP_DIR"
-cp -R "${SRC_DIR}/." "$APP_DIR/"
+mkdir -p "$AB_ROOT"
+NEW_APP="${AB_ROOT}/app.new.$$"
+OLD_APP="${AB_ROOT}/app.old.$$"
+rm -rf "$NEW_APP" "$OLD_APP"
+mkdir -p "$NEW_APP"
+cp -R "${SRC_DIR}/." "$NEW_APP/"
+if [ ! -f "$NEW_APP/core/menu.py" ] || [ ! -f "$NEW_APP/core/agent.py" ]; then
+    err "安装包结构无效，保留现有版本"
+    rm -rf "$NEW_APP"
+    exit 1
+fi
+if [ -d "$APP_DIR" ]; then mv "$APP_DIR" "$OLD_APP"; fi
+if mv "$NEW_APP" "$APP_DIR"; then
+    rm -rf "$OLD_APP"
+else
+    err "切换新版本失败，正在恢复旧版本"
+    [ -d "$OLD_APP" ] && mv "$OLD_APP" "$APP_DIR"
+    rm -rf "$NEW_APP"
+    exit 1
+fi
 chmod +x "${APP_DIR}/install.sh" 2>/dev/null || true
 
 # ---------- 3. 生成命令行入口 ----------
@@ -89,7 +144,7 @@ cat > "${BIN_DIR}/ab" <<EOF
 #!/bin/sh
 # AgentBoot 内置最小 Agent
 PYTHON="\$(command -v python3 || command -v python)"
-exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" chat "\$@"
+exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" "\$@"
 EOF
 chmod +x "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"
 ok "已写入 ${BIN_DIR}"

@@ -1,5 +1,22 @@
 # 更新日志
 
+## v1.1.0 (2026-08-30)
+
+- 新增 Agent 安全卸载：菜单 `[9]`、`agentboot uninstall <id>`、批量卸载与 CoCo `--purge`。
+- 新增原子安装归属清单，区分 AgentBoot 管理安装与系统同名命令；兼容可证明归属的 v1 遗留安装。
+- 在线、离线、CoCo 与自定义 Agent 安装成功后统一记录来源、包名、命令与安装前缀。
+- 新增固定卸载验收、安装追踪集成测试、Python 编译门禁和确定性在线包构建。
+- Pages 工作流在核心代码变化时自动测试并重建在线 tar/zip，避免源码与实际下载包脱节。
+- `ab` 命令链按每个子命令判定风险，`safe` 真正只读，非交互 `smart` 不再静默放行写操作。
+- Node 便携运行时升级到 22.23.2，按 Agent 精确校验最低版本；修复 Windows/ARM/macOS 离线平台映射。
+- 在线包新增 SHA-256 旁车校验和原子升级回滚；构建器以临时文件原子发布且结果可复现。
+- 自定义脚本仅允许 HTTPS，下载到临时文件后以固定参数执行，消除 URL shell 注入；脚本上限 4 MiB。
+- 修正 `ab bench` 首字延迟计时、全部 60 个 Linux 知识库段落索引、`ab` 子命令包装器和 CoCo 数据备份恢复。
+- 离线包新增目标机逐文件 SHA-256 校验，`--all` 仅安装包内 MANIFEST 实际列出的 Agent；构建缺载荷会硬失败。
+- 修复 Windows CMD shim 百分号格式、npm 真实入口解析和便携 Node 路径，Linux/Windows 均通过原生安装→启动→卸载矩阵。
+- Worker 支持 Range/If-Range 与真实资产健康探测；发布采用 prerelease→Pages/Worker live verify→Latest 的协调状态机。
+- 修正 Node engine 范围、离线资产名、相对链接、vLLM 文案、移动端表格溢出、触摸目标和旧性能固定数字。
+
 ## v1.0.0 (2026-08-29)
 
 首发版本。

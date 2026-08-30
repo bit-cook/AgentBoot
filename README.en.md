@@ -7,15 +7,15 @@
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)](#one-command-install)
 [![Agents](https://img.shields.io/badge/Agents-14_indigo)](#supported-agents)
 [![Model](https://img.shields.io/badge/Default_model-Agnes_free-orange)](#models)
-[![License](https://img.shields.io/badge/License-MIT-green)](../LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 One command to install, mainstream agents to **choose from a menu** (not a bundle);
-a **built-in fallback agent** that always works; **full offline** and **slim custom** packages;
+a **built-in fallback agent** that always works; **verified slim offline** and **custom-built** packages;
 China-network adaptive out of the box. CLI UI in Chinese by default, English switchable.
 
 **Primary entry**: [boot.ide.pub](https://boot.ide.pub) · **Mirror**: [GitHub Pages](https://bit-cook.github.io/AgentBoot/)
 
-**语言 / Language**: [中文 README](../README.md) | **English (this file)**
+**语言 / Language**: [中文 README](README.md) | **English (this file)**
 
 </div>
 
@@ -39,7 +39,7 @@ Two commands after install:
 
 | Command | Purpose |
 |---|---|
-| `agentboot` | Console menu (agents / models / mirrors / custom offline builds) — Chinese UI, English switchable via `agentboot lang en` |
+| `agentboot` | Console menu (install/uninstall agents, models, mirrors, offline builds) — Chinese UI, English switchable via `agentboot lang en` |
 | `ab` | Built-in fallback agent — **free Agnes model, zero config** |
 
 > The one-liner installs AgentBoot itself only — which third-party agents to install is always your choice in the menu.
@@ -49,12 +49,14 @@ Two commands after install:
 | | |
 |---|---|
 | 📦 **Choose what to install** | 14 mainstream agents, multi-select in the menu |
-| 🛟 **Built-in fallback agent** | `ab`: single file, stdlib only, Agnes by default, offline Linux knowledge base, session persistence |
+| 🛟 **Built-in fallback agent** | `ab`: zero third-party dependencies, Agnes by default, offline Linux knowledge base, session persistence |
 | 🧠 **Model provider manager** | Named custom providers, Ollama/LM Studio presets, failover order, connectivity test |
 | 🇨🇳 **China network adaptive** | npmmirror / Node mirrors / Tsinghua PyPI, four-source downloads, proxy support |
-| 📴 **Two kinds of offline packages** | Full (0.8–1.6GB per platform) + slim custom builds (e.g. win-x64 + Pi ≈ 89MB) |
+| 📴 **Verified offline packages** | Releases provide Codex slim packs tested through install/run/uninstall; menu `[7]` builds other Agents on their target platform |
 | ➕ **Custom agents** | Add anything beyond the registry (npm / pip / script), stored in your home dir |
-| ⚡ **Extreme performance** | TLS connection reuse (~440ms off per turn), pre-indexed KB (<1ms warm), `/bench` |
+| 🧹 **Safe uninstall** | Menu `[9]` or `agentboot uninstall <id>`; removes owned program files and preserves user data by default |
+| 🔐 **Verified install** | Enforced SHA-256, atomic app switching, rollback; custom scripts require HTTPS and avoid shell interpolation |
+| ⚡ **Measured performance** | TLS connection reuse, pre-indexed KB, and an on-device `/bench` for current network/model conditions |
 
 ## Supported agents (14)
 
@@ -79,7 +81,7 @@ Package names verified on the npm registry. `✓` = offline payload bundled.
 
 ## Built-in fallback agent (ab)
 
-Works when everything else fails — the design baseline:
+Works when everything else fails — a Python standard-library core shipped with i18n and knowledge-base resources:
 
 ```bash
 ab                                  # interactive (Agnes free model by default)
@@ -96,13 +98,13 @@ ab model                            # provider manager
 
 ## Offline packages
 
-Download from [Releases](https://github.com/bit-cook/AgentBoot/releases), copy to the target machine — no internet, no unzip software needed. Or build your own **slim package** (pick platforms and agents):
+Download a platform-and-Agent-specific verified pack from [Releases](https://github.com/bit-cook/AgentBoot/releases). v1.1.0 initially publishes Linux x64 and Windows x64 Codex packs only after CI installs them, runs `codex --version`, and uninstalls them. Build other Agents on their target platform with menu `[7]` or:
 
 ```bash
 python core/menu.py build-offline win-x64 claude-code,pi
 ```
 
-Details: [Installation Guide (EN)](docs/en/install-guide.md) · [安装指南 (中文)](../安装指南.md)
+Details: [Installation Guide (EN)](docs/en/install-guide.md) · [安装指南 (中文)](安装指南.md)
 
 ## Models
 
@@ -110,23 +112,33 @@ Details: [Installation Guide (EN)](docs/en/install-guide.md) · [安装指南 (�
 - Custom OpenAI-compatible providers (named), local models (Ollama / LM Studio), failover order;
 - Config: `~/.agentboot/config.json`; switch language: `agentboot lang en`.
 
+## Uninstall Agents
+
+Open `agentboot` and choose `[9] Uninstall Agents`, or use the CLI:
+
+```bash
+agentboot uninstall codex
+agentboot uninstall codex,qwen-code       # batch uninstall
+agentboot uninstall coco --purge          # also remove CoCo user data
+```
+
+AgentBoot records install ownership and will not remove an unrelated command merely because it has the same name. Normal uninstall removes the program, offline payload, and AgentBoot-owned shim while keeping model config, credentials, and sessions. `--purge` currently applies to CoCo and removes its user data as well; AgentBoot does not guess at other projects' data directories. Legacy v1.0.0 installs are removed automatically only when their AgentBoot ownership can be proven.
+
 ## Performance (measured via `ab bench`)
 
-```
-KB query      : cold 2.4 ms · warm 0.0 ms
-Model TTFB    : first (TLS handshake) 1016 ms · reused 579 ms
-Reuse benefit : ~437 ms saved per turn
-```
+`ab bench` measures KB cold/warm queries and first-token latency for a fresh TLS connection versus a reused connection on the current machine and provider. Results vary by network, model, and region and are not a fixed product guarantee.
 
 ## Links
 
-- [Installation Guide (EN)](docs/en/install-guide.md) · [安装指南 (中文)](../安装指南.md)
+- [Installation Guide (EN)](docs/en/install-guide.md) · [安装指南 (中文)](安装指南.md)
 - Primary entry: [boot.ide.pub](https://boot.ide.pub) · Mirror: [GitHub Pages](https://bit-cook.github.io/AgentBoot/)
 
 ## Security
 
 - The free Agnes model credentials are built in by design; remove `PRESETS["agnes"]["api_key"]` in `core/agent.py` if you fork;
-- Command execution blocks dangerous operations by default (confirm in interactive mode).
+- `smart` inspects every command-chain segment, blocks dangerous operations, and requires interactive confirmation for ordinary mutations; non-interactive runs never silently approve writes;
+- `safe` permits read-only commands/tools only. Automation that intentionally mutates the machine must explicitly set `confirm=always`.
+- Online tar/zip archives are fetched with same-origin `.sha256` sidecars and verified before an atomic app-directory switch; failed upgrades preserve or restore the previous version.
 
 ## License
 

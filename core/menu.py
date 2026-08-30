@@ -12,10 +12,12 @@ AgentBoot 控制台菜单（命令 agentboot）
 也提供非交互子命令供脚本调用：
   python menu.py doctor
   python menu.py install claude-code,qwen-code
+  python menu.py uninstall claude-code,qwen-code [--purge]
   python menu.py offline claude-code --payload /path/payloads
   python menu.py mirror auto|off|cn|proxy http://127.0.0.1:7890
 """
 import json
+import hashlib
 import os
 import re
 import shutil
@@ -23,6 +25,10 @@ import socket
 import subprocess
 import sys
 import platform
+import tempfile
+import time
+import urllib.parse
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import agent  # noqa: E402  复用配置与模型能力
@@ -30,15 +36,15 @@ import i18n  # noqa: E402  双语支持
 
 t = i18n.t
 
-VERSION = "1.0.0"
 APP_DIR = agent.APP_DIR
+VERSION = agent.VERSION
 AB_HOME = agent.AB_HOME
 RUNTIME_DIR = os.path.join(AB_HOME, "runtime")
 AGENTS_DIR = os.path.join(AB_HOME, "agents")
 NPM_PREFIX = os.path.join(AB_HOME, "npm-prefix")
 ENV_JSON = os.path.join(AB_HOME, "env.json")
 
-NODE_VERSION = "v22.14.0"
+NODE_VERSION = "v22.23.2"
 NPM_MIRROR = "https://registry.npmmirror.com"
 NPM_OFFICIAL = "https://registry.npmjs.org"
 NODE_MIRROR_CN = "https://registry.npmmirror.com/-/binary/node"
@@ -46,6 +52,7 @@ NODE_MIRROR_GLOBAL = "https://nodejs.org/dist"
 PIP_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
 CUSTOM_AGENTS = os.path.join(AB_HOME, "custom-agents.json")
+INSTALL_STATE = os.path.join(AB_HOME, "installed-agents.json")
 
 POSIX = os.name != "nt"
 
@@ -59,6 +66,8 @@ def log_info(msg): print("· %s" % msg)
 
 def plat_id():
     s = platform.system().lower()
+    if s == "windows":
+        s = "win"
     m = platform.machine().lower()
     if m in ("amd64", "x86_64"):
         arch = "x64"
@@ -147,8 +156,64 @@ def save_custom_agents(items):
         json.dump(items, f, ensure_ascii=False, indent=2)
 
 
+def load_install_state():
+    """读取 AgentBoot 安装归属清单；损坏文件按空清单处理。"""
+    try:
+        with open(INSTALL_STATE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and isinstance(data.get("agents"), dict):
+            return data
+    except (OSError, ValueError, TypeError):
+        pass
+    return {"version": 1, "agents": {}}
+
+
+def save_install_state(data):
+    """同目录临时文件 + os.replace，避免中断时写坏安装清单。"""
+    os.makedirs(AB_HOME, exist_ok=True)
+    tmp = INSTALL_STATE + ".%s.tmp" % os.getpid()
+    try:
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=True)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, INSTALL_STATE)
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+
+def record_install(a, source, executable=None, install_prefix=None):
+    """记录由 AgentBoot 完成的安装，作为安全卸载的归属依据。"""
+    state = load_install_state()
+    state["version"] = 1
+    state["agents"][a["id"]] = {
+        "name": a.get("name") or a["id"],
+        "bin": a.get("bin"),
+        "source": source,
+        "method": a.get("method", "npm"),
+        "package": a.get("npm") or a.get("pip") or a.get("script"),
+        "executable": executable,
+        "prefix": install_prefix,
+        "custom": bool(a.get("custom")),
+        "installed_at": int(time.time()),
+    }
+    save_install_state(state)
+
+
+def forget_install(aid):
+    state = load_install_state()
+    if state["agents"].pop(aid, None) is not None:
+        save_install_state(state)
+
+
 def custom_add_entry(entry):
     """添加一条自定义 Agent（id 重复时拒绝）。返回是否成功。"""
+    if not _valid_agent_id(entry.get("id")) or not _valid_bin_name(entry.get("bin")):
+        raise ValueError("Agent id/命令名只能包含字母、数字、点、下划线与连字符")
     items = load_custom_agents()
     entry["offline"] = False
     entry.setdefault("vendor", "自定义")
@@ -163,6 +228,14 @@ def custom_remove_entry(aid):
 
 def _slug(name):
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "custom"
+
+
+def _valid_agent_id(value):
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", str(value or "")))
+
+
+def _valid_bin_name(value):
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", str(value or "")))
 
 
 def custom_add_wizard():
@@ -187,6 +260,9 @@ def custom_add_wizard():
     name = input("显示名（回车=%s）: " % aid).strip() or aid
     default_bin = pkg.split("/")[-1].split("@")[-1] if m == "npm" else aid
     bin_ = input("安装后的命令（回车=%s）: " % default_bin).strip() or default_bin
+    if not _valid_agent_id(aid) or not _valid_bin_name(bin_):
+        log_err("id 与命令名只能包含字母、数字、点、下划线与连字符")
+        return None
     entry = {"id": aid, "name": name, "desc": "自定义 Agent", "bin": bin_, "method": m,
              "requires": [], "notes": ["用户自定义条目"]}
     if m == "npm":
@@ -209,14 +285,15 @@ def node_exe():
     return os.path.join(d, "node.exe") if not POSIX else os.path.join(d, "bin", "node")
 
 
-def npm_cmd():
+def npm_cmd(minimum=None):
     """优先系统 npm，其次运行时自带 npm。"""
     n = shutil.which("npm")
-    if n:
+    system_node = shutil.which("node")
+    if n and node_ok(system_node, minimum):
         return n
     d = runtime_node_dir()
     cand = os.path.join(d, "npm.cmd") if not POSIX else os.path.join(d, "bin", "npm")
-    return cand if os.path.exists(cand) else None
+    return cand if os.path.exists(cand) and node_ok(node_exe(), minimum) else None
 
 
 def child_env():
@@ -234,24 +311,51 @@ def child_env():
 
 # ---------------------------------------------------------------- Node 运行时
 
-def node_ok():
+def _version_tuple(value):
+    match = re.search(r"(\d+)(?:\.(\d+))?(?:\.(\d+))?", str(value or ""))
+    if not match:
+        return None
+    return tuple(int(part or 0) for part in match.groups())
+
+
+def _version_satisfies(current, requirement):
+    """Evaluate the simple npm engine ranges used by AgentBoot's registry."""
+    for clause in str(requirement or ">=18").split("||"):
+        matched = True
+        comparisons = re.findall(r"(>=|<=|>|<|=)?\s*(\d+(?:\.\d+){0,2})", clause)
+        if not comparisons:
+            continue
+        for operator, raw in comparisons:
+            target = _version_tuple(raw)
+            if operator == ">=" and not current >= target: matched = False
+            elif operator == ">" and not current > target: matched = False
+            elif operator == "<=" and not current <= target: matched = False
+            elif operator == "<" and not current < target: matched = False
+            elif operator in ("", "=") and not current == target: matched = False
+        if matched:
+            return True
+    return False
+
+
+def node_ok(path=None, minimum=None):
     try:
-        out = subprocess.run([shutil.which("node") or node_exe(), "--version"],
+        executable = path or shutil.which("node") or node_exe()
+        out = subprocess.run([executable, "--version"],
                              capture_output=True, text=True, timeout=10)
         if out.returncode == 0:
-            major = int(re.match(r"v?(\d+)", out.stdout.strip()).group(1))
-            return major >= 18
+            current = _version_tuple(out.stdout.strip())
+            return bool(current and _version_satisfies(current, minimum or ">=18"))
     except Exception:
         pass
     return False
 
 
-def ensure_node():
-    """确保 node>=18 可用；缺失时从镜像下载便携运行时到 ~/.agentboot/runtime。"""
+def ensure_node(minimum=None):
+    """确保 Node 满足 Agent 最低版本；不足时部署便携运行时。"""
     sysnode = shutil.which("node")
-    if sysnode and node_ok():
+    if sysnode and node_ok(sysnode, minimum):
         return sysnode
-    if os.path.exists(node_exe()) and node_ok():
+    if os.path.exists(node_exe()) and node_ok(node_exe(), minimum):
         return node_exe()
 
     pid = plat_id()
@@ -273,7 +377,7 @@ def ensure_node():
     dest_parent = RUNTIME_DIR
     os.makedirs(dest_parent, exist_ok=True)
     archive = os.path.join(dest_parent, fname)
-    import urllib.request
+    sums_path = os.path.join(dest_parent, "SHASUMS256-%s.txt" % NODE_VERSION)
     ok = False
     for u in urls:
         try:
@@ -291,6 +395,30 @@ def ensure_node():
             log_err("下载失败(%s)：%s" % (u, e))
     if not ok:
         return None
+    try:
+        if not os.path.exists(sums_path):
+            sums_url = "%s/%s/SHASUMS256.txt" % (NODE_MIRROR_GLOBAL, NODE_VERSION)
+            req = urllib.request.Request(sums_url, headers={"User-Agent": "AgentBoot/1.0"})
+            with urllib.request.urlopen(req, timeout=60) as response, open(sums_path, "wb") as output:
+                shutil.copyfileobj(response, output)
+        expected = None
+        with open(sums_path, "r", encoding="ascii") as sums:
+            for line in sums:
+                parts = line.split()
+                if len(parts) >= 2 and parts[1].lstrip("*") == fname:
+                    expected = parts[0].lower()
+                    break
+        actual = hashlib.sha256(open(archive, "rb").read()).hexdigest()
+        if not expected or actual != expected:
+            raise ValueError("checksum mismatch")
+        log_ok("Node 运行时 SHA-256 校验通过")
+    except Exception as e:
+        log_err("Node 运行时 SHA-256 校验失败：%s" % e)
+        try:
+            os.remove(archive)
+        except OSError:
+            pass
+        return None
     log_info("解压到 %s …" % dest_parent)
     if fname.endswith(".zip"):
         import zipfile
@@ -306,23 +434,15 @@ def ensure_node():
         os.remove(archive)
     except OSError:
         pass
-    if node_ok():
+    if node_ok(node_exe(), minimum):
         return node_exe()
     return None
 
 
 def ensure_npm_prefix():
-    """POSIX 普通用户安装到 ~/.agentboot/npm-prefix，避免 sudo；Windows 用默认用户目录。"""
-    if POSIX:
-        try:
-            root = os.geteuid() == 0
-        except AttributeError:
-            root = False
-        if not root:
-            os.makedirs(NPM_PREFIX, exist_ok=True)
-            subprocess.run(["npm", "config", "set", "prefix", NPM_PREFIX],
-                           env=child_env(), capture_output=True)
-    return None
+    """所有 npm Agent 固定安装到 AgentBoot 自有目录。"""
+    os.makedirs(NPM_PREFIX, exist_ok=True)
+    return NPM_PREFIX
 
 
 def prefix_bin_dirs():
@@ -330,6 +450,7 @@ def prefix_bin_dirs():
     if POSIX:
         dirs.append(os.path.join(NPM_PREFIX, "bin"))
     else:
+        dirs.append(NPM_PREFIX)
         ap = os.environ.get("APPDATA")
         if ap:
             dirs.append(os.path.join(ap, "npm"))
@@ -348,16 +469,210 @@ def find_bin(name):
     return shutil.which(name)
 
 
+def _inside(path, parent):
+    if not path:
+        return False
+    try:
+        return os.path.commonpath([os.path.abspath(path), os.path.abspath(parent)]) == os.path.abspath(parent)
+    except (OSError, ValueError):
+        return False
+
+
+def _npm_package_name(spec):
+    """去掉 npm 版本限定；保留 @scope/name。"""
+    if not spec:
+        return ""
+    if spec.startswith("@"):
+        slash = spec.find("/")
+        version = spec.find("@", slash + 1)
+        return spec[:version] if version >= 0 else spec
+    return spec.split("@", 1)[0]
+
+
+def detect_install(a):
+    """返回安装归属；绝不把 PATH 上的同名外部命令冒充为 AgentBoot 安装。"""
+    if not _valid_agent_id(a.get("id")) or not _valid_bin_name(a.get("bin")):
+        return {"status": "invalid", "managed": False, "source": None, "entry": {}}
+    entry = load_install_state()["agents"].get(a["id"])
+    if entry:
+        return {"status": "managed", "managed": True,
+                "source": entry.get("source"), "entry": entry}
+    offline_dir = os.path.join(AGENTS_DIR, a["id"])
+    if os.path.isdir(offline_dir):
+        return {"status": "legacy", "managed": True, "source": "offline", "entry": {}}
+    found = find_bin(a.get("bin") or "")
+    if found and (_inside(found, NPM_PREFIX) or _inside(found, os.path.join(AB_HOME, "bin"))):
+        entry = {"executable": found}
+        if _inside(found, NPM_PREFIX):
+            entry["prefix"] = NPM_PREFIX
+        return {"status": "legacy", "managed": True, "source": "online", "entry": entry}
+    if a["id"] == "coco" and os.path.isdir(os.path.expanduser("~/.coco")):
+        coco_shim = os.path.join(AB_HOME, "bin", "coco" + ("" if POSIX else ".cmd"))
+        if os.path.exists(coco_shim):
+            return {"status": "legacy", "managed": True, "source": "online",
+                    "entry": {"executable": coco_shim}}
+    if found:
+        return {"status": "external", "managed": False, "source": None,
+                "entry": {}, "executable": found}
+    return {"status": "absent", "managed": False, "source": None, "entry": {}}
+
+
+def _remove_path(path):
+    if os.path.isdir(path) and not os.path.islink(path):
+        shutil.rmtree(path)
+    else:
+        os.remove(path)
+
+
+def _remove_owned_shims(a, entry):
+    candidates = [entry.get("executable")]
+    suffix = "" if POSIX else ".cmd"
+    candidates.append(os.path.join(AB_HOME, "bin", (a.get("bin") or "") + suffix))
+    if a["id"] == "coco":
+        candidates += [os.path.join(AB_HOME, "bin", x + suffix) for x in ("web", "coweb")]
+    seen = set()
+    for path in candidates:
+        if not path or path in seen or not _inside(path, os.path.join(AB_HOME, "bin")):
+            continue
+        seen.add(path)
+        try:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                marker = f.read(512)
+            if "AgentBoot" not in marker:
+                log_info(t("menu.uninstall_shim_changed") % path)
+                continue
+            _remove_path(path)
+        except (FileNotFoundError, IsADirectoryError):
+            pass
+
+
+def _remove_coco(purge=False):
+    root = os.path.expanduser("~/.coco")
+    if not os.path.exists(root):
+        return
+    if purge:
+        shutil.rmtree(root)
+        return
+    # CoCo 的 agent/ 内含会话、认证与用户设置；默认只移除程序文件。
+    for name in os.listdir(root):
+        if name == "agent":
+            continue
+        _remove_path(os.path.join(root, name))
+
+
+def uninstall_one(a, purge=False):
+    """安全卸载一个 Agent；返回 (成功, 面向用户的说明)。"""
+    if not _valid_agent_id(a.get("id")) or not _valid_bin_name(a.get("bin")):
+        return False, t("menu.uninstall_invalid_id")
+    detected = detect_install(a)
+    if not detected["managed"]:
+        if detected["status"] == "external":
+            return False, t("menu.uninstall_external")
+        return False, t("menu.uninstall_nothing") % a["name"]
+
+    entry = detected.get("entry") or {}
+    source = detected.get("source")
+    method = entry.get("method") or a.get("method", "npm")
+    if a["id"] == "coco":
+        try:
+            _remove_coco(purge)
+        except OSError as e:
+            return False, str(e)
+    elif source == "offline":
+        try:
+            shutil.rmtree(os.path.join(AGENTS_DIR, a["id"]), ignore_errors=False)
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            return False, str(e)
+    elif method == "npm":
+        npm = npm_cmd()
+        package = _npm_package_name(a.get("npm") or entry.get("package"))
+        if not npm or not package:
+            return False, t("menu.uninstall_no_tool") % "npm"
+        cmd = [npm, "uninstall", "-g", package]
+        prefix = entry.get("prefix")
+        if prefix and (_inside(prefix, AB_HOME) or prefix == NPM_PREFIX):
+            cmd += ["--prefix", prefix]
+        log_info("$ %s" % " ".join(cmd))
+        if subprocess.run(cmd, env=child_env()).returncode != 0:
+            return False, t("menu.uninstall_command_failed") % package
+    elif method == "pip":
+        py = find_python()
+        package = a.get("pip") or entry.get("package")
+        if not py or not package:
+            return False, t("menu.uninstall_no_tool") % "Python/pip"
+        cmd = [py, "-m", "pip", "uninstall", "-y", package]
+        log_info("$ %s" % " ".join(cmd))
+        if subprocess.run(cmd, env=child_env()).returncode != 0:
+            return False, t("menu.uninstall_command_failed") % package
+    else:
+        return False, t("menu.uninstall_manual_script")
+
+    try:
+        offline_dir = os.path.join(AGENTS_DIR, a["id"])
+        if os.path.lexists(offline_dir):
+            _remove_path(offline_dir)
+        _remove_owned_shims(a, entry)
+        forget_install(a["id"])
+    except OSError as e:
+        return False, str(e)
+    return True, t("menu.uninstall_ok") % a["name"]
+
+
+def uninstall_agents(ids, purge=False):
+    """批量卸载，去重且继续处理后续项；返回失败 id。"""
+    by_id = {a["id"]: a for a in load_registry()}
+    # 即使自定义注册条目已删除，安装快照仍可支持安全的 npm/pip 卸载。
+    for aid, entry in load_install_state()["agents"].items():
+        if aid in by_id:
+            continue
+        a = {"id": aid, "name": entry.get("name") or aid,
+             "bin": entry.get("bin"), "method": entry.get("method"), "custom": True}
+        package = entry.get("package")
+        if entry.get("method") == "npm":
+            a["npm"] = package
+        elif entry.get("method") == "pip":
+            a["pip"] = package
+        elif entry.get("method") == "script":
+            a["script"] = package
+        by_id[aid] = a
+    ok_list, fail_list, seen = [], [], set()
+    for aid in ids:
+        if aid in seen:
+            continue
+        seen.add(aid)
+        a = by_id.get(aid)
+        if not a:
+            log_err(t("menu.unknown_agent") % aid)
+            fail_list.append(aid)
+            continue
+        ok, message = uninstall_one(a, purge=purge)
+        (log_ok if ok else log_err)(message)
+        (ok_list if ok else fail_list).append(aid)
+    print("\n" + t("menu.uninstall_summary") %
+          (", ".join(ok_list) or "-", ", ".join(fail_list) or "-"))
+    if ok_list and not purge:
+        print(t("menu.uninstall_preserved"))
+    return fail_list
+
+
 # ---------------------------------------------------------------- 在线安装
 
-def npm_install(pkg):
-    if not (shutil.which("npm") or npm_cmd()):
-        got = ensure_node()
+def npm_install(pkg, minimum=None):
+    npm = npm_cmd(minimum)
+    if not npm:
+        got = ensure_node(minimum)
         if not got:
-            log_err("需要 Node.js（无法自动下载，请检查网络或手动安装 Node 18+）")
+            log_err("需要 Node.js %s（无法自动部署，请检查网络）" % (minimum or ">=18"))
             return False
+        npm = npm_cmd(minimum)
+    if not npm:
+        log_err("Node 已就绪但未找到匹配的 npm")
+        return False
     ensure_npm_prefix()
-    cmd = [npm_cmd() or "npm", "install", "-g", pkg, "--no-audit", "--no-fund"]
+    cmd = [npm, "install", "-g", pkg, "--prefix", NPM_PREFIX,
+           "--no-audit", "--no-fund"]
     if cn_mode():
         cmd += ["--registry", NPM_MIRROR]
     log_info("$ %s" % " ".join(cmd))
@@ -375,7 +690,7 @@ def install_online(ids):
             log_err("未知 Agent：%s（用 2 号菜单查看可用列表）" % aid)
             fail_list.append(aid)
             continue
-        print("\n========== %s ==========" % t("menu.install_header") % (a["name"], a.get("vendor", "")))
+        print("\n" + t("menu.install_header") % (a["name"], a.get("vendor", "")))
         print("  %s" % a.get("desc", ""))
         missing = [x for x in (a.get("requires") or []) if not shutil.which(x)]
         if missing:
@@ -395,7 +710,7 @@ def install_online(ids):
             if not ok:
                 log_err("专用流程失败：可检查 Git 是否安装、或配置代理后重试")
         elif method == "npm":
-            ok = npm_install(a["npm"])
+            ok = npm_install(a["npm"], a.get("node"))
         elif method == "script":
             ok = install_via_script(a)
         elif method == "pip":
@@ -404,8 +719,14 @@ def install_online(ids):
             found = find_bin(a["bin"])
             if found:
                 env_extra, args_prefix = wire_agnes(a)
+                executable = found
                 if env_extra or args_prefix:
-                    write_online_shim(a, found, env_extra, args_prefix)
+                    if not write_online_shim(a, found, env_extra, args_prefix):
+                        log_err(t("menu.install_fail") % a["name"])
+                        fail_list.append(aid)
+                        continue
+                    executable = os.path.join(AB_HOME, "bin", a["bin"] + ("" if POSIX else ".cmd"))
+                record_install(a, "online", executable, NPM_PREFIX if method == "npm" else None)
                 log_ok(t("menu.install_ok") % (a["name"], a["bin"]))
                 ok_list.append(aid)
             else:
@@ -428,23 +749,65 @@ def install_online(ids):
 
 def install_via_script(a):
     url = a.get("script")
-    if not url:
+    parsed = urllib.parse.urlsplit(url or "")
+    if parsed.scheme.lower() != "https" or not parsed.netloc:
+        log_err("安装脚本必须使用有效的 HTTPS URL")
         return False
     urls = [url]
-    if cn_mode():
+    if cn_mode() and parsed.hostname in ("github.com", "raw.githubusercontent.com"):
         for p in ("https://gh-proxy.com/", "https://ghfast.top/"):
             urls.append(p + url)
     for u in urls:
-        if POSIX:
-            cmd = ["sh", "-c", 'curl -fsSL "%s" | sh' % u]
-        else:
-            cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
-                   "iwr -useb %s | iex" % u]
-        log_info("$ %s" % " ".join(cmd))
-        if subprocess.run(cmd, env=child_env()).returncode == 0:
-            return True
-        log_err("该脚本地址不可用，尝试下一个源 …")
+        path = None
+        try:
+            path = _download_script(u, ".sh" if POSIX else ".ps1")
+            cmd = (["sh", path] if POSIX else
+                   ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path])
+            log_info("执行已下载脚本：%s" % u)
+            if subprocess.run(cmd, env=child_env()).returncode == 0:
+                return True
+            log_err("安装脚本执行失败，尝试下一个源 …")
+        except Exception as e:
+            log_err("脚本下载失败(%s)：%s" % (u, e))
+        finally:
+            if path:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
     return False
+
+
+def _download_script(url, suffix):
+    request = urllib.request.Request(url, headers={"User-Agent": "AgentBoot/1.0"})
+    fd, path = tempfile.mkstemp(prefix="agentboot-script-", suffix=suffix)
+    try:
+        total = 0
+        with os.fdopen(fd, "wb") as output, urllib.request.urlopen(request, timeout=60) as response:
+            final_url = urllib.parse.urlsplit(response.geturl())
+            if final_url.scheme.lower() != "https":
+                raise ValueError("安装脚本重定向到了非 HTTPS 地址")
+            while True:
+                chunk = response.read(65536)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > 4 * 1024 * 1024:
+                    raise ValueError("安装脚本超过 4 MiB 限制")
+                output.write(chunk)
+        if total == 0:
+            raise ValueError("安装脚本为空")
+        return path
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        raise
 
 
 def install_via_pip(a):
@@ -461,9 +824,9 @@ def install_via_pip(a):
 
 # ---------------------------------------------------------------- hermes-agent 国内专用安装
 
-def _npm_global_root(env):
+def _npm_global_root(env, npm=None):
     try:
-        r = subprocess.run([npm_cmd() or "npm", "root", "-g"], capture_output=True,
+        r = subprocess.run([npm or npm_cmd() or "npm", "root", "-g", "--prefix", NPM_PREFIX], capture_output=True,
                            text=True, timeout=60, env=env)
         return r.stdout.strip()
     except Exception:
@@ -542,6 +905,14 @@ def _seed_uv(pkg_root):
     if not _download_mirror(urls, archive):
         log_err("uv 镜像下载失败")
         return False
+    actual_sha = hashlib.sha256(open(archive, "rb").read()).hexdigest()
+    if actual_sha != sha.lower():
+        log_err("uv SHA-256 校验失败")
+        try:
+            os.remove(archive)
+        except OSError:
+            pass
+        return False
     if asset.endswith(".zip"):
         with zipfile.ZipFile(archive) as z:
             data = z.read(member)
@@ -575,14 +946,24 @@ def _github_git_reachable():
 def install_hermes_special(a):
     """hermes-agent：分步安装（包体 → uv 预置 → postinstall，git/Python/PyPI 自动适配网络）。"""
     # 1) 包体（跳过会直连 GitHub 的 postinstall）
-    cmd = [npm_cmd() or "npm", "install", "--ignore-scripts", "-g", a["npm"], "--no-audit", "--no-fund"]
+    npm = npm_cmd(a.get("node"))
+    if not npm:
+        if not ensure_node(a.get("node")):
+            log_err("Hermes 需要 Node.js %s" % (a.get("node") or ">=20"))
+            return False
+        npm = npm_cmd(a.get("node"))
+    if not npm:
+        return False
+    ensure_npm_prefix()
+    cmd = [npm, "install", "--ignore-scripts", "-g", a["npm"],
+           "--prefix", NPM_PREFIX, "--no-audit", "--no-fund"]
     if cn_mode():
         cmd += ["--registry", NPM_MIRROR]
     log_info("$ %s" % " ".join(cmd))
     env = child_env()
     if subprocess.run(cmd, env=env).returncode != 0:
         return False
-    root = _npm_global_root(env)
+    root = _npm_global_root(env, npm)
     pkg_root = os.path.join(root, "hermes-agent")
     if not os.path.isdir(pkg_root):
         log_err("未定位到 hermes-agent 包目录")
@@ -711,8 +1092,11 @@ def coco_offline_install(a, payload):
 
     # 备份用户 agent 配置 → 换新发行包 → 还原配置
     agent_dir = os.path.join(install_dir, "agent")
-    backup = agent_dir + ".agentboot-bak"
+    # 备份必须放在 install_dir 外；否则随后删除 ~/.coco 会一并删掉备份。
+    backup = install_dir + ".agent.agentboot-bak"
     had_agent = os.path.isdir(agent_dir)
+    if os.path.exists(backup):
+        shutil.rmtree(backup, ignore_errors=True)
     if had_agent:
         shutil.move(agent_dir, backup)
     if os.path.exists(install_dir):
@@ -723,10 +1107,16 @@ def coco_offline_install(a, payload):
     os.makedirs(extract, exist_ok=True)
     with tarfile.open(tgz, "r:gz") as t:
         t.extractall(extract, filter="tar")
-    os.replace(os.path.join(extract, "package"), install_dir)
-    shutil.rmtree(extract, ignore_errors=True)
-    if had_agent:
-        shutil.move(backup, agent_dir)
+    try:
+        os.replace(os.path.join(extract, "package"), install_dir)
+        shutil.rmtree(extract, ignore_errors=True)
+        if had_agent:
+            shutil.move(backup, agent_dir)
+    except Exception:
+        if had_agent and os.path.isdir(backup) and not os.path.exists(agent_dir):
+            os.makedirs(install_dir, exist_ok=True)
+            shutil.move(backup, agent_dir)
+        raise
     os.makedirs(os.path.join(agent_dir, "sessions"), exist_ok=True)
     os.makedirs(os.path.join(agent_dir, "languages"), exist_ok=True)
 
@@ -758,7 +1148,8 @@ def coco_offline_install(a, payload):
     for name, arg in (("coco", ""), ("web", " web"), ("coweb", " web")):
         shim = os.path.join(bin_dir, name)
         with open(shim, "w", encoding="utf-8", newline="\n") as f:
-            f.write("#!/bin/sh\nexec \"%s\" \"%s\"%s \"$@\"\n" % (node_bin, os.path.join(install_dir, "bin", "coco"), arg))
+            f.write("#!/bin/sh\n# AgentBoot shim for coco\nexec \"%s\" \"%s\"%s \"$@\"\n" %
+                    (node_bin, os.path.join(install_dir, "bin", "coco"), arg))
         os.chmod(shim, 0o755)
     log_ok("%s 离线安装完成，命令：coco / web / coweb（预置 Agnes 免费模型）" % a["name"])
     return True
@@ -787,9 +1178,15 @@ def offline_install(ids, payload_dir=None):
     pid = plat_id()
     print(t("menu.offline_header") % (pid, pdir))
 
-    # 1) Node 运行时（系统没有 node 时启用内置运行时）
-    have_node = bool(shutil.which("node")) and node_ok()
-    if not have_node:
+    agents = {a["id"]: a for a in load_registry()}
+    selected_npm = [agents[aid] for aid in ids
+                    if aid in agents and agents[aid].get("method") == "npm"]
+    # Bundled Node is the reproducible default and every selected Agent is checked individually below.
+    strictest_node = ">=18"
+
+    # 1) 离线包优先使用自带 Node，确保路径与版本可复现；无载荷时才回退系统 Node。
+    offline_node = None
+    if selected_npm:
         src_node = os.path.join(pdir, "node", pid)
         if os.path.isdir(src_node):
             os.makedirs(RUNTIME_DIR, exist_ok=True)
@@ -798,13 +1195,18 @@ def offline_install(ids, payload_dir=None):
                 shutil.rmtree(dst_node, ignore_errors=True)
             log_info("部署内置 Node 运行时 …")
             shutil.copytree(src_node, dst_node)
-            if node_ok():
-                have_node = True
+            if node_ok(node_exe(), strictest_node):
+                offline_node = node_exe()
                 log_ok("内置 Node 就绪：%s" % node_exe())
             else:
-                log_err("内置 Node 校验失败")
+                log_err("内置 Node 不满足所选 Agent 最低版本 %s" % strictest_node)
         else:
-            log_err("离线包未包含 %s 的 Node 运行时，且系统无 Node，无法安装 npm 类 Agent" % pid)
+            system_node = shutil.which("node")
+            if system_node and node_ok(system_node, strictest_node):
+                offline_node = system_node
+                log_ok("离线包无 Node 载荷，使用系统 Node：%s" % system_node)
+            else:
+                log_err("离线包未包含 %s Node，系统 Node 也不满足 %s" % (pid, strictest_node))
 
     # 2) Windows：部署内置 Python（供 ab 使用，若系统无可用 python）
     if not POSIX and not find_python():
@@ -818,7 +1220,6 @@ def offline_install(ids, payload_dir=None):
             log_ok("内置 Python 就绪：%s" % os.path.join(dst_py, "python.exe"))
 
     # 3) 逐个 Agent 落盘
-    agents = {a["id"]: a for a in load_registry()}
     ok_list, fail_list = [], []
     for aid in ids:
         a = agents.get(aid)
@@ -837,6 +1238,7 @@ def offline_install(ids, payload_dir=None):
                 fail_list.append(aid)
                 continue
             if coco_offline_install(a, plat_payload):
+                record_install(a, "offline", os.path.join(AB_HOME, "bin", "coco"))
                 ok_list.append(aid)
             else:
                 fail_list.append(aid)
@@ -846,7 +1248,7 @@ def offline_install(ids, payload_dir=None):
             log_err(t("menu.offline_no_payload") % (a["name"], pid))
             fail_list.append(aid)
             continue
-        if not have_node:
+        if not offline_node or not node_ok(offline_node, a.get("node")):
             log_err(t("menu.offline_no_node") % a["name"])
             fail_list.append(aid)
             continue
@@ -869,8 +1271,10 @@ def offline_install(ids, payload_dir=None):
         if aid == "hermes":
             fixup_hermes_venv(os.path.join(pdir, "agents", "hermes", pid), dst_nm)
         env_extra, args_prefix = wire_agnes(a)
-        shim = write_shim(a, env_extra, args_prefix)
+        shim = write_shim(a, env_extra, args_prefix, node_path=offline_node)
         if shim:
+            record_install(a, "offline", os.path.join(
+                AB_HOME, "bin", a["bin"] + ("" if POSIX else ".cmd")))
             log_ok(t("menu.offline_ok") % (a["name"], a["bin"]))
             ok_list.append(aid)
         else:
@@ -894,11 +1298,46 @@ def dir_size_mb(path):
     return total / 1048576.0
 
 
-def write_shim(a, env_extra=None, args_prefix=None):
+def _npm_package_name_from_spec(spec):
+    spec = str(spec or "")
+    if spec.startswith("@"):
+        slash = spec.find("/")
+        version = spec.find("@", slash + 1)
+        return spec[:version] if version >= 0 else spec
+    return spec.split("@", 1)[0]
+
+
+def offline_npm_entry(a):
+    """Resolve the real npm package bin entry; .bin copies are not relocatable."""
+    package_name = _npm_package_name_from_spec(a.get("npm"))
+    if not package_name:
+        return None
+    package_dir = os.path.join(AGENTS_DIR, a["id"], "node_modules", *package_name.split("/"))
+    metadata_path = os.path.join(package_dir, "package.json")
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as source:
+            metadata = json.load(source)
+        bins = metadata.get("bin")
+        if isinstance(bins, str):
+            relative = bins
+        elif isinstance(bins, dict):
+            relative = bins.get(a.get("bin"))
+            if not relative and len(bins) == 1:
+                relative = next(iter(bins.values()))
+        else:
+            relative = None
+        entry = os.path.normpath(os.path.join(package_dir, relative)) if relative else None
+        return entry if entry and _inside(entry, package_dir) and os.path.isfile(entry) else None
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def write_shim(a, env_extra=None, args_prefix=None, node_path=None):
     """为离线安装的 Agent 生成启动 shim。"""
     aid, bin_ = a["id"], a["bin"]
     env_extra = env_extra or {}
     args_prefix = args_prefix or []
+    node_path = node_path or node_exe()
     try:
         if POSIX:
             bin_dir = os.path.join(AB_HOME, "bin")
@@ -914,9 +1353,12 @@ def write_shim(a, env_extra=None, args_prefix=None):
                 nd = runtime_node_dir()
                 if os.path.isdir(nd):
                     lines.append('[ -x "%s/bin/node" ] && export PATH="%s/bin:$PATH"' % (nd, nd))
-                lines.append('export PATH="$AB_ROOT/agents/%s/node_modules/.bin:$PATH"' % aid)
+                entry = offline_npm_entry(a)
+                if not entry:
+                    raise ValueError("未找到 %s 的真实 npm bin 入口" % aid)
                 pre = " ".join('"%s"' % x for x in args_prefix)
-                lines.append('exec "%s"%s "$@"' % (bin_, (" " + pre) if pre else ""))
+                lines.append('exec "%s" "%s"%s "$@"' %
+                             (node_path, entry, (" " + pre) if pre else ""))
                 body = "\n".join(lines) + "\n"
             with open(path, "w", encoding="utf-8", newline="\n") as f:
                 f.write("#!/bin/sh\n# AgentBoot shim for %s\nAB_ROOT=\"$HOME/.agentboot\"\n%s" % (aid, body))
@@ -933,15 +1375,18 @@ def write_shim(a, env_extra=None, args_prefix=None):
             else:
                 lines = ["rem AgentBoot shim (Agnes preset)"]
                 lines += _agnes_env_cmd_lines(env_extra)
-                lines.append('set "PATH=%AB_ROOT%\\agents\\%s\\node_modules\\.bin;%%PATH%%"' % aid)
+                entry = offline_npm_entry(a)
+                if not entry:
+                    raise ValueError("未找到 %s 的真实 npm bin 入口" % aid)
                 pre = " ".join(args_prefix)
-                lines.append('"%s"%s %%*' % (bin_, (" " + pre) if pre else ""))
+                lines.append('"%s" "%s"%s %%*' %
+                             (node_path, entry, (" " + pre) if pre else ""))
                 body = "\r\n".join(lines) + "\r\n"
             with open(path, "w", encoding="ascii", newline="") as f:
                 f.write("@echo off\r\nrem AgentBoot shim for %s\r\n"
                         'set "AB_ROOT=%%USERPROFILE%%\\.agentboot"\r\n'
-                        'if exist "%AB_ROOT%\\runtime\\node-win-x64\\node.exe" '
-                        'set "PATH=%AB_ROOT%\\runtime\\node-win-x64;%%PATH%%"\r\n%s' % (aid, body))
+                        'if exist "%%AB_ROOT%%\\runtime\\node-win-x64\\node.exe" '
+                        'set "PATH=%%AB_ROOT%%\\runtime\\node-win-x64;%%PATH%%"\r\n%s' % (aid, body))
         return True
     except Exception as e:
         log_err("写入 shim 失败：%s" % e)
@@ -1123,6 +1568,33 @@ def pick_agents(agents, title, allow_custom=False):
     return sorted(set(ids), key=lambda x: [a["id"] for a in agents].index(x))
 
 
+def pick_installed_agents(agents):
+    """只显示能证明由 AgentBoot 管理的安装，防止误卸载同名系统命令。"""
+    candidates = []
+    print("\n%s" % t("menu.uninstall_title"))
+    for a in agents:
+        status = detect_install(a)
+        if status["managed"]:
+            candidates.append(a)
+            print("  [%2d] %-16s %-24s (%s)" %
+                  (len(candidates), a["id"], a["name"], status.get("source") or "legacy"))
+    if not candidates:
+        print(t("menu.uninstall_empty"))
+        return []
+    print("  [ 0] %s" % t("menu.pick_back"))
+    raw = input(t("menu.pick_prompt")).strip().lower()
+    if not raw or raw == "0":
+        return []
+    ids = []
+    known = [a["id"] for a in candidates]
+    for tok in re.split(r"[\s,，]+", raw):
+        if tok.isdigit() and 1 <= int(tok) <= len(candidates):
+            ids.append(candidates[int(tok) - 1]["id"])
+        elif tok in known:
+            ids.append(tok)
+    return sorted(set(ids), key=known.index)
+
+
 def menu_model(cfg):
     """模型配置：与 ab /model 同一套提供商管理器（列表/切换/添加/删除/故障切换/测速）。"""
     agent.choose_model(cfg)
@@ -1146,7 +1618,7 @@ def pick_platforms():
         print("  [%d] %-14s %s" % (i, pid, desc))
     raw = input("平台编号: ").strip().lower()
     if not raw:
-        return ["linux-x64", "win-x64", "darwin-arm64"]
+        return [plat_id()]
     ids = []
     for tok in re.split(r"[\s,，]+", raw):
         if tok.isdigit() and 1 <= int(tok) <= len(BUILD_PLATFORMS):
@@ -1154,8 +1626,8 @@ def pick_platforms():
         elif tok in [p[0] for p in BUILD_PLATFORMS]:
             ids.append(tok)
     if not ids:
-        log_err("未识别任何平台，使用默认三平台")
-        return ["linux-x64", "win-x64", "darwin-arm64"]
+        log_err("未识别任何平台，使用当前平台")
+        return [plat_id()]
     return sorted(set(ids), key=lambda x: [p[0] for p in BUILD_PLATFORMS].index(x))
 
 
@@ -1186,14 +1658,15 @@ def build_offline_run(platforms, agents_ids):
     log_info(t("menu.build_start") % (",".join(platforms), ",".join(agents_ids)))
     print(t("menu.build_wait") + "\n")
     env = child_env()
+    tag = "v" + VERSION
     if POSIX:
         script = os.path.join(APP_DIR, "scripts", "build-offline.sh")
-        env.update({"PLATFORMS": ",".join(platforms), "AGENTS": ",".join(agents_ids), "TAG": "v1.0.0"})
+        env.update({"PLATFORMS": ",".join(platforms), "AGENTS": ",".join(agents_ids), "TAG": tag})
         cmd = ["sh", script]
     else:
         script = os.path.join(APP_DIR, "scripts", "build-offline.ps1")
         cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
-               "-Tag", "v1.0.0", "-Platforms", ",".join(platforms), "-Agents", ",".join(agents_ids)]
+               "-Tag", tag, "-Platforms", ",".join(platforms), "-Agents", ",".join(agents_ids)]
     r = subprocess.run(cmd, env=env)
     ok = r.returncode == 0
     if ok:
@@ -1202,7 +1675,7 @@ def build_offline_run(platforms, agents_ids):
         log_ok(t("menu.build_done") % dist)
         try:
             for fn in sorted(os.listdir(dist)):
-                if fn.startswith("AgentBoot-offline-v1.0.0-"):
+                if fn.startswith("AgentBoot-offline-%s-" % tag):
                     p = os.path.join(dist, fn)
                     if os.path.isfile(p):
                         print("  %-52s %8.1f MB" % (fn, os.path.getsize(p) / 1048576.0))
@@ -1403,6 +1876,7 @@ def main_menu():
         print("  [6] %s" % t("menu.m6"))
         print("  [7] %s" % t("menu.m7"))
         print("  [8] %s" % t("menu.m8"))
+        print("  [9] %s" % t("menu.m9"))
         print("  [0] %s" % t("menu.bye"))
         c = input("\n" + t("menu.pick")).strip()
         if c == "1":
@@ -1429,6 +1903,12 @@ def main_menu():
             build_offline_wizard()
         elif c == "8":
             lang_switch(cfg)
+        elif c == "9":
+            ids = pick_installed_agents(agents)
+            if ids:
+                if input(t("menu.uninstall_confirm") % ", ".join(ids)).strip().lower() in ("y", "yes"):
+                    uninstall_agents(ids)
+                input(t("menu.enter_back"))
         elif c == "0":
             print(t("menu.bye"))
             return
@@ -1459,7 +1939,22 @@ def main():
         else:
             rest = argv[1:]
         ids = [t for t in re.split(r"[,\s]+", " ".join(rest)) if t and not t.startswith("-")]
-        offline_install(ids, payload) if ids else print("用法: menu.py offline claude-code --payload <dir>")
+        if ids:
+            failures = offline_install(ids, payload)
+            if failures:
+                raise SystemExit(1)
+        else:
+            print("用法: menu.py offline claude-code --payload <dir>")
+    elif cmd in ("uninstall", "remove"):
+        purge = "--purge" in argv
+        rest = [arg for arg in argv[1:] if arg != "--purge"]
+        ids = [tok for tok in re.split(r"[,\s]+", " ".join(rest)) if tok]
+        if ids:
+            failures = uninstall_agents(ids, purge=purge)
+            if failures:
+                raise SystemExit(1)
+        else:
+            print(t("menu.uninstall_usage"))
     elif cmd == "mirror":
         arg = argv[1] if len(argv) > 1 else "auto"
         if arg == "auto":
@@ -1495,6 +1990,9 @@ def main():
             aid, m, pkg = argv[1], argv[2], argv[3]
             entry = {"id": aid, "name": aid, "desc": "自定义 Agent", "bin": argv[4] if len(argv) > 4 else aid,
                      "method": m, "requires": [], "notes": ["用户自定义条目"]}
+            if not _valid_agent_id(entry["id"]) or not _valid_bin_name(entry["bin"]):
+                log_err("id 与命令名只能包含字母、数字、点、下划线与连字符")
+                raise SystemExit(2)
             if m == "npm":
                 entry["npm"] = pkg
             elif m == "pip":
