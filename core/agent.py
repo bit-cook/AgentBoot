@@ -447,7 +447,8 @@ def _kb_sections():
                 title = lines[0].strip() if lines else fn
                 body = "\n".join(lines[1:]).strip()
                 tl, bl = title.lower(), (title + "\n" + body).lower()
-            sections.append({"file": fn, "title": title, "body": body, "title_l": tl, "body_l": bl})
+                sections.append({"file": fn, "title": title, "body": body,
+                                 "title_l": tl, "body_l": bl})
     _KB_CACHE = sections
     return sections
 

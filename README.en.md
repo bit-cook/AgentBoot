@@ -39,7 +39,7 @@ Two commands after install:
 
 | Command | Purpose |
 |---|---|
-| `agentboot` | Console menu (agents / models / mirrors / custom offline builds) — Chinese UI, English switchable via `agentboot lang en` |
+| `agentboot` | Console menu (install/uninstall agents, models, mirrors, offline builds) — Chinese UI, English switchable via `agentboot lang en` |
 | `ab` | Built-in fallback agent — **free Agnes model, zero config** |
 
 > The one-liner installs AgentBoot itself only — which third-party agents to install is always your choice in the menu.
@@ -54,6 +54,7 @@ Two commands after install:
 | 🇨🇳 **China network adaptive** | npmmirror / Node mirrors / Tsinghua PyPI, four-source downloads, proxy support |
 | 📴 **Two kinds of offline packages** | Full (0.8–1.6GB per platform) + slim custom builds (e.g. win-x64 + Pi ≈ 89MB) |
 | ➕ **Custom agents** | Add anything beyond the registry (npm / pip / script), stored in your home dir |
+| 🧹 **Safe uninstall** | Menu `[9]` or `agentboot uninstall <id>`; removes owned program files and preserves user data by default |
 | ⚡ **Extreme performance** | TLS connection reuse (~440ms off per turn), pre-indexed KB (<1ms warm), `/bench` |
 
 ## Supported agents (14)
@@ -109,6 +110,18 @@ Details: [Installation Guide (EN)](docs/en/install-guide.md) · [安装指南 (�
 - **Agnes free model** (`agnes-2.5-flash`) built-in — zero config;
 - Custom OpenAI-compatible providers (named), local models (Ollama / LM Studio), failover order;
 - Config: `~/.agentboot/config.json`; switch language: `agentboot lang en`.
+
+## Uninstall Agents
+
+Open `agentboot` and choose `[9] Uninstall Agents`, or use the CLI:
+
+```bash
+agentboot uninstall codex
+agentboot uninstall codex,qwen-code       # batch uninstall
+agentboot uninstall coco --purge          # also remove CoCo user data
+```
+
+AgentBoot records install ownership and will not remove an unrelated command merely because it has the same name. Normal uninstall removes the program, offline payload, and AgentBoot-owned shim while keeping model config, credentials, and sessions. `--purge` currently applies to CoCo and removes its user data as well; AgentBoot does not guess at other projects' data directories. Legacy v1.0.0 installs are removed automatically only when their AgentBoot ownership can be proven.
 
 ## Performance (measured via `ab bench`)
 

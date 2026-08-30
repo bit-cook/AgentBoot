@@ -38,7 +38,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 
 | 命令 | 作用 |
 |---|---|
-| `agentboot` | 中文控制台菜单：环境体检 / 自选安装 Agent / 离线安装 / 模型配置 / 镜像代理 / 自定义离线包 |
+| `agentboot` | 中文控制台菜单：环境体检 / 安装与卸载 Agent / 模型配置 / 镜像代理 / 自定义离线包 |
 | `ab` | **内置保底 Agent** —— 默认 Agnes 免费模型，零配置开箱即用 |
 
 > 一键脚本**只装 AgentBoot 本体**，装哪些第三方 Agent 始终由你在菜单里自己决定。
@@ -53,6 +53,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | 🇨🇳 **中国网络自适应** | npmmirror / Node 镜像 / 清华 PyPI 自动切换；四源下载容错；代理一键配置 |
 | 📴 **两种离线包** | 全量（三平台 0.8–1.6GB）+ **瘦身定制**（自选平台与 Agent，如 win-x64 仅 Pi ≈ 89MB） |
 | ➕ **自定义 Agent** | 菜单向导或 `add-agent` 添加注册表之外的任意 Agent（npm / pip / 脚本），用户目录保存、升级不丢 |
+| 🧹 **安全卸载** | 菜单 `[9]` 或 `agentboot uninstall <id>`；精确清理程序，默认保留配置、认证与会话 |
 | ⚡ **极致性能** | TLS 连接复用、知识库预建索引（热查询 <1ms）、上下文自动瘦身、流式中断保护、`/bench` 基准 |
 | 🪟 **三平台一致体验** | 同一套菜单、命令与文档；Windows 长路径与商店存根等细节已处理 |
 
@@ -108,6 +109,18 @@ ab bench                              # 性能基准
 - **Agnes 免费模型**（`agnes-2.5-flash`）为内置默认——`ab` 零配置直接用；Codex / Qwen 安装后自动接线；
 - `/model`（ab）或菜单 `[4]` 打开**提供商管理器**：自定义任意 OpenAI 兼容提供商（命名管理）、Ollama / LM Studio 本地模型、故障切换顺序、连通测试；
 - 配置存于 `~/.agentboot/config.json`。
+
+## 卸载 Agent
+
+运行 `agentboot` 选择 `[9] 卸载 Agent`，或直接使用：
+
+```bash
+agentboot uninstall codex
+agentboot uninstall codex,qwen-code       # 批量卸载
+agentboot uninstall coco --purge          # 同时删除 CoCo 用户数据
+```
+
+AgentBoot 通过安装清单识别归属，不会因为系统中存在同名命令就误删外部安装。默认卸载只删除程序、离线载荷和 AgentBoot 启动 shim，保留模型配置、认证信息和会话。`--purge` 目前用于 CoCo，可同时清理其用户数据；其他 Agent 的数据目录由各项目定义，AgentBoot 不会猜测删除。旧版遗留安装仅在能证明由 AgentBoot 管理时才会自动卸载。
 
 ## 项目结构
 

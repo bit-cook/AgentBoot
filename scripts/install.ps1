@@ -143,7 +143,7 @@ rem AgentBoot 控制台
 @"
 @echo off
 rem AgentBoot 内置最小 Agent
-"$pyRef" "$AppDir\core\agent.py" chat %*
+"$pyRef" "$AppDir\core\agent.py" %*
 "@ -replace '\r?\n', "`r`n" | Set-Content -Path (Join-Path $BinDir 'ab.cmd') -Encoding ASCII
 Write-Ok "已写入 $BinDir"
 

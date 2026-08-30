@@ -191,10 +191,19 @@ ab bench                            # performance benchmark
 # upgrade: re-run the online one-liner (config preserved)
 curl -fsSL https://boot.ide.pub/install.sh | sh
 
-# uninstall
+# uninstall one or more Agents (keeps config, credentials, and sessions)
+agentboot uninstall codex
+agentboot uninstall codex,qwen-code
+
+# remove CoCo and its user data (irreversible)
+agentboot uninstall coco --purge
+
+# uninstall AgentBoot itself (also removes AgentBoot config)
 rm -rf ~/.agentboot ~/.local/bin/agentboot ~/.local/bin/ab        # Linux/macOS
 rmdir /s /q "%USERPROFILE%\.agentboot" & rmdir /s /q "%LOCALAPPDATA%\AgentBoot"   # Windows
 ```
+
+You can also choose menu `[9] Uninstall Agents`. AgentBoot records ownership in `~/.agentboot/installed-agents.json`, so an unrelated command with the same name is never removed. Normal uninstall preserves every Agent's config and sessions; `--purge` currently has a defined data-removal boundary for CoCo only. Legacy installs are cleaned automatically only when ownership can be proven from an AgentBoot payload directory or marked shim; otherwise the command stops with manual removal guidance.
 
 ## ❓ Online install troubleshooting
 

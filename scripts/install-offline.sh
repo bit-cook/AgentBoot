@@ -61,7 +61,7 @@ EOF
 cat > "${BIN_DIR}/ab" <<EOF
 #!/bin/sh
 PYTHON="\$(command -v python3 || command -v python)"
-exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" chat "\$@"
+exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" "\$@"
 EOF
 chmod +x "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"
 

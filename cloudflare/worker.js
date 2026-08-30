@@ -165,7 +165,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 <h2>🚀 三步上手</h2>
 <ol class="steps">
   <li><b>安装 AgentBoot</b><br>上面一条命令，10 秒完成；只会装 AgentBoot 本体与内置 Agent。</li>
-  <li><b>打开控制台菜单</b><br><code>agentboot</code> —— 环境体检 / 自选安装 Agent / 模型配置 / 镜像代理 / 自定义离线包。</li>
+  <li><b>打开控制台菜单</b><br><code>agentboot</code> —— 环境体检 / 安装与卸载 Agent / 模型配置 / 镜像代理 / 自定义离线包。</li>
   <li><b>或直接对话</b><br><code>ab</code> —— 内置保底 Agent，默认 <b>Agnes 免费模型</b>，零配置开箱即用。</li>
 </ol>
 
@@ -176,6 +176,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
   <div class="card"><b>🧠 模型提供商管理器</b><p>Agnes 零配置开箱；自定义提供商命名管理；Ollama / LM Studio 本地模型；故障切换顺序。</p></div>
   <div class="card"><b>🇨🇳 中国网络自适应</b><p>自动探测并切换 npmmirror / Node 镜像 / 清华 PyPI；四源下载容错；代理一键配置。</p></div>
   <div class="card"><b>📴 全量离线 & 瘦身定制</b><p>离线包内置各平台运行时与 Agent 载荷，目标机免联网免解压软件；菜单 [7] 自选平台与 Agent 构建瘦身包。</p></div>
+  <div class="card"><b>🧹 可追溯安全卸载</b><p>菜单 [9] 或 uninstall 命令批量卸载；只清理由 AgentBoot 管理的程序，默认保留配置、认证与会话。</p></div>
   <div class="card"><b>⚡ 极致性能</b><p>TLS 连接复用（实测每轮省约 440ms 首字延迟）、知识库预建索引（热查询 &lt;1ms）、上下文自动瘦身、流式中断保护。</p></div>
 </div>
 
@@ -329,7 +330,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 <h2>🚀 Three steps</h2>
 <ol class="steps">
   <li><b>Install AgentBoot</b><br>One command, ~10 seconds; only AgentBoot itself and the built-in agent are installed.</li>
-  <li><b>Open the console menu</b><br><code>agentboot</code> — environment check / pick agents to install / model providers / mirrors &amp; proxy / custom offline builds.</li>
+  <li><b>Open the console menu</b><br><code>agentboot</code> — environment check / install or uninstall agents / model providers / mirrors &amp; proxy / custom offline builds.</li>
   <li><b>Or just chat</b><br><code>ab</code> — the built-in fallback agent with the <b>free Agnes model</b>, zero config.</li>
 </ol>
 
@@ -340,6 +341,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
   <div class="card"><b>🧠 Model provider manager</b><p>Agnes out of the box; named custom providers; Ollama / LM Studio local models; failover order.</p></div>
   <div class="card"><b>🇨🇳 China network adaptive</b><p>Auto-detects and switches to npmmirror / Node mirrors / Tsinghua PyPI; four-source download retry; one-click proxy.</p></div>
   <div class="card"><b>📴 Full offline & slim builds</b><p>Offline packages bundle per-platform runtimes and agent payloads — no internet, no unzip software needed; menu [7] builds slim custom packages.</p></div>
+  <div class="card"><b>🧹 Ownership-aware uninstall</b><p>Menu [9] or the uninstall command removes AgentBoot-managed programs in batches while preserving config, credentials, and sessions by default.</p></div>
   <div class="card"><b>⚡ Extreme performance</b><p>TLS connection reuse (measured ~440ms off first-token latency per turn), pre-indexed KB (&lt;1ms warm), context auto-trimming, stream interruption protection.</p></div>
 </div>
 

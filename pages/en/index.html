@@ -84,7 +84,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 <h2>🚀 Three steps</h2>
 <ol class="steps">
   <li><b>Install AgentBoot</b><br>One command, ~10 seconds; only AgentBoot itself and the built-in agent are installed.</li>
-  <li><b>Open the console menu</b><br><code>agentboot</code> — environment check / pick agents to install / model providers / mirrors &amp; proxy / custom offline builds.</li>
+  <li><b>Open the console menu</b><br><code>agentboot</code> — environment check / install or uninstall agents / model providers / mirrors &amp; proxy / custom offline builds.</li>
   <li><b>Or just chat</b><br><code>ab</code> — the built-in fallback agent with the <b>free Agnes model</b>, zero config.</li>
 </ol>
 
@@ -95,6 +95,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
   <div class="card"><b>🧠 Model provider manager</b><p>Agnes out of the box; named custom providers; Ollama / LM Studio local models; failover order.</p></div>
   <div class="card"><b>🇨🇳 China network adaptive</b><p>Auto-detects and switches to npmmirror / Node mirrors / Tsinghua PyPI; four-source download retry; one-click proxy.</p></div>
   <div class="card"><b>📴 Full offline & slim builds</b><p>Offline packages bundle per-platform runtimes and agent payloads — no internet, no unzip software needed; menu [7] builds slim custom packages.</p></div>
+  <div class="card"><b>🧹 Ownership-aware uninstall</b><p>Menu [9] or the uninstall command removes AgentBoot-managed programs in batches while preserving config, credentials, and sessions by default.</p></div>
   <div class="card"><b>⚡ Extreme performance</b><p>TLS connection reuse (measured ~440ms off first-token latency per turn), pre-indexed KB (&lt;1ms warm), context auto-trimming, stream interruption protection.</p></div>
 </div>
 
