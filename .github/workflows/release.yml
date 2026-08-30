@@ -8,13 +8,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Validate tag and version
         shell: bash
         run: |
@@ -27,14 +29,16 @@ jobs:
   online:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Build online packages
         run: |
           cp install.sh pages/install.sh
           cp scripts/install.ps1 pages/install.ps1
           python3 scripts/build-online.py
           cp install.sh scripts/install.ps1 VERSION pages/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: online
           path: |
@@ -46,7 +50,9 @@ jobs:
   offline-linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Build verified Codex offline package
         run: AGENTS=codex PLATFORMS=linux-x64 TAG="v$(cat VERSION)" sh scripts/build-offline.sh
       - name: Smoke install, execute, and uninstall
@@ -63,7 +69,7 @@ jobs:
           test ! -e "$root/home/.agentboot/agents/codex"
           mv "dist/AgentBoot-offline-${tag}-linux-x64.tar.gz" "dist/AgentBoot-offline-${tag}-linux-x64-codex.tar.gz"
           mv "dist/AgentBoot-offline-${tag}-linux-x64-sfx.sh" "dist/AgentBoot-offline-${tag}-linux-x64-codex-sfx.sh"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: offline-linux
           path: dist/AgentBoot-offline-*-linux-x64-codex*
@@ -71,7 +77,9 @@ jobs:
   offline-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Build verified Codex offline package
         shell: powershell
         run: .\scripts\build-offline.ps1 -Tag ('v' + (Get-Content VERSION -Raw).Trim()) -Platforms win-x64 -Agents codex
@@ -80,7 +88,7 @@ jobs:
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'agentboot-smoke'
           $extract = Join-Path $root 'extract'
-          $smokeHome = Join-Path $root 'home'
+          $smokeHome = Join-Path $root '测试-home'
           New-Item -ItemType Directory -Path $extract, $smokeHome -Force | Out-Null
           $tag = 'v' + (Get-Content VERSION -Raw).Trim()
           tar -xf "dist\AgentBoot-offline-$tag-win-x64.zip" -C $extract
@@ -93,17 +101,42 @@ jobs:
           python "$env:LOCALAPPDATA\AgentBoot\app\core\menu.py" uninstall codex
           if (Test-Path "$smokeHome\.agentboot\agents\codex") { throw 'Codex payload not removed' }
           Move-Item "dist\AgentBoot-offline-$tag-win-x64.zip" "dist\AgentBoot-offline-$tag-win-x64-codex.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: offline-windows
           path: dist/AgentBoot-offline-*-win-x64-codex.zip
 
+  macos-smoke:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build and smoke native macOS Codex package
+        shell: bash
+        run: |
+          AGENTS=codex PLATFORMS=darwin-x64 TAG="v$(cat VERSION)" sh scripts/build-offline.sh
+          root="$(mktemp -d)"
+          mkdir -p "$root/extract" "$root/home"
+          tag="v$(cat VERSION)"
+          tar -xzf "dist/AgentBoot-offline-${tag}-darwin-x64.tar.gz" -C "$root/extract"
+          HOME="$root/home" sh "$root/extract/AgentBoot/install-offline.sh" codex
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" "$root/home/.agentboot/bin/codex" --version
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 "$root/home/.agentboot/app/core/menu.py" uninstall codex
+          test ! -e "$root/home/.agentboot/agents/codex"
+
   publish:
-    needs: [validate, online, offline-linux, offline-windows]
+    needs: [validate, online, offline-linux, offline-windows, macos-smoke]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
+    environment: release-production
+    permissions:
+      contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: release
           merge-multiple: true
@@ -113,12 +146,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "AgentBoot $GITHUB_REF_NAME" \
-            --prerelease \
-            --generate-notes \
-            --verify-tag
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --prerelease --latest=false
+          else
+            gh release create "$GITHUB_REF_NAME" release/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "AgentBoot $GITHUB_REF_NAME" \
+              --prerelease \
+              --generate-notes \
+              --verify-tag
+          fi
       - name: Wait for Pages deployment
         env:
           GH_TOKEN: ${{ github.token }}

@@ -14,8 +14,8 @@ import agent  # noqa: E402
 
 
 class CommandClassificationTests(unittest.TestCase):
-    def test_all_read_only_chain_is_safe(self):
-        self.assertEqual(agent.classify_cmd("pwd && ls -la | head -n 5"), "safe")
+    def test_shell_chains_are_never_safe(self):
+        self.assertEqual(agent.classify_cmd("pwd && ls -la | head -n 5"), "normal")
 
     def test_mutating_command_after_safe_prefix_is_not_safe(self):
         self.assertEqual(agent.classify_cmd("echo ok; touch /tmp/agentboot-test"), "normal")
@@ -56,10 +56,16 @@ class CommandClassificationTests(unittest.TestCase):
         for command in commands:
             self.assertNotEqual(agent.classify_cmd(command), "safe", command)
 
+    def test_single_ampersand_redirection_find_writes_and_path_spoofing_are_not_safe(self):
+        commands = ("pwd & touch /tmp/x", "cat <> /tmp/x", "find /tmp -fprintf /tmp/x hi",
+                    "/tmp/ls /tmp")
+        for command in commands:
+            self.assertNotEqual(agent.classify_cmd(command), "safe", command)
+
 
 class ConfirmationPolicyTests(unittest.TestCase):
     def test_safe_mode_runs_read_only_command(self):
-        with mock.patch.object(agent, "run_cmd", return_value="ok") as run:
+        with mock.patch.object(agent, "run_safe_cmd", return_value="ok") as run:
             result, danger = agent.execute_tool(
                 {"confirm": "safe"}, "run_cmd", {"command": "pwd"}, set())
         self.assertEqual(result, "ok")
@@ -103,6 +109,20 @@ class ConfirmationPolicyTests(unittest.TestCase):
                 {"confirm": "always"}, "run_cmd", {"command": "touch x"}, set())
         self.assertEqual(result, "ok")
         run.assert_called_once()
+
+    def test_unknown_policy_fails_closed_to_smart(self):
+        with mock.patch.object(agent, "_is_interactive", return_value=False), \
+                mock.patch.object(agent, "run_cmd") as run:
+            result, _danger = agent.execute_tool(
+                {"confirm": "typo"}, "run_cmd", {"command": "touch x"}, set())
+        self.assertIn("非交互", result)
+        run.assert_not_called()
+
+    def test_safe_command_uses_direct_argv_not_shell(self):
+        with mock.patch.object(agent, "_trusted_executable", return_value="/usr/bin/ls"), \
+                mock.patch.object(agent.subprocess if hasattr(agent, "subprocess") else agent, "run", create=True):
+            parsed = agent.safe_command_argv("ls -la")
+        self.assertEqual(parsed, ["/usr/bin/ls", "-la"])
 
 
 if __name__ == "__main__":

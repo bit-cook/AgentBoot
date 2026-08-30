@@ -78,6 +78,22 @@ class HighImpactRegressionTests(unittest.TestCase):
         self.assertTrue(response.drained)
         drop.assert_not_called()
 
+    def test_ab_run_prints_final_answer_in_interactive_mode(self):
+        with mock.patch.object(agent, "load_config", return_value=agent.default_config()), \
+                mock.patch.object(agent, "_is_interactive", return_value=True), \
+                mock.patch.object(agent, "agent_loop", return_value=("answer", [])), \
+                mock.patch.object(sys, "argv", ["agent.py", "run", "task"]), \
+                mock.patch("builtins.print") as printed:
+            agent.main()
+        self.assertTrue(any(call.args == ("answer",) for call in printed.call_args_list))
+
+    def test_provider_name_selects_requested_provider(self):
+        cfg = {"active": "first", "providers": {"first": {}, "second": {}}}
+        with mock.patch.object(agent, "chat", return_value=("ok", [])) as chat:
+            ok, _message = agent.test_provider(cfg, name="second")
+        self.assertTrue(ok)
+        self.assertEqual(chat.call_args.args[0]["active"], "second")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

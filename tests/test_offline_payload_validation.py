@@ -20,7 +20,7 @@ class OfflinePayloadValidationTests(unittest.TestCase):
             stage = Path(tmp)
             (stage / "agents").mkdir()
             (stage / "agents" / "registry.json").write_text(json.dumps({"agents": [{
-                "id": "demo", "method": "npm", "npm": "@scope/demo", "bin": "demo"}]}),
+                "id": "demo", "method": "npm", "npm": "@scope/demo", "bin": "demo", "offline": True}]}),
                 encoding="utf-8")
             (stage / "payloads" / "node" / "linux-x64").mkdir(parents=True)
             result = subprocess.run([sys.executable, str(VALIDATOR), str(stage),
@@ -46,12 +46,25 @@ class OfflinePayloadValidationTests(unittest.TestCase):
             stage = Path(tmp)
             (stage / "agents").mkdir()
             (stage / "agents" / "registry.json").write_text(json.dumps({"agents": [{
-                "id": "coco", "method": "script", "bin": "coco", "os": ["linux", "darwin"]}]}),
+                "id": "coco", "method": "script", "bin": "coco", "offline": True,
+                "os": ["linux", "darwin"]}]}),
                 encoding="utf-8")
             result = subprocess.run([sys.executable, str(VALIDATOR), str(stage),
                                      "win-x64", "coco"], capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("does not support", result.stderr)
+
+    def test_agent_not_marked_offline_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stage = Path(tmp)
+            (stage / "agents").mkdir()
+            (stage / "agents" / "registry.json").write_text(json.dumps({"agents": [{
+                "id": "online", "method": "npm", "npm": "online", "bin": "online", "offline": False}]}),
+                encoding="utf-8")
+            result = subprocess.run([sys.executable, str(VALIDATOR), str(stage), "linux-x64", "online"],
+                                    capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not marked offline-capable", result.stderr)
 
 
 if __name__ == "__main__":

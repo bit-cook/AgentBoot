@@ -18,11 +18,21 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("--prerelease", text)
         self.assertIn("verify-live-release.py", text)
         self.assertIn("--prerelease=false --latest", text)
-        self.assertIn("needs: [validate, online, offline-linux, offline-windows]", text)
+        self.assertIn("needs: [validate, online, offline-linux, offline-windows, macos-smoke]", text)
         self.assertIn("$smokeHome", text)
+        self.assertIn("测试-home", text)
         self.assertNotIn("$home =", text)
+        self.assertIn("contents: read", text)
+        self.assertIn("contents: write", text)
+        self.assertIn("environment: release-production", text)
+        self.assertIn("persist-credentials: false", text)
+        self.assertIn("actions/checkout@11d5960a326750d5838078e36cf38b85af677262", text)
+        self.assertIn("gh release upload", text)
+        self.assertIn("--clobber", text)
         self.assertIn("install-offline.sh\" codex", text)
         self.assertIn("install-offline.ps1\" -Agents codex", text)
+        self.assertIn("runs-on: macos-15-intel", text)
+        self.assertIn("PLATFORMS=darwin-x64", text)
 
     def test_live_verifier_covers_primary_and_mirror(self):
         text = (ROOT / "scripts/verify-live-release.py").read_text(encoding="utf-8")
@@ -37,12 +47,19 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('"name": "boot"', text)
         self.assertIn('"pattern": "boot.ide.pub/*"', text)
 
+    def test_pages_workflow_pins_actions_and_drops_checkout_credentials(self):
+        text = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
+        self.assertNotIn("actions/checkout@v4", text)
+        self.assertIn("persist-credentials: false", text)
+        self.assertIn("actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e", text)
+
     def test_worker_health_checks_assets_and_proxy_forwards_ranges(self):
         text = (ROOT / "cloudflare/worker.js").read_text(encoding="utf-8")
         self.assertIn("const required =", text)
         self.assertIn("assets[name] = response.status", text)
         self.assertIn('"Range", "If-Range"', text)
         self.assertIn("cacheEverything: !requestHeaders.has(\"Range\")", text)
+        self.assertIn("resp.status !== 304", text)
 
 
 if __name__ == "__main__":

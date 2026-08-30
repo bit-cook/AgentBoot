@@ -50,7 +50,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | 📦 **菜单自选安装** | 14 个主流 Agent 按需勾选（见下表），支持命令行指定 |
 | 🛟 **内置保底 Agent** | `ab` 零第三方依赖 Python 核心：Agnes 开箱即用、离线 Linux 知识库、工具调用、会话持久化 |
 | 🧠 **提供商管理器** | Agnes 预设 + 自定义提供商命名管理 + Ollama/LM Studio 本地模型 + 故障切换顺序 |
-| 🇨🇳 **中国网络自适应** | npmmirror / Node 镜像 / 清华 PyPI 自动切换；四源下载容错；代理一键配置 |
+| 🇨🇳 **中国网络自适应** | npmmirror / Node 镜像 / 清华 PyPI 自动切换；Worker / Pages / Release 三源容错；代理一键配置 |
 | 📴 **可验证离线包** | Release 提供经安装/启动/卸载冒烟的 Codex 精简包；菜单 `[7]` 可按目标平台自建其他 Agent 包 |
 | ➕ **自定义 Agent** | 菜单向导或 `add-agent` 添加注册表之外的任意 Agent（npm / pip / 脚本），用户目录保存、升级不丢 |
 | 🧹 **安全卸载** | 菜单 `[9]` 或 `agentboot uninstall <id>`；精确清理程序，默认保留配置、认证与会话 |
@@ -63,7 +63,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | # | Agent | 命令 | 厂商 | 离线 | 备注 |
 |---|---|---|---|---|---|
 | 1 | CoCo Agent | `coco` | BitCook | Linux/macOS | 官方脚本安装 |
-| 2 | OpenCode | `opencode` | opencode.ai | ✓ | |
+| 2 | OpenCode | `opencode` | opencode.ai | 仅在线 | postinstall 尚未纳入离线验证 |
 | 3 | Hermes Agent | `hermes` | Hermes | ✓ | 需 Git；国内自动镜像 |
 | 4 | Cline CLI | `cline` | Cline | ✓ | |
 | 5 | CodeBuddy CLI | `codebuddy` | Tencent | ✓ | |
@@ -146,7 +146,7 @@ AgentBoot/
 ## 文档与链接
 
 - [安装指南](安装指南.md) —— 一键安装 / 离线部署 / 自定义构建 / 模型配置 / 故障排查
-- [Releases](https://github.com/bit-cook/AgentBoot/releases) —— 在线包 / 三平台离线包 / 源码包
+- [Releases](https://github.com/bit-cook/AgentBoot/releases) —— 在线包 / 已验证 Linux、Windows Codex 离线包 / 源码包
 - 分发入口：[boot.ide.pub](https://boot.ide.pub)（Cloudflare）· [GitHub Pages](https://bit-cook.github.io/AgentBoot/)
 
 ## 安全说明

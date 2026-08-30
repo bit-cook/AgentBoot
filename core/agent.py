@@ -11,10 +11,13 @@ AgentBoot 内置最小 Agent（命令 ab）
   * 工具：run_cmd / read_file / write_file / edit_file / list_dir / linux_help / http_get
 """
 import json
+import ipaddress
 import os
 import re
 import shlex
+import socket
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -48,8 +51,11 @@ def _utf8_console():
 
 
 def ensure_home():
-    if not os.path.isdir(AB_HOME):
-        os.makedirs(AB_HOME, exist_ok=True)
+    os.makedirs(AB_HOME, mode=0o700, exist_ok=True)
+    try:
+        os.chmod(AB_HOME, 0o700)
+    except OSError:
+        pass
 
 
 # Agnes 为官方预设的永久免费模型，开箱即用；其余为常见本地模型示例。
@@ -97,6 +103,21 @@ def load_config():
             cfg = json.load(f)
     except Exception:
         cfg = default_config()
+    if not isinstance(cfg, dict):
+        cfg = default_config()
+    if not isinstance(cfg.get("providers"), dict):
+        cfg["providers"] = {}
+    confirm = str(cfg.get("confirm", "smart")).strip().lower()
+    cfg["confirm"] = confirm if confirm in ("safe", "smart", "always") else "smart"
+    raw_steps = cfg.get("max_steps", 12)
+    try:
+        steps = int(raw_steps)
+    except (TypeError, ValueError):
+        steps = 12
+    cfg["max_steps"] = 12 if steps < 1 else min(steps, 50)
+    cfg["lang"] = "en" if str(cfg.get("lang", "zh")).lower().startswith("en") else "zh"
+    if not isinstance(cfg.get("fallback", []), list):
+        cfg["fallback"] = []
     for k, v in default_config().items():
         cfg.setdefault(k, v)
     return cfg
@@ -104,10 +125,33 @@ def load_config():
 
 def save_config(cfg):
     ensure_home()
-    tmp = CONFIG_PATH + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, CONFIG_PATH)
+    _atomic_private_json(CONFIG_PATH, cfg)
+
+
+def _atomic_private_json(path, data):
+    directory = os.path.dirname(path) or "."
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=os.path.basename(path) + ".", suffix=".tmp", dir=directory)
+    try:
+        try:
+            os.fchmod(fd, 0o600)
+        except (AttributeError, OSError):
+            pass
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(data, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp, path)
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 def get_provider(cfg, name=None):
@@ -143,8 +187,29 @@ def _split_base(base_url):
     if not u.endswith("/v1"):
         u += "/v1"
     s = urlsplit(u)
+    if s.scheme not in ("http", "https"):
+        raise ApiError("模型接口仅支持 https；本地无密钥模型可使用回环 http。")
+    if not s.hostname:
+        raise ApiError("模型接口地址缺少主机名。")
     port = s.port or (443 if s.scheme == "https" else 80)
     return s.scheme, s.hostname, port, (s.path or "") + "/chat/completions"
+
+
+def _is_literal_loopback(host):
+    if str(host or "").lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(str(host).strip("[]")).is_loopback
+    except ValueError:
+        return False
+
+
+def _validate_model_transport(scheme, host, api_key):
+    if scheme == "https":
+        return
+    if scheme == "http" and _is_literal_loopback(host) and not api_key:
+        return
+    raise ApiError("拒绝不安全的模型接口：仅允许 HTTPS，或无 API Key 的 localhost/回环 HTTP。")
 
 
 # 连接池：复用 TLS 连接，砍掉每轮对话的握手开销（极限性能核心）
@@ -154,7 +219,19 @@ _POOL = {}
 def _connect(scheme, host, port, timeout=180):
     import http.client
     import ssl
-    key = (scheme, host, port)
+    from urllib.parse import urlsplit
+    proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    if not proxy_url:
+        try:
+            env_path = os.path.join(AB_HOME, "env.json")
+            with open(env_path, "r", encoding="utf-8") as source:
+                proxy_url = (json.load(source) or {}).get("proxy")
+        except Exception:
+            proxy_url = None
+    proxy = urlsplit(proxy_url) if proxy_url else None
+    if proxy and (proxy.scheme not in ("http", "https") or not proxy.hostname):
+        raise ApiError("代理地址无效，仅支持 http/https。")
+    key = (scheme, host, port, proxy_url or "")
     conn = _POOL.get(key)
     if conn is not None:
         return conn
@@ -162,16 +239,31 @@ def _connect(scheme, host, port, timeout=180):
         ctx = ssl.create_default_context()
         if os.environ.get("AGENTBOOT_INSECURE") == "1":
             ctx = ssl._create_unverified_context()
-        conn = http.client.HTTPSConnection(host, port, timeout=timeout, context=ctx)
-    else:
+        if proxy:
+            conn = http.client.HTTPSConnection(proxy.hostname, proxy.port or (443 if proxy.scheme == "https" else 80),
+                                               timeout=timeout, context=ctx)
+            tunnel_headers = {}
+            if proxy.username:
+                import base64
+                raw = "%s:%s" % (proxy.username, proxy.password or "")
+                tunnel_headers["Proxy-Authorization"] = "Basic " + base64.b64encode(raw.encode()).decode()
+            conn.set_tunnel(host, port, headers=tunnel_headers)
+        else:
+            conn = http.client.HTTPSConnection(host, port, timeout=timeout, context=ctx)
+    elif scheme == "http":
         conn = http.client.HTTPConnection(host, port, timeout=timeout)
+    else:
+        raise ApiError("不支持的模型接口协议：%s" % scheme)
     _POOL[key] = conn
     return conn
 
 
 def _drop_pool(scheme, host, port):
-    conn = _POOL.pop((scheme, host, port), None)
-    if conn is not None:
+    keys = [key for key in _POOL if key[:3] == (scheme, host, port)]
+    for key in keys:
+        conn = _POOL.pop(key, None)
+        if conn is None:
+            continue
         try:
             conn.close()
         except Exception:
@@ -188,6 +280,7 @@ def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature
     scheme, host, port, path = _split_base(p.get("base_url", ""))
     if not host:
         raise ApiError("模型接口地址为空，请先运行 `ab model` 或在菜单里配置模型。")
+    _validate_model_transport(scheme, host, p.get("api_key"))
 
     body = {"model": p.get("model"), "messages": messages, "temperature": temperature}
     if tools:
@@ -230,6 +323,13 @@ def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature
                 msg = choice.get("message") or {}
                 return msg.get("content") or "", msg.get("tool_calls") or []
             return _read_stream(resp, stream_cb, conn, scheme, host, port)
+        except StreamInterrupted as e:
+            last_err = e
+            _drop_pool(scheme, host, port)
+            if attempt < 2:
+                time.sleep(1 + attempt)
+                continue
+            raise ApiError("模型流在完成前中断，请重试。")
         except ApiError:
             raise
         except Exception as e:   # 网络类错误：连接可能已坏，弃用后重建重试
@@ -243,6 +343,8 @@ def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature
 def _read_stream(resp, stream_cb, conn, scheme, host, port):
     content_parts = []
     tool_calls = {}
+    terminal = False
+    malformed = False
 
     def flush_tc():
         out = []
@@ -265,12 +367,16 @@ def _read_stream(resp, stream_cb, conn, scheme, host, port):
                 continue
             data = line[5:].strip()
             if data == "[DONE]":
+                terminal = True
                 break
             try:
                 obj = json.loads(data)
             except Exception:
-                continue
+                malformed = True
+                break
             for choice in obj.get("choices") or []:
+                if choice.get("finish_reason") is not None:
+                    terminal = True
                 delta = choice.get("delta") or {}
                 piece = delta.get("content")
                 if piece:
@@ -294,10 +400,25 @@ def _read_stream(resp, stream_cb, conn, scheme, host, port):
         partial = "".join(content_parts)
         _drop_pool(scheme, host, port)
         if partial:
-            return partial, flush_tc()   # 尽力而为：返回已收到的部分内容
+            raise ApiError("模型流中断（已收到部分文本，未执行任何工具）。")
+        raise StreamInterrupted("")
+    if malformed:
+        _drop_pool(scheme, host, port)
+        raise ApiError("模型流包含无效 JSON，已拒绝处理。")
+    if not terminal:
+        _drop_pool(scheme, host, port)
+        if content_parts:
+            raise ApiError("模型流在完成前中断（已收到部分文本，未执行任何工具）。")
         raise StreamInterrupted("")
     content = "".join(content_parts)
     tcs = flush_tc()
+    for tc in tcs:
+        try:
+            parsed = json.loads(tc["function"]["arguments"] or "{}")
+        except (TypeError, ValueError):
+            raise ApiError("模型返回了不完整的工具参数 JSON，已拒绝执行。")
+        if not tc["function"]["name"] or not isinstance(parsed, dict):
+            raise ApiError("模型返回了无效的工具参数，已拒绝执行。")
     if not content and not tcs:
         raise ApiError("模型返回为空（流式）。")
     return content, tcs
@@ -382,10 +503,9 @@ SESSION_FILE = os.path.join(AB_HOME, "last-session.json")
 
 def save_session(history):
     try:
-        os.makedirs(AB_HOME, exist_ok=True)
-        with open(SESSION_FILE, "w", encoding="utf-8") as f:
-            json.dump({"saved": time.strftime("%Y-%m-%d %H:%M"),
-                       "history": history[-12:]}, f, ensure_ascii=False)
+        ensure_home()
+        _atomic_private_json(SESSION_FILE, {"saved": time.strftime("%Y-%m-%d %H:%M"),
+                                            "history": history[-12:]})
     except OSError:
         pass
 
@@ -420,7 +540,10 @@ def bench(cfg):
 def test_provider(cfg, name=None):
     """连通性测试：让模型回一个字。"""
     try:
-        content, _ = chat(cfg, [{"role": "user", "content": "请只回复两个字：正常"}],
+        target = dict(cfg)
+        if name:
+            target["active"] = name
+        content, _ = chat(target, [{"role": "user", "content": "请只回复两个字：正常"}],
                           stream_cb=None, max_tokens=16, temperature=0)
         return True, (content or "").strip()[:40] or "（空响应）"
     except Exception as e:
@@ -510,7 +633,7 @@ SAFE_FIRST = {
     "journalctl", "dmesg", "man", "apropos", "top", "vmstat",
     "iostat", "sar", "netstat", "getenforce", "sestatus",
     # Windows 常见只读命令
-    "dir", "type", "ipconfig", "systeminfo", "tasklist", "ver", "whoami",
+    "ipconfig", "systeminfo", "tasklist", "whoami",
     "netstat", "where", "driverquery", "hostname",
 }
 
@@ -555,11 +678,13 @@ def _simple_command_level(segment):
         words.pop(0)
     if not words:
         return "normal"
-    first = os.path.basename(words[0]).lower()
+    if os.path.basename(words[0]) != words[0] or "/" in words[0] or "\\" in words[0]:
+        return "normal"
+    first = words[0].lower()
     args = [str(word).lower() for word in words[1:]]
     if first in ("sh", "bash", "zsh", "dash", "cmd", "powershell", "pwsh", "env"):
         return "normal"
-    if first == "find" and any(arg in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for arg in args):
+    if first == "find" and any(arg == "-delete" or arg.startswith(("-exec", "-ok", "-fprint", "-fls")) for arg in args):
         return "normal"
     if first in MUTATING_FLAGS:
         for arg in words[1:]:
@@ -583,29 +708,108 @@ def classify_cmd(cmd):
     for pat in DANGER_RE:
         if re.search(pat, c, re.IGNORECASE):
             return "danger"
-    if re.search(r"`|\$\(|\$\(\(|[<>]\(|\$\{|(^|[^<])>{1,2}|\btee\b", c):
+    if re.search(r"[;&|<>\r\n]|`|\$\(|\$\(\(|\$\{|\btee\b", c):
         return "normal"
-    segments = [part.strip() for part in re.split(r"(?:&&|\|\||[;|\n])", c) if part.strip()]
-    levels = [_simple_command_level(segment) for segment in segments]
-    return "safe" if levels and all(level == "safe" for level in levels) else "normal"
+    return _simple_command_level(c)
+
+
+def _trusted_executable(name):
+    """Resolve a bare allowlisted command from OS-owned directories only."""
+    import shutil
+    if not name or os.path.basename(name) != name or "/" in name or "\\" in name:
+        return None
+    if os.name == "nt":
+        root = os.environ.get("SystemRoot", r"C:\Windows")
+        search = [os.path.join(root, "System32"), root]
+    else:
+        search = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+    path = shutil.which(name, path=os.pathsep.join(search))
+    return os.path.realpath(path) if path else None
+
+
+def safe_command_argv(cmd):
+    if classify_cmd(cmd) != "safe":
+        return None
+    try:
+        words = shlex.split(cmd, posix=os.name != "nt")
+    except ValueError:
+        return None
+    if not words:
+        return None
+    executable = _trusted_executable(words[0])
+    return [executable] + words[1:] if executable else None
+
+
+def run_safe_cmd(cmd, timeout=60):
+    import subprocess
+    argv = safe_command_argv(cmd)
+    if not argv:
+        return "exit=126\n拒绝执行无法从可信系统目录解析的只读命令。"
+    timeout = min(max(int(timeout or 60), 5), 300)
+    try:
+        result = subprocess.run(argv, capture_output=True, text=True, errors="replace", timeout=timeout)
+        output = ((result.stdout or "") + (("\n[stderr] " + result.stderr) if result.stderr.strip() else "")).strip()
+        return "exit=%d\n%s" % (result.returncode, output[:8000] or "（无输出）")
+    except subprocess.TimeoutExpired:
+        return "exit=124\n（只读命令超时 %ss，已终止）" % timeout
+    except OSError as error:
+        return "exit=126\n启动只读命令失败：%s" % error
 
 
 def run_cmd(cmd, timeout=60):
     import subprocess   # 惰性导入：保持启动极速
     timeout = min(max(int(timeout or 60), 5), 300)
     shell = ["cmd", "/c", cmd] if os.name == "nt" else ["/bin/sh", "-c", cmd]
+    out_file = tempfile.TemporaryFile(mode="w+b")
+    err_file = tempfile.TemporaryFile(mode="w+b")
     try:
-        r = subprocess.run(shell, capture_output=True, text=True,
-                           errors="replace", timeout=timeout)
-        out = ((r.stdout or "") + (("\n[stderr] " + r.stderr) if r.stderr.strip() else "")).strip()
-        code = r.returncode
+        kwargs = {"stdout": out_file, "stderr": err_file}
+        if os.name == "nt":
+            kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        else:
+            kwargs["start_new_session"] = True
+        process = subprocess.Popen(shell, **kwargs)
+        try:
+            process.wait(timeout=timeout)
+            code = process.returncode
+        except subprocess.TimeoutExpired:
+            code = 124
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                import signal
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                    process.wait(timeout=2)
+                except Exception:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except OSError:
+                        pass
+            process.wait()
+        def read_bounded(stream):
+            stream.flush()
+            size = stream.tell()
+            stream.seek(0)
+            if size <= 8000:
+                return stream.read().decode("utf-8", "replace")
+            first = stream.read(4000).decode("utf-8", "replace")
+            stream.seek(max(0, size - 4000))
+            last = stream.read(4000).decode("utf-8", "replace")
+            return first + "\n…（输出过长，已截断中间部分）…\n" + last
+        stdout = read_bounded(out_file)
+        stderr = read_bounded(err_file)
+        out = (stdout + (("\n[stderr] " + stderr) if stderr.strip() else "")).strip()
+        if code == 124:
+            out = "（命令超时 %ss，已终止整个进程树）\n%s" % (timeout, out)
     except subprocess.TimeoutExpired:
         out, code = "（命令超时 %ss，已终止）" % timeout, 124
     except FileNotFoundError as e:
         out, code = "启动 shell 失败：%s" % e, 127
-    if len(out) > 8000:
-        half = 4000
-        out = out[:half] + "\n…（输出过长，已截断中间部分）…\n" + out[-half:]
+    finally:
+        out_file.close()
+        err_file.close()
     return "exit=%d\n%s" % (code, out or "（无输出）")
 
 
@@ -718,20 +922,44 @@ def search_files(pattern, path=".", regex=False, max_results=40):
     return "\n".join(out) if out else "（无匹配）"
 
 
-def http_get(url):
-    if not re.match(r"^https?://", url or ""):
-        return "错误：仅支持 http/https 地址"
+def _validate_public_http_url(url):
+    from urllib.parse import urlsplit
+    parsed = urlsplit(url or "")
+    if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("仅支持不含凭据的 http/https 公网地址")
     try:
-        from urllib.request import Request, urlopen
+        addresses = socket.getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80),
+                                       type=socket.SOCK_STREAM)
+    except OSError as error:
+        raise ValueError("域名解析失败：%s" % error)
+    if not addresses:
+        raise ValueError("域名没有可用地址")
+    for item in addresses:
+        address = ipaddress.ip_address(item[4][0])
+        if not address.is_global:
+            raise ValueError("拒绝访问非公网地址：%s" % address)
+    return parsed
+
+
+def http_get(url):
+    try:
+        from urllib.request import Request, build_opener, HTTPRedirectHandler
+        _validate_public_http_url(url)
+
+        class SafeRedirect(HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                _validate_public_http_url(newurl)
+                return HTTPRedirectHandler.redirect_request(self, req, fp, code, msg, headers, newurl)
+
         req = Request(url, headers={"User-Agent": "AgentBoot/1.0"})
-        with urlopen(req, timeout=15) as r:
+        with build_opener(SafeRedirect()).open(req, timeout=15) as r:
             data = r.read(300000)
         text = data.decode("utf-8", "replace")
         if len(data) >= 299000:
             text += "\n…（已截断）"
         return text if text.strip() else "（空响应）"
     except Exception as e:
-        return "抓取失败：%s" % e
+        return "抓取失败或已拒绝：%s" % e
 
 
 # ---------------------------------------------------------------- 工具 schema（OpenAI 格式）
@@ -761,7 +989,9 @@ def execute_tool(cfg, name, args, session_allow):
     if name == "run_cmd":
         cmd = args.get("command", "")
         level = classify_cmd(cmd)
-        policy = cfg.get("confirm", "smart")
+        policy = str(cfg.get("confirm", "smart")).strip().lower()
+        if policy not in ("safe", "smart", "always"):
+            policy = "smart"
         if policy == "safe" and level != "safe":
             return "safe 模式只允许只读命令，已拒绝：%s" % cmd, level == "danger"
         if level == "danger" and policy != "always" and cmd not in session_allow:
@@ -776,11 +1006,15 @@ def execute_tool(cfg, name, args, session_allow):
                     return "用户拒绝了该命令。", False
             else:
                 return "非交互模式无法确认写操作，已拒绝；如需自动执行请设置 confirm=always。", False
+        if level == "safe":
+            return run_safe_cmd(cmd, args.get("timeout")), False
         return run_cmd(cmd, args.get("timeout")), level == "danger"
     if name == "read_file":
         return read_file(args.get("path", "")), False
     if name == "write_file":
-        policy = cfg.get("confirm", "smart")
+        policy = str(cfg.get("confirm", "smart")).strip().lower()
+        if policy not in ("safe", "smart", "always"):
+            policy = "smart"
         key = "write_file:%s" % args.get("path", "")
         if policy == "safe":
             return "safe 模式只允许只读工具，已拒绝写入文件。", False
@@ -795,7 +1029,9 @@ def execute_tool(cfg, name, args, session_allow):
                 return "用户拒绝了文件写入。", False
         return write_file(args.get("path", ""), args.get("content", "")), False
     if name == "edit_file":
-        policy = cfg.get("confirm", "smart")
+        policy = str(cfg.get("confirm", "smart")).strip().lower()
+        if policy not in ("safe", "smart", "always"):
+            policy = "smart"
         key = "edit_file:%s" % args.get("path", "")
         if policy == "safe":
             return "safe 模式只允许只读工具，已拒绝修改文件。", False
@@ -832,6 +1068,13 @@ def _is_interactive():
 
 def system_prompt():
     plat = "%s / %s" % (platform_info(), sys.platform)
+    if i18n.get_lang() == "en":
+        return (
+            "You are AgentBoot's built-in terminal assistant running locally on %s.\n"
+            "Use tools for commands, files, the offline Linux knowledge base, and public web pages.\n"
+            "Rules: answer concisely in English; inspect with read-only tools before changing state; "
+            "explain destructive consequences first; put commands in code blocks; summarize verified results." % plat
+        )
     return (
         "你是 AgentBoot 内置的终端智能助手（ab），直接运行在用户本机，当前系统：%s。\n"
         "你可以调用工具：执行命令、读写文件、查询离线 Linux 知识库、抓取网页。\n"
@@ -1146,8 +1389,8 @@ def main():
         if not args:
             print("用法: ab run \"你的任务\"")
             return
-        final, _ = agent_loop(cfg, " ".join(args), stream=(not _is_interactive()))
-        if final and not _is_interactive():
+        final, _ = agent_loop(cfg, " ".join(args), stream=False)
+        if final:
             print(final)
         return
     if cmd == "bench":

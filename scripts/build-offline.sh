@@ -57,8 +57,6 @@ verify_node_archive() { # verify_node_archive <archive> <version> <filename>
     [ "$actual" = "$expected" ]
 }
 
-step "AgentBoot 离线包构建 $TAG · 平台：$PLATFORMS"
-
 case "$(uname -s)-$(uname -m)" in
     Darwin-arm*) HOST_PLAT="darwin-arm64" ;;
     Darwin-*) HOST_PLAT="darwin-x64" ;;
@@ -66,6 +64,7 @@ case "$(uname -s)-$(uname -m)" in
     *) HOST_PLAT="linux-x64" ;;
 esac
 PLATFORMS="${PLATFORMS:-$HOST_PLAT}"
+step "AgentBoot 离线包构建 $TAG · 平台：$PLATFORMS"
 
 # ---------- 0. 确保 npm ----------
 if ! command -v npm >/dev/null 2>&1; then
@@ -93,10 +92,7 @@ ok "npm：$(command -v npm)"
 step '复制项目文件 …'
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
-(cd "$ROOT" && tar -cf - \
-    --exclude='./.git' --exclude='./dist' --exclude='./payloads' \
-    --exclude='./node_modules' --exclude='./__pycache__' --exclude='*.pyc' \
-    .) | tar -xf - -C "$STAGE"
+python3 "$ROOT/scripts/tools/stage_application.py" "$ROOT" "$STAGE"
 
 # ---------- 2. 各平台 Node 运行时 ----------
 mkdir -p "$STAGE/payloads/node"
@@ -143,10 +139,10 @@ PYEOF
 fi
 step "Agent 载荷：$WANT"
 for AID in $WANT; do
-    PKG="$(python3 - "$AID" <<'PYEOF'
+    PKG="$(python3 - "$ROOT/agents/registry.json" "$AID" <<'PYEOF'
 import json,sys
-rid=sys.argv[1]
-for a in json.load(open('agents/registry.json'))['agents']:
+rid=sys.argv[2]
+for a in json.load(open(sys.argv[1]))['agents']:
     if a['id']==rid:
         print(a.get('npm') or '')
         break
@@ -203,6 +199,8 @@ mkdir -p "$STAGE/payloads/python"
     || fetch_file "https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip" \
         "$STAGE/payloads/python/win-embed.zip" \
     || { err "Windows Python 便携包下载失败"; exit 1; }
+[ "$(sha256_file "$STAGE/payloads/python/win-embed.zip")" = "4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3" ] \
+    || { rm -f "$STAGE/payloads/python/win-embed.zip"; err "Windows Python SHA-256 校验失败"; exit 1; }
 ok 'win-embed.zip 就绪'
 
 # CoCo（script 类）离线载荷：发行包 + sha256 + Agnes 密钥 + Node 22.23 运行时
@@ -297,7 +295,10 @@ tmp="$(mktemp -d 2>/dev/null || echo /tmp/agentboot-sfx-$$)"
 mkdir -p "$tmp"
 echo "==> AgentBoot 离线自解压安装：解压中，请稍候 …"
 tail -n +"$SKIP" "$0" | { base64 -d 2>/dev/null || base64 -D 2>/dev/null || openssl base64 -d -A; } | tar -xzf - -C "$tmp"
-exec sh "$tmp/AgentBoot/install-offline.sh" "$@"
+code=0
+sh "$tmp/AgentBoot/install-offline.sh" "$@" || code=$?
+rm -rf "$tmp"
+exit "$code"
 __AGENTBOOT_PAYLOAD_BELOW__
 HF
         python3 - "$GZ" "$SFX" <<'PYEOF'

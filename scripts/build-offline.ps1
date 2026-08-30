@@ -114,9 +114,8 @@ if (Test-Path $Stage) {
     Remove-Item $Stage -Recurse -Force -ErrorAction SilentlyContinue
 }
 New-Item -ItemType Directory -Path $Stage -Force | Out-Null
-robocopy $Root $Stage /E /NFL /NDL /NJH /NJS /XD .git dist payloads node_modules __pycache__ .zcode pages /XF *.pyc | Out-Null
-if ($LASTEXITCODE -ge 8) { Write-Err "robocopy 失败（code=$LASTEXITCODE）"; exit 1 }
-$global:LASTEXITCODE = 0
+& python (Join-Path $Root 'scripts\tools\stage_application.py') $Root $Stage
+if ($LASTEXITCODE -ne 0) { throw '复制应用显式清单失败' }
 
 # ---------- 2. 下载各平台 Node 运行时 ----------
 New-Item -ItemType Directory -Path (Join-Path $Stage 'payloads\node') -Force | Out-Null
@@ -308,7 +307,10 @@ tmp="$(mktemp -d 2>/dev/null || echo /tmp/agentboot-sfx-$$)"
 mkdir -p "$tmp"
 echo "==> AgentBoot 离线自解压安装：解压中，请稍候 …"
 tail -n +"$SKIP" "$0" | { base64 -d 2>/dev/null || base64 -D 2>/dev/null || openssl base64 -d -A; } | tar -xzf - -C "$tmp"
-exec sh "$tmp/AgentBoot/install-offline.sh" "$@"
+code=0
+sh "$tmp/AgentBoot/install-offline.sh" "$@" || code=$?
+rm -rf "$tmp"
+exit "$code"
 __AGENTBOOT_PAYLOAD_BELOW__
 '@
         [IO.File]::WriteAllText($sfx, ($header -replace "`r`n", "`n"), (New-Object System.Text.UTF8Encoding($false)))

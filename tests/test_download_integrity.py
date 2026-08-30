@@ -38,6 +38,11 @@ class DownloaderSourceTests(unittest.TestCase):
         self.assertIn("4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3", builder)
         self.assertIn("4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3", installer)
 
+    def test_offline_powershell_uses_ps3_compatible_sha(self):
+        text = (ROOT / "scripts/install-offline.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn("function Get-Sha256", text)
+        self.assertNotIn("Get-FileHash", text)
+
     def test_runtime_node_download_verifies_official_checksum(self):
         text = (ROOT / "core" / "menu.py").read_text(encoding="utf-8")
         self.assertIn("SHASUMS256.txt", text)

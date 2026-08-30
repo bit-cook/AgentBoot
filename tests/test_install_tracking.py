@@ -2,6 +2,8 @@
 """Integration checks for install ownership recording and package delivery."""
 
 from pathlib import Path
+import multiprocessing
+import os
 import sys
 import tempfile
 import unittest
@@ -14,7 +16,26 @@ sys.path.insert(0, str(ROOT / "core"))
 import menu  # noqa: E402
 
 
+def _record_worker(index):
+    menu.record_install({"id": "agent-%d" % index, "name": "A", "bin": "a-%d" % index,
+                         "method": "npm", "npm": "pkg-%d" % index}, "online")
+
+
 class InstallTrackingTests(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "fork-based lock stress test")
+    def test_install_state_serializes_parallel_process_updates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "installed.json"
+            home = Path(tmp) / "home"
+            with mock.patch.object(menu, "AB_HOME", str(home)), \
+                    mock.patch.object(menu, "INSTALL_STATE", str(state)):
+                ctx = multiprocessing.get_context("fork")
+                processes = [ctx.Process(target=_record_worker, args=(index,)) for index in range(20)]
+                for process in processes: process.start()
+                for process in processes: process.join(10)
+                self.assertTrue(all(process.exitcode == 0 for process in processes))
+                saved = menu.load_install_state()["agents"]
+        self.assertEqual(set(saved), {"agent-%d" % index for index in range(20)})
     def test_online_npm_success_records_resolved_install(self):
         agent = {"id": "codex", "name": "Codex", "vendor": "OpenAI", "bin": "codex",
                  "method": "npm", "npm": "@openai/codex@0.90.0"}
@@ -92,10 +113,32 @@ class InstallTrackingTests(unittest.TestCase):
                     mock.patch.object(menu, "AB_HOME", str(root)), \
                     mock.patch.object(menu, "POSIX", False):
                 self.assertTrue(menu.write_shim(agent, node_path="C:\\portable\\node.exe"))
-                shim = (root / "bin" / "codex.cmd").read_text(encoding="ascii")
+                shim = (root / "bin" / "codex.cmd").read_text(encoding="utf-8-sig")
         self.assertIn("%AB_ROOT%", shim)
         self.assertIn("%PATH%", shim)
         self.assertIn('"C:\\portable\\node.exe"', shim)
+
+    def test_native_npm_entry_executes_directly_without_node(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            native = Path(tmp) / "agent"
+            native.write_bytes(b"\x7fELFfake")
+            self.assertEqual(menu._npm_entry_kind(str(native)), "direct")
+        self.assertEqual(menu._npm_entry_kind("tool.cmd"), "cmd")
+        self.assertEqual(menu._npm_entry_kind("tool.js"), "node")
+
+    def test_posix_path_block_uses_npm_bin_and_upgrades_existing_block(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            bashrc = home / ".bashrc"
+            bashrc.write_text("before\n# >>> agentboot >>>\nold\n# <<< agentboot <<<\nafter\n", encoding="utf-8")
+            with mock.patch.object(menu, "POSIX", True), \
+                    mock.patch.object(menu, "AB_HOME", str(home / ".agentboot")), \
+                    mock.patch.object(menu, "NPM_PREFIX", str(home / ".agentboot" / "npm-prefix")), \
+                    mock.patch.object(menu.os.path, "expanduser", side_effect=lambda p: str(home / p[2:]) if p.startswith("~/") else p):
+                menu.ensure_path_registered()
+            content = bashrc.read_text(encoding="utf-8")
+        self.assertIn("npm-prefix/bin", content)
+        self.assertNotIn("\nold\n", content)
 
 
 if __name__ == "__main__":

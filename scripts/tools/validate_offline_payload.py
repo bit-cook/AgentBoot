@@ -55,6 +55,8 @@ def main():
             agent = agents.get(aid)
             if not agent:
                 errors.append("unknown requested Agent: %s" % aid)
+            elif not agent.get("offline"):
+                errors.append("%s is not marked offline-capable" % aid)
             elif agent.get("os") and platform_os.get(platform_id) not in agent["os"]:
                 errors.append("%s does not support %s" % (aid, platform_id))
             elif aid == "coco":
