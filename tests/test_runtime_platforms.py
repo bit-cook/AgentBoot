@@ -41,6 +41,13 @@ class NodeVersionTests(unittest.TestCase):
     def test_portable_runtime_satisfies_strictest_registry_requirement(self):
         self.assertEqual(menu.NODE_VERSION, "v22.23.2")
 
+    def test_or_range_rejects_unsupported_node_major(self):
+        requirement = ">=22.22.3 <23 || >=24.15.0 <25 || >=25.9.0"
+        self.assertTrue(menu._version_satisfies((22, 23, 2), requirement))
+        self.assertFalse(menu._version_satisfies((23, 5, 0), requirement))
+        self.assertTrue(menu._version_satisfies((24, 15, 0), requirement))
+        self.assertFalse(menu._version_satisfies((24, 14, 9), requirement))
+
 
 class OfflineBuilderTests(unittest.TestCase):
     def test_default_build_targets_native_platform_only(self):

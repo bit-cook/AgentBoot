@@ -57,9 +57,9 @@ jobs:
           tag="v$(cat VERSION)"
           tar -xzf "dist/AgentBoot-offline-${tag}-linux-x64.tar.gz" -C "$root/extract"
           app="$root/extract/AgentBoot"
-          AGENTBOOT_HOME="$root/home/.agentboot" HOME="$root/home" python3 "$app/core/menu.py" offline codex --payload "$app/payloads"
+          HOME="$root/home" sh "$app/install-offline.sh" codex
           AGENTBOOT_HOME="$root/home/.agentboot" HOME="$root/home" "$root/home/.agentboot/bin/codex" --version
-          AGENTBOOT_HOME="$root/home/.agentboot" HOME="$root/home" python3 "$app/core/menu.py" uninstall codex
+          AGENTBOOT_HOME="$root/home/.agentboot" HOME="$root/home" python3 "$root/home/.agentboot/app/core/menu.py" uninstall codex
           test ! -e "$root/home/.agentboot/agents/codex"
           mv "dist/AgentBoot-offline-${tag}-linux-x64.tar.gz" "dist/AgentBoot-offline-${tag}-linux-x64-codex.tar.gz"
           mv "dist/AgentBoot-offline-${tag}-linux-x64-sfx.sh" "dist/AgentBoot-offline-${tag}-linux-x64-codex-sfx.sh"
@@ -87,9 +87,10 @@ jobs:
           $app = Join-Path $extract 'AgentBoot'
           $env:AGENTBOOT_HOME = Join-Path $smokeHome '.agentboot'
           $env:USERPROFILE = $smokeHome
-          python "$app\core\menu.py" offline codex --payload "$app\payloads"
+          $env:LOCALAPPDATA = Join-Path $smokeHome 'LocalAppData'
+          & "$app\install-offline.ps1" -Agents codex
           & "$smokeHome\.agentboot\bin\codex.cmd" --version
-          python "$app\core\menu.py" uninstall codex
+          python "$env:LOCALAPPDATA\AgentBoot\app\core\menu.py" uninstall codex
           if (Test-Path "$smokeHome\.agentboot\agents\codex") { throw 'Codex payload not removed' }
           Move-Item "dist\AgentBoot-offline-$tag-win-x64.zip" "dist\AgentBoot-offline-$tag-win-x64-codex.zip"
       - uses: actions/upload-artifact@v4

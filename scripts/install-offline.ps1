@@ -66,7 +66,18 @@ if (-not (Test-Path (Join-Path $PayloadDir 'agents'))) {
     Write-Err '请确认脚本位于完整解压后的离线包根目录，或用 -Payload 指定路径。'
     exit 1
 }
-Write-Ok "离线载荷校验通过：$PayloadDir"
+$sums = Join-Path $ScriptDir 'PAYLOAD_SHA256SUMS.txt'
+if (-not (Test-Path $sums)) { throw '缺少 PAYLOAD_SHA256SUMS.txt，拒绝安装未验证载荷' }
+foreach ($line in Get-Content $sums) {
+    if (-not $line.Trim()) { continue }
+    $parts = $line -split '\s+', 2
+    $file = Join-Path $ScriptDir $parts[1].Replace('/', [IO.Path]::DirectorySeparatorChar)
+    if (-not (Test-Path $file)) { throw "载荷缺失：$($parts[1])" }
+    if ((Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $parts[0].ToLowerInvariant()) {
+        throw "载荷 SHA-256 校验失败：$($parts[1])"
+    }
+}
+Write-Ok "离线载荷 SHA-256 校验通过：$PayloadDir"
 
 # ---------- 2. 安装程序本体 ----------
 Write-Step "安装程序到 $AppDir"
@@ -154,7 +165,9 @@ $menu = Join-Path $AppDir 'core\menu.py'
 if (($All -or $Agents) -and $pyExe) {
     $ids = @()
     if ($All) {
-        $ids = (& $pyExe -c "import json,sys;print(' '.join(a['id'] for a in json.load(open(sys.argv[1],encoding='utf-8'))['agents'] if a.get('offline')))" (Join-Path $AppDir 'agents\registry.json')) -split '\s+'
+        $manifest = Get-Content (Join-Path $ScriptDir 'MANIFEST.txt') | Where-Object { $_ -match '^agents\s*:' } | Select-Object -First 1
+        if (-not $manifest) { throw 'MANIFEST.txt 未列出 Agent' }
+        $ids = (($manifest -split ':', 2)[1].Trim()) -split ',\s*'
     } else {
         $ids = @($Agents -split ',') | Where-Object { $_ }
     }

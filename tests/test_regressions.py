@@ -58,21 +58,25 @@ class HighImpactRegressionTests(unittest.TestCase):
         class Response:
             def __init__(self):
                 self.lines = iter([b"data: {\"choices\":[]}\n"])
+                self.drained = False
 
             def readline(self):
                 return next(self.lines, b"")
 
             def read(self):
-                raise AssertionError("TTFB must not drain the response body")
+                self.drained = True
+                return b""
 
         connection = mock.Mock()
-        connection.getresponse.return_value = Response()
+        response = Response()
+        connection.getresponse.return_value = response
         cfg = {"active": "agnes", "providers": {}}
         with mock.patch.object(agent, "_connect", return_value=connection), \
                 mock.patch.object(agent, "_drop_pool") as drop:
             latency = agent._ttfb(cfg)
         self.assertIsInstance(latency, float)
-        drop.assert_called_once()
+        self.assertTrue(response.drained)
+        drop.assert_not_called()
 
 
 if __name__ == "__main__":

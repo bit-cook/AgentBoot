@@ -49,14 +49,14 @@ Two commands after install:
 | | |
 |---|---|
 | 📦 **Choose what to install** | 14 mainstream agents, multi-select in the menu |
-| 🛟 **Built-in fallback agent** | `ab`: single file, stdlib only, Agnes by default, offline Linux knowledge base, session persistence |
+| 🛟 **Built-in fallback agent** | `ab`: zero third-party dependencies, Agnes by default, offline Linux knowledge base, session persistence |
 | 🧠 **Model provider manager** | Named custom providers, Ollama/LM Studio presets, failover order, connectivity test |
 | 🇨🇳 **China network adaptive** | npmmirror / Node mirrors / Tsinghua PyPI, four-source downloads, proxy support |
 | 📴 **Verified offline packages** | Releases provide Codex slim packs tested through install/run/uninstall; menu `[7]` builds other Agents on their target platform |
 | ➕ **Custom agents** | Add anything beyond the registry (npm / pip / script), stored in your home dir |
 | 🧹 **Safe uninstall** | Menu `[9]` or `agentboot uninstall <id>`; removes owned program files and preserves user data by default |
 | 🔐 **Verified install** | Enforced SHA-256, atomic app switching, rollback; custom scripts require HTTPS and avoid shell interpolation |
-| ⚡ **Extreme performance** | TLS connection reuse (~440ms off per turn), pre-indexed KB (<1ms warm), `/bench` |
+| ⚡ **Measured performance** | TLS connection reuse, pre-indexed KB, and an on-device `/bench` for current network/model conditions |
 
 ## Supported agents (14)
 
@@ -81,7 +81,7 @@ Package names verified on the npm registry. `✓` = offline payload bundled.
 
 ## Built-in fallback agent (ab)
 
-Works when everything else fails — the design baseline:
+Works when everything else fails — a Python standard-library core shipped with i18n and knowledge-base resources:
 
 ```bash
 ab                                  # interactive (Agnes free model by default)
@@ -104,7 +104,7 @@ Download a platform-and-Agent-specific verified pack from [Releases](https://git
 python core/menu.py build-offline win-x64 claude-code,pi
 ```
 
-Details: [Installation Guide (EN)](docs/en/install-guide.md) · [安装指南 (中文)](../安装指南.md)
+Details: [Installation Guide (EN)](docs/en/install-guide.md) · [安装指南 (中文)](安装指南.md)
 
 ## Models
 
@@ -126,15 +126,11 @@ AgentBoot records install ownership and will not remove an unrelated command mer
 
 ## Performance (measured via `ab bench`)
 
-```
-KB query      : cold 2.4 ms · warm 0.0 ms
-Model TTFB    : first (TLS handshake) 1016 ms · reused 579 ms
-Reuse benefit : ~437 ms saved per turn
-```
+`ab bench` measures KB cold/warm queries and first-token latency for a fresh TLS connection versus a reused connection on the current machine and provider. Results vary by network, model, and region and are not a fixed product guarantee.
 
 ## Links
 
-- [Installation Guide (EN)](docs/en/install-guide.md) · [安装指南 (中文)](../安装指南.md)
+- [Installation Guide (EN)](docs/en/install-guide.md) · [安装指南 (中文)](安装指南.md)
 - Primary entry: [boot.ide.pub](https://boot.ide.pub) · Mirror: [GitHub Pages](https://bit-cook.github.io/AgentBoot/)
 
 ## Security

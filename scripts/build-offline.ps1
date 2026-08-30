@@ -265,6 +265,8 @@ $manifest | Set-Content (Join-Path $Stage 'MANIFEST.txt') -Encoding UTF8
 Write-Step '按平台打包 …'
 $plats = $Platforms -split ','
 foreach ($plat in $plats) {
+    & python (Join-Path $Root 'scripts\tools\hash_tree.py') (Join-Path $Stage 'payloads') (Join-Path $Stage 'PAYLOAD_SHA256SUMS.txt') $plat
+    if ($LASTEXITCODE -ne 0) { throw "生成 $plat 离线载荷哈希清单失败" }
     $ex = @()
     foreach ($other in $plats) {
         if ($other -ne $plat) {

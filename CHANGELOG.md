@@ -12,6 +12,10 @@
 - 在线包新增 SHA-256 旁车校验和原子升级回滚；构建器以临时文件原子发布且结果可复现。
 - 自定义脚本仅允许 HTTPS，下载到临时文件后以固定参数执行，消除 URL shell 注入；脚本上限 4 MiB。
 - 修正 `ab bench` 首字延迟计时、全部 60 个 Linux 知识库段落索引、`ab` 子命令包装器和 CoCo 数据备份恢复。
+- 离线包新增目标机逐文件 SHA-256 校验，`--all` 仅安装包内 MANIFEST 实际列出的 Agent；构建缺载荷会硬失败。
+- 修复 Windows CMD shim 百分号格式、npm 真实入口解析和便携 Node 路径，Linux/Windows 均通过原生安装→启动→卸载矩阵。
+- Worker 支持 Range/If-Range 与真实资产健康探测；发布采用 prerelease→Pages/Worker live verify→Latest 的协调状态机。
+- 修正 Node engine 范围、离线资产名、相对链接、vLLM 文案、移动端表格溢出、触摸目标和旧性能固定数字。
 
 ## v1.0.0 (2026-08-29)
 

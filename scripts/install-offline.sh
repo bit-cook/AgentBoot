@@ -34,7 +34,20 @@ if [ ! -d "${SCRIPT_DIR}/payloads/agents" ]; then
     err "未找到 payloads/ 离线载荷目录。请确认脚本位于完整解压后的离线包根目录。"
     exit 1
 fi
-ok "离线载荷校验通过：${SCRIPT_DIR}/payloads"
+SUMS="${SCRIPT_DIR}/PAYLOAD_SHA256SUMS.txt"
+[ -s "$SUMS" ] || { err "缺少 PAYLOAD_SHA256SUMS.txt，拒绝安装未验证载荷"; exit 1; }
+if command -v sha256sum >/dev/null 2>&1; then HASH_CMD="sha256sum"
+elif command -v shasum >/dev/null 2>&1; then HASH_CMD="shasum -a 256"
+else err "缺少 SHA-256 校验工具"; exit 1
+fi
+while read -r expected relative; do
+    [ -n "$expected" ] || continue
+    file="${SCRIPT_DIR}/${relative}"
+    [ -f "$file" ] || { err "载荷缺失：$relative"; exit 1; }
+    actual="$($HASH_CMD "$file" | awk '{print $1}')"
+    [ "$actual" = "$expected" ] || { err "载荷校验失败：$relative"; exit 1; }
+done < "$SUMS"
+ok "离线载荷 SHA-256 校验通过：${SCRIPT_DIR}/payloads"
 
 # ---------- 2. 安装程序本体 ----------
 step "安装程序到 ${APP_DIR}"
@@ -112,8 +125,9 @@ ARGS="${*:-}"
 if [ -n "$ARGS" ]; then
     step "离线安装指定 Agent：$ARGS"
     if [ "$ARGS" = "--all" ]; then
-        "$PY" "${APP_DIR}/core/menu.py" offline --payload "${SCRIPT_DIR}/payloads" \
-            "$("$PY" -c "import json,sys;print(' '.join(a['id'] for a in json.load(open(sys.argv[1]))['agents'] if a.get('offline')))" "${APP_DIR}/agents/registry.json")"
+        PACKED="$(awk -F: '/^agents[[:space:]]*:/ {gsub(/[[:space:]]/,"",$2); print $2}' "${SCRIPT_DIR}/MANIFEST.txt")"
+        [ -n "$PACKED" ] || { err "MANIFEST.txt 未列出 Agent"; exit 1; }
+        "$PY" "${APP_DIR}/core/menu.py" offline --payload "${SCRIPT_DIR}/payloads" "$PACKED"
     else
         "$PY" "${APP_DIR}/core/menu.py" offline --payload "${SCRIPT_DIR}/payloads" $ARGS
     fi

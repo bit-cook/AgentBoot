@@ -48,7 +48,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | | |
 |---|---|
 | 📦 **菜单自选安装** | 14 个主流 Agent 按需勾选（见下表），支持命令行指定 |
-| 🛟 **内置保底 Agent** | `ab` 单文件零依赖：Agnes 开箱即用、离线 Linux 知识库、工具调用、会话持久化 |
+| 🛟 **内置保底 Agent** | `ab` 零第三方依赖 Python 核心：Agnes 开箱即用、离线 Linux 知识库、工具调用、会话持久化 |
 | 🧠 **提供商管理器** | Agnes 预设 + 自定义提供商命名管理 + Ollama/LM Studio 本地模型 + 故障切换顺序 |
 | 🇨🇳 **中国网络自适应** | npmmirror / Node 镜像 / 清华 PyPI 自动切换；四源下载容错；代理一键配置 |
 | 📴 **可验证离线包** | Release 提供经安装/启动/卸载冒烟的 Codex 精简包；菜单 `[7]` 可按目标平台自建其他 Agent 包 |
@@ -83,7 +83,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 
 其他 Agent 都装不上时，`ab` 一定能用——这是 AgentBoot 的设计底线：
 
-- **单文件、零第三方依赖**（仅 Python 标准库），任何有 Python 的机器直接跑；
+- **零第三方依赖 Python 核心**（仅标准库；随附 i18n 与知识库资源），任何有 Python 的机器直接跑；
 - **Agnes 免费模型**默认即用；`/model` 管理器可切换自定义接口与本地模型；
 - **工具**：执行命令（高危拦截）、读写/精确编辑文件、目录列表、`search_files` 内容搜索、抓网页；
 - **离线 Linux 知识库**（9 大主题 60+ 段落）：查用法、操作 Linux、修常见问题（磁盘满/端口占用/服务起不来…）；
@@ -128,7 +128,7 @@ AgentBoot 通过安装清单识别归属，不会因为系统中存在同名命�
 ```
 AgentBoot/
 ├── install.sh / install.bat / scripts/install.ps1    在线一键安装
-├── core/agent.py      内置最小 Agent（单文件零依赖）
+├── core/agent.py      内置最小 Agent（零第三方依赖 Python 核心）
 ├── core/menu.py       中文控制台菜单（安装/模型/镜像/离线/构建）
 ├── agents/registry.json        Agent 注册表（v2，含平台与依赖声明）
 ├── tools/linux-kb/    离线 Linux 知识库
@@ -141,11 +141,7 @@ AgentBoot/
 
 ## 性能（`ab bench` 实测）
 
-```
-知识库查询   : 冷 2.4 ms（含首载索引） · 热 0.0 ms
-模型首字延迟 : 首次（含 TLS 握手）1016 ms · 复用连接 579 ms
-连接复用收益 : 每轮省约 437 ms
-```
+`ab bench` 会在当前机器和当前模型源现场测量知识库冷/热查询，以及首次 TLS 连接与复用连接的首字延迟；结果取决于网络、模型和地区，不写死为产品保证。
 
 ## 文档与链接
 

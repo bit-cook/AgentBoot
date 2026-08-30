@@ -347,8 +347,11 @@ def _ttfb(cfg, prompt="回复：1"):
             s = line.decode("utf-8", "replace").strip()
             if s.startswith("data:") and s[5:].strip() not in ("", "[DONE]"):
                 elapsed = (time.perf_counter() - t0) * 1000.0
-                # 流还未结束，连接不可安全复用；关闭而不是把排空正文算进 TTFB。
-                _drop_pool(scheme, host, port)
+                # 首字到达时立即停表，再排空极短响应，使第二轮真实复用同一连接。
+                try:
+                    resp.read()
+                except Exception:
+                    _drop_pool(scheme, host, port)
                 return elapsed
         return None
     except Exception:

@@ -261,6 +261,7 @@ cp "$ROOT/scripts/install-offline.ps1" "$STAGE/"
 step '按平台打包 …'
 mkdir -p "$DIST"
 for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
+    python3 "$ROOT/scripts/tools/hash_tree.py" "$STAGE/payloads" "$STAGE/PAYLOAD_SHA256SUMS.txt" "$PLAT"
     EX=""
     for OTHER in $(echo "$PLATFORMS" | tr ',' ' '); do
         [ "$OTHER" = "$PLAT" ] && continue

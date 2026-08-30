@@ -75,7 +75,7 @@
       "bin": "pi",
       "method": "npm",
       "npm": "@earendil-works/pi-coding-agent",
-      "node": ">=22",
+      "node": ">=22.19.0",
       "offline": true,
       "notes": ["与 pi.dev 官方安装器同源的 npm 包", "文档：https://pi.dev", "模型：pi 需按官方方式配置 provider（pi.dev 文档）"]
     },
@@ -135,7 +135,7 @@
       "bin": "openclaw",
       "method": "npm",
       "npm": "openclaw",
-      "node": ">=22.22.0",
+      "node": ">=22.22.3 <23 || >=24.15.0 <25 || >=25.9.0",
       "offline": true,
       "notes": ["需要较新 Node（22.22+ 或 24+），旧版 Node 仅警告仍可尝试", "文档：https://docs.openclaw.ai"]
     },

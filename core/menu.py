@@ -318,6 +318,25 @@ def _version_tuple(value):
     return tuple(int(part or 0) for part in match.groups())
 
 
+def _version_satisfies(current, requirement):
+    """Evaluate the simple npm engine ranges used by AgentBoot's registry."""
+    for clause in str(requirement or ">=18").split("||"):
+        matched = True
+        comparisons = re.findall(r"(>=|<=|>|<|=)?\s*(\d+(?:\.\d+){0,2})", clause)
+        if not comparisons:
+            continue
+        for operator, raw in comparisons:
+            target = _version_tuple(raw)
+            if operator == ">=" and not current >= target: matched = False
+            elif operator == ">" and not current > target: matched = False
+            elif operator == "<=" and not current <= target: matched = False
+            elif operator == "<" and not current < target: matched = False
+            elif operator in ("", "=") and not current == target: matched = False
+        if matched:
+            return True
+    return False
+
+
 def node_ok(path=None, minimum=None):
     try:
         executable = path or shutil.which("node") or node_exe()
@@ -325,8 +344,7 @@ def node_ok(path=None, minimum=None):
                              capture_output=True, text=True, timeout=10)
         if out.returncode == 0:
             current = _version_tuple(out.stdout.strip())
-            required = _version_tuple(minimum or ">=18")
-            return bool(current and required and current >= required)
+            return bool(current and _version_satisfies(current, minimum or ">=18"))
     except Exception:
         pass
     return False
@@ -1163,8 +1181,8 @@ def offline_install(ids, payload_dir=None):
     agents = {a["id"]: a for a in load_registry()}
     selected_npm = [agents[aid] for aid in ids
                     if aid in agents and agents[aid].get("method") == "npm"]
-    strictest_node = max((a.get("node") or ">=18" for a in selected_npm),
-                         key=lambda value: _version_tuple(value), default=">=18")
+    # Bundled Node is the reproducible default and every selected Agent is checked individually below.
+    strictest_node = ">=18"
 
     # 1) 离线包优先使用自带 Node，确保路径与版本可复现；无载荷时才回退系统 Node。
     offline_node = None
@@ -1921,7 +1939,12 @@ def main():
         else:
             rest = argv[1:]
         ids = [t for t in re.split(r"[,\s]+", " ".join(rest)) if t and not t.startswith("-")]
-        offline_install(ids, payload) if ids else print("用法: menu.py offline claude-code --payload <dir>")
+        if ids:
+            failures = offline_install(ids, payload)
+            if failures:
+                raise SystemExit(1)
+        else:
+            print("用法: menu.py offline claude-code --payload <dir>")
     elif cmd in ("uninstall", "remove"):
         purge = "--purge" in argv
         rest = [arg for arg in argv[1:] if arg != "--purge"]

@@ -43,10 +43,9 @@ Three steps: **① get an offline package → ② copy & extract → ③ run the
 ### Step 1 — Get an offline package
 
 - **Option A**: download from [Releases](https://github.com/bit-cook/AgentBoot/releases)
-  - `AgentBoot-offline-v1.1.0-win-x64.zip` (Windows x64)
-  - `AgentBoot-offline-v1.1.0-linux-x64.tar.gz` (Linux x64)
-  - `AgentBoot-offline-v1.1.0-darwin-arm64.tar.gz` (Apple Silicon)
-  - `AgentBoot-offline-v1.1.0-<platform>-sfx.sh` (POSIX self-extracting single file)
+  - `AgentBoot-offline-v1.1.0-win-x64-codex.zip` (Windows x64)
+  - `AgentBoot-offline-v1.1.0-linux-x64-codex.tar.gz` (Linux x64)
+  - `AgentBoot-offline-v1.1.0-linux-x64-codex-sfx.sh` (Linux x64 self-extracting file)
 - **Option B — build your own slim package** (recommended; see [Custom offline packages](#custom-offline-packages-slim)):
   pick platforms and agents, output goes to `dist/`.
 
@@ -55,9 +54,9 @@ Three steps: **① get an offline package → ② copy & extract → ③ run the
 | Target machine | How |
 |---|---|
 | Windows (any) | Right-click the ZIP → Extract All (built into Explorer) |
-| Windows 10/11 (CLI) | `tar -xf AgentBoot-offline-v1.1.0-win-x64.zip` |
-| Linux / macOS | `tar -xzf AgentBoot-offline-v1.1.0-<platform>.tar.gz -C ~` |
-| Minimal POSIX | `sh AgentBoot-offline-v1.1.0-<platform>-sfx.sh` (self-extracting, uses only base64 + tar) |
+| Windows 10/11 (CLI) | `tar -xf AgentBoot-offline-v1.1.0-win-x64-codex.zip` |
+| Linux x64 | `tar -xzf AgentBoot-offline-v1.1.0-linux-x64-codex.tar.gz -C ~` |
+| Minimal Linux x64 | `sh AgentBoot-offline-v1.1.0-linux-x64-codex-sfx.sh` |
 
 ### Step 3 — Run the offline installer
 
@@ -80,6 +79,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1 -Agents 
 ```
 
 ### What the offline installer does
+
+The target verifies every payload file against the bundled `PAYLOAD_SHA256SUMS.txt`; missing or mismatched bytes stop installation. `--all` installs only the Agents listed by that pack's `MANIFEST.txt`.
 
 1. Verifies the `payloads/` bundle integrity;
 2. Installs the AgentBoot app itself;
@@ -168,7 +169,7 @@ Custom packs use the same structure and install flow as Release packs. Size depe
 
 - **Agnes free model** (built-in preset): zero config, first run works;
 - **Custom providers**: any OpenAI-compatible endpoint, named, switchable, removable;
-- **Local models (fully offline)**: Ollama (11434), LM Studio (1234), vLLM presets;
+- **Local models (fully offline)**: built-in Ollama (11434) and LM Studio (1234) presets; add vLLM as a custom OpenAI-compatible provider;
 - **Failover order**: primary failure switches automatically (e.g. `agnes → ollama`);
 - Config file: `~/.agentboot/config.json`.
 
