@@ -80,17 +80,17 @@ jobs:
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'agentboot-smoke'
           $extract = Join-Path $root 'extract'
-          $home = Join-Path $root 'home'
-          New-Item -ItemType Directory -Path $extract, $home -Force | Out-Null
+          $smokeHome = Join-Path $root 'home'
+          New-Item -ItemType Directory -Path $extract, $smokeHome -Force | Out-Null
           $tag = 'v' + (Get-Content VERSION -Raw).Trim()
           tar -xf "dist\AgentBoot-offline-$tag-win-x64.zip" -C $extract
           $app = Join-Path $extract 'AgentBoot'
-          $env:AGENTBOOT_HOME = Join-Path $home '.agentboot'
-          $env:USERPROFILE = $home
+          $env:AGENTBOOT_HOME = Join-Path $smokeHome '.agentboot'
+          $env:USERPROFILE = $smokeHome
           python "$app\core\menu.py" offline codex --payload "$app\payloads"
-          & "$home\.agentboot\bin\codex.cmd" --version
+          & "$smokeHome\.agentboot\bin\codex.cmd" --version
           python "$app\core\menu.py" uninstall codex
-          if (Test-Path "$home\.agentboot\agents\codex") { throw 'Codex payload not removed' }
+          if (Test-Path "$smokeHome\.agentboot\agents\codex") { throw 'Codex payload not removed' }
           Move-Item "dist\AgentBoot-offline-$tag-win-x64.zip" "dist\AgentBoot-offline-$tag-win-x64-codex.zip"
       - uses: actions/upload-artifact@v4
         with:

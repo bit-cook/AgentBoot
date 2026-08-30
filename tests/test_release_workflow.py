@@ -19,6 +19,8 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("verify-live-release.py", text)
         self.assertIn("--prerelease=false --latest", text)
         self.assertIn("needs: [validate, online, offline-linux, offline-windows]", text)
+        self.assertIn("$smokeHome", text)
+        self.assertNotIn("$home =", text)
 
     def test_live_verifier_covers_primary_and_mirror(self):
         text = (ROOT / "scripts/verify-live-release.py").read_text(encoding="utf-8")
