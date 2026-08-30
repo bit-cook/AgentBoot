@@ -1,6 +1,6 @@
 # AgentBoot Installation Guide
 
-> **v1.0.0** · Linux / macOS / Windows · CLI UI in Chinese by default (switchable to English: `agentboot lang en`)
+> **v1.1.0** · Linux / macOS / Windows · CLI UI in Chinese by default (switchable to English: `agentboot lang en`)
 > AgentBoot is a minimal, fast, ready-to-run AI Agent launcher: it ships a built-in fallback agent (free **Agnes** model by default), while the other agents (Claude Code, Codex, Qwen Code, OpenCode, CodeBuddy, MiMo Code, Cline, Pi, CoCo, …) are installed **from a menu of your choice**.
 
 **目录 / Table of contents**: [One-command online install](#one-command-online-install) · [One-command offline install](#one-command-offline-install) · [Custom agents](#custom-agents-beyond-the-registry) · [Custom offline packages](#custom-offline-packages-slim) · [China network](#china-network-adaptive) · [Model providers](#model-providers) · [Built-in agent](#built-in-agent-ab) · [Upgrade & uninstall](#upgrade--uninstall) · [Troubleshooting](#online-install-troubleshooting) · [FAQ](#faq)
@@ -43,9 +43,10 @@ Three steps: **① get an offline package → ② copy & extract → ③ run the
 ### Step 1 — Get an offline package
 
 - **Option A**: download from [Releases](https://github.com/bit-cook/AgentBoot/releases)
-  - `AgentBoot-offline-v1.0.0.zip` (Windows)
-  - `AgentBoot-offline-v1.0.0.tar.gz` (Linux / macOS)
-  - `AgentBoot-offline-v1.0.0-<platform>-sfx.sh` (POSIX self-extracting single file)
+  - `AgentBoot-offline-v1.1.0-win-x64.zip` (Windows x64)
+  - `AgentBoot-offline-v1.1.0-linux-x64.tar.gz` (Linux x64)
+  - `AgentBoot-offline-v1.1.0-darwin-arm64.tar.gz` (Apple Silicon)
+  - `AgentBoot-offline-v1.1.0-<platform>-sfx.sh` (POSIX self-extracting single file)
 - **Option B — build your own slim package** (recommended; see [Custom offline packages](#custom-offline-packages-slim)):
   pick platforms and agents, output goes to `dist/`.
 
@@ -54,9 +55,9 @@ Three steps: **① get an offline package → ② copy & extract → ③ run the
 | Target machine | How |
 |---|---|
 | Windows (any) | Right-click the ZIP → Extract All (built into Explorer) |
-| Windows 10/11 (CLI) | `tar -xf AgentBoot-offline-v1.0.0-win-x64.zip` |
-| Linux / macOS | `tar -xzf AgentBoot-offline-v1.0.0-linux-x64.tar.gz -C ~` |
-| Minimal POSIX | `sh AgentBoot-offline-v1.0.0-linux-x64-sfx.sh` (self-extracting, uses only base64 + tar) |
+| Windows 10/11 (CLI) | `tar -xf AgentBoot-offline-v1.1.0-win-x64.zip` |
+| Linux / macOS | `tar -xzf AgentBoot-offline-v1.1.0-<platform>.tar.gz -C ~` |
+| Minimal POSIX | `sh AgentBoot-offline-v1.1.0-<platform>-sfx.sh` (self-extracting, uses only base64 + tar) |
 
 ### Step 3 — Run the offline installer
 
@@ -108,7 +109,7 @@ AgentBoot/
 | "payloads/ not found" | Run from the extracted package root, or pass `--payload <path>` |
 | No python3 on Linux | `apt install python3` / `dnf install python3` / `apk add python3`, then re-run |
 | Command not found after install | Reopen the terminal; or `export PATH="$HOME/.local/bin:$PATH"` |
-| Missing payload for an agent | Slim package without it — rebuild with menu [7], or use the full package |
+| Missing payload for an agent | The selected pack does not contain it — rebuild on the target platform with menu [7] |
 | `ab` can't reach the model | Expected fully offline — configure a local model in menu [4] |
 
 ---
@@ -133,7 +134,7 @@ Stored in `~/.agentboot/custom-agents.json` — survives upgrades. Same install 
 
 ## 📦 Custom offline packages (slim)
 
-Full packages are 0.8–1.6GB. Build a slim one with only what you need:
+The v1.1 Release provides verified Codex slim packs. Build a target-platform pack with only what you need:
 
 **Menu**: `agentboot` → `[7] Build custom offline package` → pick platforms → pick agents → build.
 
@@ -144,7 +145,7 @@ python core/menu.py build-offline win-x64 claude-code,pi
 python core/menu.py build-offline linux-x64,darwin-arm64 coco,pi,hermes
 ```
 
-Measured example: `win-x64` with only `pi` ≈ **89 MB** (full package ≈ 1.6 GB). Same structure and install flow as the full package. Requires internet on the build machine (auto mirrors); building the hermes payload requires Git.
+Custom packs use the same structure and install flow as Release packs. Size depends on the selected Agents and runtimes. The build machine needs internet; Hermes also requires Git and must be built natively on the target platform.
 
 ## 🌏 China network adaptive
 
@@ -227,7 +228,7 @@ Codex and Qwen Code are auto-wired; OpenCode gets an `opencode.json`; the built-
 **Why is codex pinned to 0.90.0?**
 0.100+ removed the chat wire protocol and 0.15x sends private tool types that OpenAI-compatible gateways reject. The pin keeps Agnes working out of the box; upgrade and use official login if you prefer.
 
-**Slim or full package?**
+**Release pack or custom pack?**
 Slim when the target machine needs 1–2 agents (e.g. 89MB win-x64 + Pi); full when unsure. Missing agents in a slim package are reported clearly during install.
 
 **How do I verify performance?**

@@ -14,6 +14,7 @@ on:
       - "tests/**"
       - "README*.md"
       - "CHANGELOG.md"
+      - "VERSION"
       - "install.*"
       - "安装指南.md"
       - ".github/workflows/deploy-pages.yml"
@@ -41,10 +42,12 @@ jobs:
       - name: Build online packages
         run: python3 scripts/build-online.py
       - name: Verify package payload
+        shell: bash
         run: |
-          (cd pages && sha256sum -c agentboot-online-v1.0.0.tar.gz.sha256 agentboot-online-v1.0.0.zip.sha256)
-          tar -tzf pages/agentboot-online-v1.0.0.tar.gz | grep -F 'AgentBoot/core/menu.py'
-          python3 -m zipfile -l pages/agentboot-online-v1.0.0.zip | grep -F 'AgentBoot/core/menu.py'
+          tag="v$(cat VERSION)"
+          (cd pages && sha256sum -c "agentboot-online-${tag}.tar.gz.sha256" "agentboot-online-${tag}.zip.sha256")
+          tar -tzf "pages/agentboot-online-${tag}.tar.gz" | grep -F 'AgentBoot/core/menu.py'
+          python3 -m zipfile -l "pages/agentboot-online-${tag}.zip" | grep -F 'AgentBoot/core/menu.py'
 
   deploy:
     needs: quality

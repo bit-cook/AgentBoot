@@ -9,7 +9,7 @@ $ProgressPreference = 'SilentlyContinue'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $Repo      = 'bit-cook/AgentBoot'
-$Tag       = 'v1.0.0'
+$Tag       = 'v1.1.0'
 $ZipName   = "agentboot-online-$Tag.zip"
 $BootBase  = 'https://boot.ide.pub'
 $GH        = "https://github.com/$Repo/releases/download/$Tag"
@@ -23,6 +23,7 @@ function Write-Err($m)  { Write-Host "X  $m" -ForegroundColor Red }
 function Write-Step($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 
 function Get-Url([string]$url, [string]$out) {
+    Remove-Item $out -Force -ErrorAction SilentlyContinue
     # WebClient 走系统代理（国内友好）；失败再试 Invoke-WebRequest
     try {
         $wc = New-Object Net.WebClient
@@ -30,13 +31,16 @@ function Get-Url([string]$url, [string]$out) {
         $wc.Proxy.Credentials = [Net.CredentialCache]::DefaultCredentials
         $wc.Headers.Add('User-Agent', 'AgentBoot/1.0')
         $wc.DownloadFile($url, $out)
-        return $true
+        if ((Test-Path $out) -and ((Get-Item $out).Length -gt 0)) { return $true }
     } catch {
-        try {
-            Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 60 | Out-Null
-            return $true
-        } catch { return $false }
+        Remove-Item $out -Force -ErrorAction SilentlyContinue
     }
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 60 | Out-Null
+        if ((Test-Path $out) -and ((Get-Item $out).Length -gt 0)) { return $true }
+    } catch {}
+    Remove-Item $out -Force -ErrorAction SilentlyContinue
+    return $false
 }
 
 function Get-Sha256([string]$path) {
@@ -72,7 +76,11 @@ function Install-AppAtomic([string]$source, [string]$destination) {
 function Expand-Pkg([string]$pkg, [string]$dest) {
     # 优先系统自带 tar（Win10+ 可解 zip），其次 .NET，最后 Shell COM —— 免装解压软件
     $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
-    if (Test-Path $tar) { & $tar -xf $pkg -C $dest; return $true }
+    if (Test-Path $tar) {
+        & $tar -xf $pkg -C $dest
+        if ($LASTEXITCODE -eq 0 -and (Get-ChildItem $dest -Force | Select-Object -First 1)) { return $true }
+        $global:LASTEXITCODE = 0
+    }
     try {
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::ExtractToDirectory($pkg, $dest)
@@ -81,12 +89,22 @@ function Expand-Pkg([string]$pkg, [string]$dest) {
     try {
         $sh = New-Object -ComObject Shell.Application
         $sh.NameSpace($dest).CopyHere($sh.NameSpace($pkg).Items(), 16)
-        Start-Sleep -Seconds 3
-        return $true
+        for ($i = 0; $i -lt 30; $i++) {
+            if (Get-ChildItem $dest -Force | Select-Object -First 1) { return $true }
+            Start-Sleep -Milliseconds 500
+        }
+        return $false
     } catch { return $false }
 }
 
 Write-Step "AgentBoot 在线安装 $Tag"
+
+$launchers = @((Join-Path $BinDir 'agentboot.cmd'), (Join-Path $BinDir 'ab.cmd'))
+foreach ($launcher in $launchers) {
+    if ((Test-Path $launcher) -and -not (Select-String -Path $launcher -Pattern 'AgentBoot' -Quiet)) {
+        throw "拒绝覆盖不属于 AgentBoot 的命令：$launcher"
+    }
+}
 
 # ---------- 1. 下载（多源容错：Cloudflare → GitHub → 国内加速镜像） ----------
 $tmp  = Join-Path $env:TEMP ("agentboot-" + [guid]::NewGuid().ToString('N').Substring(0,8))
@@ -156,6 +174,10 @@ if (-not $pyExe) {
             if (Get-Url $u $embZip) { $got = $true; break }
         }
         if ($got) {
+            if ((Get-Sha256 $embZip) -ne '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3') {
+                Remove-Item $embZip -Force -ErrorAction SilentlyContinue
+                throw 'Windows Python 便携包 SHA-256 校验失败'
+            }
             New-Item -ItemType Directory -Path $pyDir -Force | Out-Null
             Expand-Pkg $embZip $pyDir | Out-Null
         }
@@ -189,7 +211,11 @@ Write-Ok "已写入 $BinDir"
 
 # ---------- 5. PATH 注册（用户级，幂等） ----------
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$add = @($BinDir, (Join-Path $AbRoot 'bin')) | Where-Object { $_ -and ($userPath -notlike "*$_*") }
+$pathItems = @($userPath -split ';' | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('\') })
+$add = @($BinDir, (Join-Path $AbRoot 'bin')) | Where-Object {
+    $candidate = $_.TrimEnd('\')
+    $_ -and -not ($pathItems | Where-Object { [string]::Equals($_, $candidate, [StringComparison]::OrdinalIgnoreCase) })
+}
 if ($add) {
     [Environment]::SetEnvironmentVariable('Path', (($add -join ';') + ';' + $userPath), 'User')
     $env:Path = ($add -join ';') + ';' + $env:Path

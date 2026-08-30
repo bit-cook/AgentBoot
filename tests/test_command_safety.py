@@ -41,6 +41,21 @@ class CommandClassificationTests(unittest.TestCase):
         command = "Remove-Item -Recurse -Force -Path C:\\Users"
         self.assertEqual(agent.classify_cmd(command), "danger")
 
+    def test_diagnostic_commands_reject_mutating_flags(self):
+        safe = ("journalctl -n 20", "dmesg --level=err", "date --iso-8601")
+        mutating = ("journalctl --vacuum-time=1s", "journalctl --rotate",
+                    "dmesg -C", "date --set=2030-01-01", "date -s 2030-01-01")
+        for command in safe:
+            self.assertEqual(agent.classify_cmd(command), "safe", command)
+        for command in mutating:
+            self.assertNotEqual(agent.classify_cmd(command), "safe", command)
+
+    def test_shell_expansion_and_process_substitution_are_not_safe(self):
+        commands = ("cat <(touch /tmp/x)", "ls --color=$(touch /tmp/x)",
+                    "echo ${HOME:?$(touch /tmp/y)}", "echo $((a=1))")
+        for command in commands:
+            self.assertNotEqual(agent.classify_cmd(command), "safe", command)
+
 
 class ConfirmationPolicyTests(unittest.TestCase):
     def test_safe_mode_runs_read_only_command(self):

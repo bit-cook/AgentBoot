@@ -11,8 +11,8 @@
 #    powershell -File scripts\build-offline.ps1 -Platforms linux-x64,win-x64 -Agents claude-code,codex
 # =============================================================
 param(
-    [string]$Tag = 'v1.0.0',
-    [string]$Platforms = 'linux-x64,win-x64,darwin-arm64',
+    [string]$Tag = '',
+    [string]$Platforms = '',
     [string]$Agents = '',
     [string]$NodeVersion = 'v22.23.2'
 )
@@ -21,26 +21,54 @@ $ProgressPreference = 'SilentlyContinue'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $Root   = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+if (-not $Tag) { $Tag = 'v' + (Get-Content (Join-Path $Root 'VERSION') -Raw).Trim() }
 $Dist   = Join-Path $Root 'dist'
 $Stage  = Join-Path $Dist "offline\AgentBoot"
 $Tar    = Join-Path $env:SystemRoot 'System32\tar.exe'
 $HostPlat = 'win-x64'
+if (-not $Platforms) { $Platforms = $HostPlat }
 
 function Write-Step($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 function Write-Ok($m)   { Write-Host "OK $m" -ForegroundColor Green }
 function Write-Err($m)  { Write-Host "X  $m" -ForegroundColor Red }
 
 function Get-Url([string]$url, [string]$out) {
+    Remove-Item $out -Force -ErrorAction SilentlyContinue
     try {
         $wc = New-Object Net.WebClient
         $wc.Proxy = [Net.WebRequest]::GetSystemWebProxy()
         $wc.Proxy.Credentials = [Net.CredentialCache]::DefaultCredentials
         $wc.Headers.Add('User-Agent', 'AgentBoot/1.0')
-        $wc.DownloadFile($url, $out); return $true
+        $wc.DownloadFile($url, $out)
+        if ((Test-Path $out) -and ((Get-Item $out).Length -gt 0)) { return $true }
     } catch {
-        try { Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 120 | Out-Null; return $true }
-        catch { return $false }
+        Remove-Item $out -Force -ErrorAction SilentlyContinue
     }
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 120 | Out-Null
+        if ((Test-Path $out) -and ((Get-Item $out).Length -gt 0)) { return $true }
+    } catch {}
+    Remove-Item $out -Force -ErrorAction SilentlyContinue
+    return $false
+}
+
+function Get-Sha256([string]$path) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $stream = [IO.File]::OpenRead($path)
+    try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
+    finally { $stream.Dispose(); $sha.Dispose() }
+}
+
+function Confirm-NodeArchive([string]$path, [string]$version, [string]$filename) {
+    if (-not (Test-Path $path) -or (Get-Item $path).Length -eq 0) { return $false }
+    $sums = Join-Path $Dist "SHASUMS256-$version.txt"
+    if (-not (Test-Path $sums) -or (Get-Item $sums).Length -eq 0) {
+        if (-not (Get-Url "https://nodejs.org/dist/$version/SHASUMS256.txt" $sums)) { return $false }
+    }
+    $line = Get-Content $sums | Where-Object { $_ -match "\s\*?$([regex]::Escape($filename))$" } | Select-Object -First 1
+    if (-not $line) { return $false }
+    $expected = ($line -split '\s+')[0].ToLowerInvariant()
+    return (Get-Sha256 $path) -eq $expected
 }
 
 # 平台映射：node 包名 / npm os / npm cpu / libc
@@ -62,8 +90,10 @@ if (-not $npm) {
     $nzip = Join-Path $Dist 'node-portable.zip'
     New-Item -ItemType Directory -Path $ndir -Force | Out-Null
     $nfile = "node-$NodeVersion-win-x64.zip"
-    if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/$NodeVersion/$nfile" $nzip)) {
-        Get-Url "https://nodejs.org/dist/$NodeVersion/$nfile" $nzip | Out-Null
+    if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/$NodeVersion/$nfile" $nzip) -or
+        -not (Confirm-NodeArchive $nzip $NodeVersion $nfile)) {
+        if (-not (Get-Url "https://nodejs.org/dist/$NodeVersion/$nfile" $nzip) -or
+            -not (Confirm-NodeArchive $nzip $NodeVersion $nfile)) { throw "Node 下载或 SHA-256 校验失败：$nfile" }
     }
     & $Tar -xf $nzip -C $ndir
     Remove-Item $nzip -Force
@@ -95,12 +125,14 @@ foreach ($plat in $Platforms -split ',') {
     if (-not $m) { Write-Err "未知平台：$plat"; exit 1 }
     Write-Step "Node 运行时 [$plat] …"
     $arc = Join-Path $Dist $m.file
-    if (-not (Test-Path $arc)) {
+    if (-not (Confirm-NodeArchive $arc $NodeVersion $m.file)) {
+        Remove-Item $arc -Force -ErrorAction SilentlyContinue
         if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/$NodeVersion/$($m.file)" $arc)) {
             if (-not (Get-Url "https://nodejs.org/dist/$NodeVersion/$($m.file)" $arc)) {
                 Write-Err "下载失败：$($m.file)"; exit 1
             }
         }
+        if (-not (Confirm-NodeArchive $arc $NodeVersion $m.file)) { throw "Node SHA-256 校验失败：$($m.file)" }
     }
     $tmpEx = Join-Path $Dist ("extract-" + [guid]::NewGuid().ToString('N').Substring(0, 6))
     New-Item -ItemType Directory -Path $tmpEx -Force | Out-Null
@@ -115,7 +147,10 @@ foreach ($plat in $Platforms -split ',') {
 
 # ---------- 3. 逐 Agent × 平台 安装离线载荷 ----------
 $registry = Get-Content (Join-Path $Root 'agents\registry.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$want = if ($Agents) { $Agents -split ',' } else { @($registry.agents | Where-Object { $_.offline } | ForEach-Object { $_.id }) }
+$want = if ($Agents) { $Agents -split ',' } else {
+    @($registry.agents | Where-Object { $_.offline -and (-not $_.os -or $_.os -contains 'windows') } |
+      ForEach-Object { $_.id })
+}
 foreach ($a in $registry.agents) {
     if ($want -notcontains $a.id -or $a.method -ne 'npm') { continue }
     foreach ($plat in $Platforms -split ',') {
@@ -166,6 +201,10 @@ if (-not (Test-Path $pyZip)) {
         Get-Url 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip' $pyZip | Out-Null
     }
 }
+if ((Get-Sha256 $pyZip) -ne '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3') {
+    Remove-Item $pyZip -Force -ErrorAction SilentlyContinue
+    throw 'Windows Python 便携包 SHA-256 校验失败'
+}
 Write-Ok 'win-embed.zip 就绪'
 
 # CoCo（script 类）离线载荷：发行包 + sha256 + Agnes 密钥 + Node 22.23 运行时
@@ -194,16 +233,20 @@ if ($wantCoco) {
             'darwin-arm64' { 'node-v22.23.2-darwin-arm64.tar.gz' }
         }
         $ndest = Join-Path $cdir $nf
-        if (-not (Test-Path $ndest)) {
+        if (-not (Confirm-NodeArchive $ndest 'v22.23.2' $nf)) {
+            Remove-Item $ndest -Force -ErrorAction SilentlyContinue
             if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/v22.23.2/$nf" $ndest)) {
                 Get-Url "https://nodejs.org/dist/v22.23.2/$nf" $ndest | Out-Null
             }
+            if (-not (Confirm-NodeArchive $ndest 'v22.23.2' $nf)) { throw "CoCo Node SHA-256 校验失败：$nf" }
         }
         Write-Ok "CoCo 离线载荷 [$plat] 就绪"
     }
 }
 
 # ---------- 5. 离线安装脚本复制到包根目录 + 清单 ----------
+& python (Join-Path $Root 'scripts\tools\validate_offline_payload.py') $Stage $Platforms ($want -join ',')
+if ($LASTEXITCODE -ne 0) { throw '离线载荷闭包校验失败，拒绝打包' }
 Copy-Item (Join-Path $Root 'scripts\install-offline.sh')  $Stage -Force
 Copy-Item (Join-Path $Root 'scripts\install-offline.ps1') $Stage -Force
 $manifest = @()

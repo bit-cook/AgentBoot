@@ -47,6 +47,37 @@ class InstallTrackingTests(unittest.TestCase):
         self.assertEqual(failures, [])
         self.assertEqual(record.call_args.args[:2], (agent, "offline"))
 
+    def test_offline_npm_entry_uses_real_package_bin_not_dot_bin_copy(self):
+        agent = {"id": "codex", "name": "Codex", "bin": "codex", "method": "npm",
+                 "npm": "@openai/codex@0.90.0"}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "agents" / "codex" / "node_modules" / "@openai" / "codex"
+            (package / "bin").mkdir(parents=True)
+            (package / "package.json").write_text(
+                '{"name":"@openai/codex","bin":{"codex":"bin/codex.js"}}', encoding="utf-8")
+            (package / "bin" / "codex.js").write_text("#!/usr/bin/env node\n", encoding="utf-8")
+            with mock.patch.object(menu, "AGENTS_DIR", str(root / "agents")):
+                entry = menu.offline_npm_entry(agent)
+        self.assertEqual(entry, str(package / "bin" / "codex.js"))
+
+    def test_offline_shim_uses_selected_node_path(self):
+        agent = {"id": "codex", "name": "Codex", "bin": "codex", "method": "npm",
+                 "npm": "@openai/codex@0.90.0"}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "agents" / "codex" / "node_modules" / "@openai" / "codex"
+            (package / "bin").mkdir(parents=True)
+            (package / "package.json").write_text(
+                '{"bin":{"codex":"bin/codex.js"}}', encoding="utf-8")
+            (package / "bin" / "codex.js").write_text("#!/usr/bin/env node\n", encoding="utf-8")
+            with mock.patch.object(menu, "AGENTS_DIR", str(root / "agents")), \
+                    mock.patch.object(menu, "AB_HOME", str(root)), \
+                    mock.patch.object(menu, "POSIX", True):
+                self.assertTrue(menu.write_shim(agent, node_path="/portable/node"))
+                shim = (root / "bin" / "codex").read_text(encoding="utf-8")
+        self.assertIn('exec "/portable/node"', shim)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

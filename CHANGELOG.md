@@ -1,6 +1,6 @@
 # 更新日志
 
-## Unreleased
+## v1.1.0 (2026-08-30)
 
 - 新增 Agent 安全卸载：菜单 `[9]`、`agentboot uninstall <id>`、批量卸载与 CoCo `--purge`。
 - 新增原子安装归属清单，区分 AgentBoot 管理安装与系统同名命令；兼容可证明归属的 v1 遗留安装。

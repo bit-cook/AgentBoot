@@ -14,7 +14,7 @@
  */
 
 const REPO = "bit-cook/AgentBoot";
-const TAG = "v1.0.0";
+const TAG = "v1.1.0";
 const GH_REL = `https://github.com/${REPO}/releases/download/${TAG}`;
 
 export default {
@@ -85,7 +85,7 @@ const PAGE_ZH = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AgentBoot · 一键安装 AI Agent 启动器</title>
-<meta name="description" content="极简 · 极速 · 开箱即用的 AI Agent 启动器。一条命令装好，14 个主流 Agent 菜单自选，内置 Agnes 免费模型保底，全量离线安装，中国网络自适应。">
+<meta name="description" content="极简 · 极速 · 开箱即用的 AI Agent 启动器。一条命令装好，14 个主流 Agent 菜单自选，安全卸载、可验证离线包、中国网络自适应。">
 <style>
 :root{
   --bg:#fafafa;--fg:#18181b;--muted:#71717a;--card:#ffffff;--line:#e4e4e7;
@@ -147,7 +147,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
   <h1><span class="g">AgentBoot</span></h1>
   <p class="tag">极简 · 极速 · 开箱即用的 AI Agent 启动器 —— 一条命令装好，主流 Agent 菜单自选</p>
   <div class="badges">
-    <span>v1.0.0</span><span>Linux · macOS · Windows</span><span>界面中文</span>
+    <span>v1.1.0</span><span>Linux · macOS · Windows</span><span>界面中文</span>
     <span>14 个 Agent 自选</span><span>离线安装</span><span>中国镜像自适应</span><span>MIT</span>
   </div>
   <p class="lang"><b>中文</b> | <a href="en/">English</a></p>
@@ -175,7 +175,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
   <div class="card"><b>🛟 内置保底 Agent（ab）</b><p>其他都装不上时它一定能用：单文件零依赖、Agnes 免费模型、离线 Linux 知识库、会话持久化、/bench 基准。</p></div>
   <div class="card"><b>🧠 模型提供商管理器</b><p>Agnes 零配置开箱；自定义提供商命名管理；Ollama / LM Studio 本地模型；故障切换顺序。</p></div>
   <div class="card"><b>🇨🇳 中国网络自适应</b><p>自动探测并切换 npmmirror / Node 镜像 / 清华 PyPI；四源下载容错；代理一键配置。</p></div>
-  <div class="card"><b>📴 全量离线 & 瘦身定制</b><p>离线包内置各平台运行时与 Agent 载荷，目标机免联网免解压软件；菜单 [7] 自选平台与 Agent 构建瘦身包。</p></div>
+  <div class="card"><b>📴 已验证离线 & 按需构建</b><p>Release 精简包通过真实安装、启动与卸载冒烟；菜单 [7] 可在目标平台自选 Agent 构建。</p></div>
   <div class="card"><b>🧹 可追溯安全卸载</b><p>菜单 [9] 或 uninstall 命令批量卸载；只清理由 AgentBoot 管理的程序，默认保留配置、认证与会话。</p></div>
   <div class="card"><b>⚡ 极致性能</b><p>TLS 连接复用（实测每轮省约 440ms 首字延迟）、知识库预建索引（热查询 &lt;1ms）、上下文自动瘦身、流式中断保护。</p></div>
 </div>
@@ -203,8 +203,8 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 <h2>📴 离线安装</h2>
 <p>无网机器？两条路：</p>
 <ul>
-  <li><b>全量离线包</b>：Releases 下载对应平台包（约 0.8–1.6GB），拷贝解压即装，内含全部 13 个 Agent 载荷 + Node / Python 运行时；</li>
-  <li><b>瘦身离线包</b>：菜单 <code>[7]</code> 或 <code>build-offline</code> 自选平台与 Agent 定制构建（如 win-x64 仅 Pi ≈ 89MB）。</li>
+  <li><b>已验证精简包</b>：v1.1.0 首批提供 Linux x64 / Windows x64 的 Codex 包，CI 实际执行安装、版本启动与卸载；</li>
+  <li><b>自建离线包</b>：菜单 <code>[7]</code> 或 <code>build-offline</code> 在目标平台自选 Agent；Hermes 必须在对应平台构建。</li>
 </ul>
 <p>目标机无需联网、无需解压软件（Windows 资源管理器 / 系统自带 tar / 自解压脚本三选一），运行包内 <code>install-offline.ps1</code> 或 <code>sh install-offline.sh</code> 即可。</p>
 
@@ -212,7 +212,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 <ul>
   <li><b>Agnes 免费模型</b>（官方预设）：ab 零配置直接用；Codex / Qwen 安装后自动接线；</li>
   <li><b>自定义提供商</b>：任意 OpenAI 兼容接口，命名管理、随时增删切换；</li>
-  <li><b>本地模型</b>：Ollama / LM Studio / vLLM 预设，完全离线场景；</li>
+  <li><b>本地模型</b>：内置 Ollama / LM Studio 预设，也可把 vLLM 添加为自定义 OpenAI 兼容提供商；</li>
   <li><b>故障切换</b>：设置备用顺序，主模型失败自动降级。</li>
 </ul>
 
@@ -313,7 +313,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
   <h1><span class="g">AgentBoot</span></h1>
   <p class="tag">Minimal, fast, ready-to-run AI Agent launcher — one command to install, mainstream agents to choose from.</p>
   <div class="badges">
-    <span>v1.0.0</span><span>Linux · macOS · Windows</span><span>Chinese UI default</span>
+    <span>v1.1.0</span><span>Linux · macOS · Windows</span><span>Chinese UI default</span>
     <span>14 agents</span><span>Offline install</span><span>China-network adaptive</span><span>MIT</span>
   </div>
 </header>
@@ -340,7 +340,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
   <div class="card"><b>🛟 Built-in fallback agent (ab)</b><p>Works when everything else fails: single file, zero dependencies, free Agnes model, offline Linux knowledge base, session persistence, /bench.</p></div>
   <div class="card"><b>🧠 Model provider manager</b><p>Agnes out of the box; named custom providers; Ollama / LM Studio local models; failover order.</p></div>
   <div class="card"><b>🇨🇳 China network adaptive</b><p>Auto-detects and switches to npmmirror / Node mirrors / Tsinghua PyPI; four-source download retry; one-click proxy.</p></div>
-  <div class="card"><b>📴 Full offline & slim builds</b><p>Offline packages bundle per-platform runtimes and agent payloads — no internet, no unzip software needed; menu [7] builds slim custom packages.</p></div>
+  <div class="card"><b>📴 Verified offline & custom builds</b><p>Release packs pass real install/run/uninstall smoke tests; menu [7] builds selected Agents on their target platform.</p></div>
   <div class="card"><b>🧹 Ownership-aware uninstall</b><p>Menu [9] or the uninstall command removes AgentBoot-managed programs in batches while preserving config, credentials, and sessions by default.</p></div>
   <div class="card"><b>⚡ Extreme performance</b><p>TLS connection reuse (measured ~440ms off first-token latency per turn), pre-indexed KB (&lt;1ms warm), context auto-trimming, stream interruption protection.</p></div>
 </div>
@@ -368,8 +368,8 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 <h2>📴 Offline install</h2>
 <p>No internet on the target machine? Two options:</p>
 <ul>
-  <li><b>Full offline package</b>: grab a platform package from Releases (~0.8–1.6GB), copy, extract, install — includes all 13 agent payloads plus Node/Python runtimes;</li>
-  <li><b>Slim offline package</b>: menu <code>[7]</code> or <code>build-offline</code> to pick platforms and agents (e.g. win-x64 with Pi only ≈ 89MB).</li>
+  <li><b>Verified slim packs</b>: v1.1.0 initially provides Linux x64 / Windows x64 Codex packs after CI installs, starts, and uninstalls them;</li>
+  <li><b>Custom packs</b>: menu <code>[7]</code> or <code>build-offline</code> on the target platform; Hermes must be built natively.</li>
 </ul>
 <p>No unzip software needed (Windows Explorer / system tar / self-extracting script), then run <code>install-offline.ps1</code> or <code>sh install-offline.sh</code>.</p>
 

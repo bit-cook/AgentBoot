@@ -20,8 +20,11 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import i18n  # noqa: E402
 
-VERSION = "1.0.0"
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+try:
+    VERSION = open(os.path.join(APP_DIR, "VERSION"), "r", encoding="ascii").read().strip()
+except OSError:
+    VERSION = "1.1.0"
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
 CONFIG_PATH = os.path.join(AB_HOME, "config.json")
 KB_DIR = os.path.join(APP_DIR, "tools", "linux-kb")
@@ -526,6 +529,14 @@ READ_ONLY_SUBCOMMANDS = {
     "sc": {"query", "queryex", "qc", "qdescription", "qfailure", "qtriggerinfo"},
 }
 
+MUTATING_FLAGS = {
+    "journalctl": ("--rotate", "--sync", "--flush", "--relinquish-var",
+                   "--smart-relinquish-var", "--vacuum-", "--setup-keys"),
+    "dmesg": ("-c", "--read-clear", "-C", "--clear", "-D", "--console-off",
+              "-E", "--console-on", "-n", "--console-level"),
+    "date": ("-s", "--set", "-u", "--universal"),
+}
+
 
 def _simple_command_level(segment):
     """Conservatively classify one shell pipeline segment."""
@@ -547,6 +558,12 @@ def _simple_command_level(segment):
         return "normal"
     if first == "find" and any(arg in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for arg in args):
         return "normal"
+    if first in MUTATING_FLAGS:
+        for arg in words[1:]:
+            value = str(arg)
+            for flag in MUTATING_FLAGS[first]:
+                if value == flag or (flag.endswith("-") and value.startswith(flag)) or value.startswith(flag + "="):
+                    return "normal"
     if first == "ip":
         if not args:
             return "safe"
@@ -563,7 +580,7 @@ def classify_cmd(cmd):
     for pat in DANGER_RE:
         if re.search(pat, c, re.IGNORECASE):
             return "danger"
-    if re.search(r"`|\$\(|(^|[^<])>{1,2}|\btee\b", c):
+    if re.search(r"`|\$\(|\$\(\(|[<>]\(|\$\{|(^|[^<])>{1,2}|\btee\b", c):
         return "normal"
     segments = [part.strip() for part in re.split(r"(?:&&|\|\||[;|\n])", c) if part.strip()]
     levels = [_simple_command_level(segment) for segment in segments]

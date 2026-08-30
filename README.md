@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 一条命令装好，主流 Agent **菜单自选**（不是全家桶）；内置**保底 Agent** 永远可用；
-**全量离线**与**瘦身定制**两种离线包；中国网络环境**开箱自适应**。界面默认中文。
+提供**已验证精简离线包**与**按需自建离线包**；中国网络环境**开箱自适应**。界面默认中文。
 
 **主入口**：[https://boot.ide.pub](https://boot.ide.pub)　·　**镜像**：[GitHub Pages](https://bit-cook.github.io/AgentBoot/)
 
@@ -51,7 +51,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | 🛟 **内置保底 Agent** | `ab` 单文件零依赖：Agnes 开箱即用、离线 Linux 知识库、工具调用、会话持久化 |
 | 🧠 **提供商管理器** | Agnes 预设 + 自定义提供商命名管理 + Ollama/LM Studio 本地模型 + 故障切换顺序 |
 | 🇨🇳 **中国网络自适应** | npmmirror / Node 镜像 / 清华 PyPI 自动切换；四源下载容错；代理一键配置 |
-| 📴 **两种离线包** | 全量（三平台 0.8–1.6GB）+ **瘦身定制**（自选平台与 Agent，如 win-x64 仅 Pi ≈ 89MB） |
+| 📴 **可验证离线包** | Release 提供经安装/启动/卸载冒烟的 Codex 精简包；菜单 `[7]` 可按目标平台自建其他 Agent 包 |
 | ➕ **自定义 Agent** | 菜单向导或 `add-agent` 添加注册表之外的任意 Agent（npm / pip / 脚本），用户目录保存、升级不丢 |
 | 🧹 **安全卸载** | 菜单 `[9]` 或 `agentboot uninstall <id>`；精确清理程序，默认保留配置、认证与会话 |
 | 🔐 **可验证安装** | 在线包强制 SHA-256 校验、原子切换与失败回滚；自定义脚本仅 HTTPS 且无 shell 拼接 |
@@ -99,9 +99,9 @@ ab bench                              # 性能基准
 
 ## 离线安装与瘦身定制
 
-到 [Releases](https://github.com/bit-cook/AgentBoot/releases) 下载离线包（三平台 0.8–1.6GB，**除 Aider 外全部 Agent 离线可用**），拷到目标机解压后运行包内 `install-offline.ps1` / `sh install-offline.sh`。无解压软件也有三重保障（资源管理器自带 ZIP / 系统自带 tar / 自解压 sfx 脚本）。
+到 [Releases](https://github.com/bit-cook/AgentBoot/releases) 下载带平台与 Agent 名称的已验证精简包，拷到目标机解压后运行包内 `install-offline.ps1` / `sh install-offline.sh`。v1.1.0 首批发布 Linux x64 / Windows x64 的 Codex 包，发布流水线会实际执行安装、`codex --version` 和卸载后才上传。
 
-只要其中几个 Agent？菜单 `[7]` 或 `build-offline win-x64 claude-code,pi` 自选构建**瘦身包**（实测 win-x64 仅 Pi ≈ 89MB）。
+其他 Agent 使用菜单 `[7]` 或 `build-offline win-x64 claude-code,pi` 在目标平台按需构建。Hermes 含平台相关 Python venv，必须在对应平台构建；Aider 暂不支持离线。
 
 **详细步骤、脚本参数与故障排查见 [《安装指南.md》](安装指南.md)。**
 

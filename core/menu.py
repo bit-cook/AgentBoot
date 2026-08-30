@@ -17,6 +17,7 @@ AgentBoot 控制台菜单（命令 agentboot）
   python menu.py mirror auto|off|cn|proxy http://127.0.0.1:7890
 """
 import json
+import hashlib
 import os
 import re
 import shutil
@@ -35,8 +36,8 @@ import i18n  # noqa: E402  双语支持
 
 t = i18n.t
 
-VERSION = "1.0.0"
 APP_DIR = agent.APP_DIR
+VERSION = agent.VERSION
 AB_HOME = agent.AB_HOME
 RUNTIME_DIR = os.path.join(AB_HOME, "runtime")
 AGENTS_DIR = os.path.join(AB_HOME, "agents")
@@ -358,7 +359,7 @@ def ensure_node(minimum=None):
     dest_parent = RUNTIME_DIR
     os.makedirs(dest_parent, exist_ok=True)
     archive = os.path.join(dest_parent, fname)
-    import urllib.request
+    sums_path = os.path.join(dest_parent, "SHASUMS256-%s.txt" % NODE_VERSION)
     ok = False
     for u in urls:
         try:
@@ -375,6 +376,30 @@ def ensure_node(minimum=None):
         except Exception as e:
             log_err("下载失败(%s)：%s" % (u, e))
     if not ok:
+        return None
+    try:
+        if not os.path.exists(sums_path):
+            sums_url = "%s/%s/SHASUMS256.txt" % (NODE_MIRROR_GLOBAL, NODE_VERSION)
+            req = urllib.request.Request(sums_url, headers={"User-Agent": "AgentBoot/1.0"})
+            with urllib.request.urlopen(req, timeout=60) as response, open(sums_path, "wb") as output:
+                shutil.copyfileobj(response, output)
+        expected = None
+        with open(sums_path, "r", encoding="ascii") as sums:
+            for line in sums:
+                parts = line.split()
+                if len(parts) >= 2 and parts[1].lstrip("*") == fname:
+                    expected = parts[0].lower()
+                    break
+        actual = hashlib.sha256(open(archive, "rb").read()).hexdigest()
+        if not expected or actual != expected:
+            raise ValueError("checksum mismatch")
+        log_ok("Node 运行时 SHA-256 校验通过")
+    except Exception as e:
+        log_err("Node 运行时 SHA-256 校验失败：%s" % e)
+        try:
+            os.remove(archive)
+        except OSError:
+            pass
         return None
     log_info("解压到 %s …" % dest_parent)
     if fname.endswith(".zip"):
@@ -862,6 +887,14 @@ def _seed_uv(pkg_root):
     if not _download_mirror(urls, archive):
         log_err("uv 镜像下载失败")
         return False
+    actual_sha = hashlib.sha256(open(archive, "rb").read()).hexdigest()
+    if actual_sha != sha.lower():
+        log_err("uv SHA-256 校验失败")
+        try:
+            os.remove(archive)
+        except OSError:
+            pass
+        return False
     if asset.endswith(".zip"):
         with zipfile.ZipFile(archive) as z:
             data = z.read(member)
@@ -1127,9 +1160,15 @@ def offline_install(ids, payload_dir=None):
     pid = plat_id()
     print(t("menu.offline_header") % (pid, pdir))
 
-    # 1) Node 运行时（系统没有 node 时启用内置运行时）
-    have_node = bool(shutil.which("node")) and node_ok()
-    if not have_node:
+    agents = {a["id"]: a for a in load_registry()}
+    selected_npm = [agents[aid] for aid in ids
+                    if aid in agents and agents[aid].get("method") == "npm"]
+    strictest_node = max((a.get("node") or ">=18" for a in selected_npm),
+                         key=lambda value: _version_tuple(value), default=">=18")
+
+    # 1) 离线包优先使用自带 Node，确保路径与版本可复现；无载荷时才回退系统 Node。
+    offline_node = None
+    if selected_npm:
         src_node = os.path.join(pdir, "node", pid)
         if os.path.isdir(src_node):
             os.makedirs(RUNTIME_DIR, exist_ok=True)
@@ -1138,13 +1177,18 @@ def offline_install(ids, payload_dir=None):
                 shutil.rmtree(dst_node, ignore_errors=True)
             log_info("部署内置 Node 运行时 …")
             shutil.copytree(src_node, dst_node)
-            if node_ok():
-                have_node = True
+            if node_ok(node_exe(), strictest_node):
+                offline_node = node_exe()
                 log_ok("内置 Node 就绪：%s" % node_exe())
             else:
-                log_err("内置 Node 校验失败")
+                log_err("内置 Node 不满足所选 Agent 最低版本 %s" % strictest_node)
         else:
-            log_err("离线包未包含 %s 的 Node 运行时，且系统无 Node，无法安装 npm 类 Agent" % pid)
+            system_node = shutil.which("node")
+            if system_node and node_ok(system_node, strictest_node):
+                offline_node = system_node
+                log_ok("离线包无 Node 载荷，使用系统 Node：%s" % system_node)
+            else:
+                log_err("离线包未包含 %s Node，系统 Node 也不满足 %s" % (pid, strictest_node))
 
     # 2) Windows：部署内置 Python（供 ab 使用，若系统无可用 python）
     if not POSIX and not find_python():
@@ -1158,7 +1202,6 @@ def offline_install(ids, payload_dir=None):
             log_ok("内置 Python 就绪：%s" % os.path.join(dst_py, "python.exe"))
 
     # 3) 逐个 Agent 落盘
-    agents = {a["id"]: a for a in load_registry()}
     ok_list, fail_list = [], []
     for aid in ids:
         a = agents.get(aid)
@@ -1187,7 +1230,7 @@ def offline_install(ids, payload_dir=None):
             log_err(t("menu.offline_no_payload") % (a["name"], pid))
             fail_list.append(aid)
             continue
-        if not have_node:
+        if not offline_node or not node_ok(offline_node, a.get("node")):
             log_err(t("menu.offline_no_node") % a["name"])
             fail_list.append(aid)
             continue
@@ -1210,7 +1253,7 @@ def offline_install(ids, payload_dir=None):
         if aid == "hermes":
             fixup_hermes_venv(os.path.join(pdir, "agents", "hermes", pid), dst_nm)
         env_extra, args_prefix = wire_agnes(a)
-        shim = write_shim(a, env_extra, args_prefix)
+        shim = write_shim(a, env_extra, args_prefix, node_path=offline_node)
         if shim:
             record_install(a, "offline", os.path.join(
                 AB_HOME, "bin", a["bin"] + ("" if POSIX else ".cmd")))
@@ -1237,11 +1280,46 @@ def dir_size_mb(path):
     return total / 1048576.0
 
 
-def write_shim(a, env_extra=None, args_prefix=None):
+def _npm_package_name_from_spec(spec):
+    spec = str(spec or "")
+    if spec.startswith("@"):
+        slash = spec.find("/")
+        version = spec.find("@", slash + 1)
+        return spec[:version] if version >= 0 else spec
+    return spec.split("@", 1)[0]
+
+
+def offline_npm_entry(a):
+    """Resolve the real npm package bin entry; .bin copies are not relocatable."""
+    package_name = _npm_package_name_from_spec(a.get("npm"))
+    if not package_name:
+        return None
+    package_dir = os.path.join(AGENTS_DIR, a["id"], "node_modules", *package_name.split("/"))
+    metadata_path = os.path.join(package_dir, "package.json")
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as source:
+            metadata = json.load(source)
+        bins = metadata.get("bin")
+        if isinstance(bins, str):
+            relative = bins
+        elif isinstance(bins, dict):
+            relative = bins.get(a.get("bin"))
+            if not relative and len(bins) == 1:
+                relative = next(iter(bins.values()))
+        else:
+            relative = None
+        entry = os.path.normpath(os.path.join(package_dir, relative)) if relative else None
+        return entry if entry and _inside(entry, package_dir) and os.path.isfile(entry) else None
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def write_shim(a, env_extra=None, args_prefix=None, node_path=None):
     """为离线安装的 Agent 生成启动 shim。"""
     aid, bin_ = a["id"], a["bin"]
     env_extra = env_extra or {}
     args_prefix = args_prefix or []
+    node_path = node_path or node_exe()
     try:
         if POSIX:
             bin_dir = os.path.join(AB_HOME, "bin")
@@ -1257,9 +1335,12 @@ def write_shim(a, env_extra=None, args_prefix=None):
                 nd = runtime_node_dir()
                 if os.path.isdir(nd):
                     lines.append('[ -x "%s/bin/node" ] && export PATH="%s/bin:$PATH"' % (nd, nd))
-                lines.append('export PATH="$AB_ROOT/agents/%s/node_modules/.bin:$PATH"' % aid)
+                entry = offline_npm_entry(a)
+                if not entry:
+                    raise ValueError("未找到 %s 的真实 npm bin 入口" % aid)
                 pre = " ".join('"%s"' % x for x in args_prefix)
-                lines.append('exec "%s"%s "$@"' % (bin_, (" " + pre) if pre else ""))
+                lines.append('exec "%s" "%s"%s "$@"' %
+                             (node_path, entry, (" " + pre) if pre else ""))
                 body = "\n".join(lines) + "\n"
             with open(path, "w", encoding="utf-8", newline="\n") as f:
                 f.write("#!/bin/sh\n# AgentBoot shim for %s\nAB_ROOT=\"$HOME/.agentboot\"\n%s" % (aid, body))
@@ -1276,9 +1357,12 @@ def write_shim(a, env_extra=None, args_prefix=None):
             else:
                 lines = ["rem AgentBoot shim (Agnes preset)"]
                 lines += _agnes_env_cmd_lines(env_extra)
-                lines.append('set "PATH=%AB_ROOT%\\agents\\%s\\node_modules\\.bin;%%PATH%%"' % aid)
+                entry = offline_npm_entry(a)
+                if not entry:
+                    raise ValueError("未找到 %s 的真实 npm bin 入口" % aid)
                 pre = " ".join(args_prefix)
-                lines.append('"%s"%s %%*' % (bin_, (" " + pre) if pre else ""))
+                lines.append('"%s" "%s"%s %%*' %
+                             (node_path, entry, (" " + pre) if pre else ""))
                 body = "\r\n".join(lines) + "\r\n"
             with open(path, "w", encoding="ascii", newline="") as f:
                 f.write("@echo off\r\nrem AgentBoot shim for %s\r\n"
@@ -1516,7 +1600,7 @@ def pick_platforms():
         print("  [%d] %-14s %s" % (i, pid, desc))
     raw = input("平台编号: ").strip().lower()
     if not raw:
-        return ["linux-x64", "win-x64", "darwin-arm64"]
+        return [plat_id()]
     ids = []
     for tok in re.split(r"[\s,，]+", raw):
         if tok.isdigit() and 1 <= int(tok) <= len(BUILD_PLATFORMS):
@@ -1524,8 +1608,8 @@ def pick_platforms():
         elif tok in [p[0] for p in BUILD_PLATFORMS]:
             ids.append(tok)
     if not ids:
-        log_err("未识别任何平台，使用默认三平台")
-        return ["linux-x64", "win-x64", "darwin-arm64"]
+        log_err("未识别任何平台，使用当前平台")
+        return [plat_id()]
     return sorted(set(ids), key=lambda x: [p[0] for p in BUILD_PLATFORMS].index(x))
 
 
@@ -1556,14 +1640,15 @@ def build_offline_run(platforms, agents_ids):
     log_info(t("menu.build_start") % (",".join(platforms), ",".join(agents_ids)))
     print(t("menu.build_wait") + "\n")
     env = child_env()
+    tag = "v" + VERSION
     if POSIX:
         script = os.path.join(APP_DIR, "scripts", "build-offline.sh")
-        env.update({"PLATFORMS": ",".join(platforms), "AGENTS": ",".join(agents_ids), "TAG": "v1.0.0"})
+        env.update({"PLATFORMS": ",".join(platforms), "AGENTS": ",".join(agents_ids), "TAG": tag})
         cmd = ["sh", script]
     else:
         script = os.path.join(APP_DIR, "scripts", "build-offline.ps1")
         cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
-               "-Tag", "v1.0.0", "-Platforms", ",".join(platforms), "-Agents", ",".join(agents_ids)]
+               "-Tag", tag, "-Platforms", ",".join(platforms), "-Agents", ",".join(agents_ids)]
     r = subprocess.run(cmd, env=env)
     ok = r.returncode == 0
     if ok:
@@ -1572,7 +1657,7 @@ def build_offline_run(platforms, agents_ids):
         log_ok(t("menu.build_done") % dist)
         try:
             for fn in sorted(os.listdir(dist)):
-                if fn.startswith("AgentBoot-offline-v1.0.0-"):
+                if fn.startswith("AgentBoot-offline-%s-" % tag):
                     p = os.path.join(dist, fn)
                     if os.path.isfile(p):
                         print("  %-52s %8.1f MB" % (fn, os.path.getsize(p) / 1048576.0))

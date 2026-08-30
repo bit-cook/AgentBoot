@@ -4,7 +4,7 @@
 #  产物（dist/）：
 #    AgentBoot-offline-vX.Y.Z.tar.gz / .zip   —— 全平台离线包
 #    AgentBoot-offline-vX.Y.Z-sfx.sh          —— POSIX 自解压安装器
-#  依赖：node+npm（或允许脚本自动下载便携 Node）、tar、curl、python3（可选，打 zip/sfx 用）
+#  依赖：node+npm（或允许脚本自动下载便携 Node）、tar、curl 或 wget、python3
 #  用法：
 #    sh scripts/build-offline.sh
 #    AGENTS="claude-code,codex" PLATFORMS="linux-x64,win-x64" sh scripts/build-offline.sh
@@ -12,9 +12,8 @@
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TAG="${TAG:-v1.0.0}"
+TAG="${TAG:-v$(cat "$ROOT/VERSION")}"
 NODE_VERSION="${NODE_VERSION:-v22.23.2}"
-PLATFORMS="${PLATFORMS:-linux-x64,win-x64,darwin-arm64}"
 AGENTS_ENV="${AGENTS:-}"
 NPM_MIRROR="https://registry.npmmirror.com"
 DIST="$ROOT/dist"
@@ -25,6 +24,39 @@ ok()   { printf '✓ %s\n' "$*"; }
 err()  { printf '✗ %s\n' "$*"; }
 step() { printf '\n==> %s\n' "$*"; }
 
+fetch_file() { # fetch_file <url> <destination>
+    rm -f "$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fL --connect-timeout 15 --retry 2 -o "$2" "$1" >/dev/null 2>&1 || true
+        [ -s "$2" ] && return 0
+        rm -f "$2"
+    fi
+    if command -v wget >/dev/null 2>&1; then
+        wget -q -T 60 -t 2 -O "$2" "$1" >/dev/null 2>&1 || true
+        [ -s "$2" ] && return 0
+        rm -f "$2"
+    fi
+    return 1
+}
+
+sha256_file() {
+    if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}'
+    else return 1
+    fi
+}
+
+verify_node_archive() { # verify_node_archive <archive> <version> <filename>
+    sums="$DIST/SHASUMS256-$2.txt"
+    if [ ! -s "$sums" ]; then
+        fetch_file "https://nodejs.org/dist/$2/SHASUMS256.txt" "$sums" || return 1
+    fi
+    expected="$(awk -v name="$3" '$2 == name {print $1; exit}' "$sums")"
+    [ -n "$expected" ] || return 1
+    actual="$(sha256_file "$1")" || return 1
+    [ "$actual" = "$expected" ]
+}
+
 step "AgentBoot 离线包构建 $TAG · 平台：$PLATFORMS"
 
 case "$(uname -s)-$(uname -m)" in
@@ -33,6 +65,7 @@ case "$(uname -s)-$(uname -m)" in
     Linux-aarch*|Linux-arm64) HOST_PLAT="linux-arm64" ;;
     *) HOST_PLAT="linux-x64" ;;
 esac
+PLATFORMS="${PLATFORMS:-$HOST_PLAT}"
 
 # ---------- 0. 确保 npm ----------
 if ! command -v npm >/dev/null 2>&1; then
@@ -44,7 +77,11 @@ if ! command -v npm >/dev/null 2>&1; then
         Linux-aarch*|Linux-arm64) NF="node-$NODE_VERSION-linux-arm64.tar.gz" ;;
         *)           NF="node-$NODE_VERSION-linux-x64.tar.gz" ;;
     esac
-    curl -fL -o "$DIST/$NF" "https://registry.npmmirror.com/-/binary/node/$NODE_VERSION/$NF"
+    fetch_file "https://registry.npmmirror.com/-/binary/node/$NODE_VERSION/$NF" "$DIST/$NF" \
+        || fetch_file "https://nodejs.org/dist/$NODE_VERSION/$NF" "$DIST/$NF" \
+        || { err "Node 下载失败：$NF"; exit 1; }
+    verify_node_archive "$DIST/$NF" "$NODE_VERSION" "$NF" \
+        || { err "Node SHA-256 校验失败：$NF"; exit 1; }
     tar -xzf "$DIST/$NF" -C "$DIST/build-node"
     NODE_HOME="$DIST/build-node/node-$NODE_VERSION-${NF#node-$NODE_VERSION-}"
     NODE_HOME="${NODE_HOME%.tar.gz}"
@@ -74,8 +111,14 @@ for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
         *) err "未知平台：$PLAT"; exit 1 ;;
     esac
     ARC="$DIST/$NF"
-    [ -f "$ARC" ] || curl -fL -o "$ARC" "https://registry.npmmirror.com/-/binary/node/$NODE_VERSION/$NF" \
-        || curl -fL -o "$ARC" "https://nodejs.org/dist/$NODE_VERSION/$NF"
+    if [ ! -s "$ARC" ] || ! verify_node_archive "$ARC" "$NODE_VERSION" "$NF"; then
+        rm -f "$ARC"
+        fetch_file "https://registry.npmmirror.com/-/binary/node/$NODE_VERSION/$NF" "$ARC" \
+            || fetch_file "https://nodejs.org/dist/$NODE_VERSION/$NF" "$ARC" \
+            || { err "Node 下载失败：$NF"; exit 1; }
+        verify_node_archive "$ARC" "$NODE_VERSION" "$NF" \
+            || { rm -f "$ARC"; err "Node SHA-256 校验失败：$NF"; exit 1; }
+    fi
     rm -rf "$DIST/x"
     mkdir -p "$DIST/x"
     tar -xf "$ARC" -C "$DIST/x"
@@ -89,7 +132,14 @@ done
 if [ -n "$AGENTS_ENV" ]; then
     WANT="$(echo "$AGENTS_ENV" | tr ',' ' ')"
 else
-    WANT="$(python3 -c "import json,sys;print(' '.join(a['id'] for a in json.load(open(sys.argv[1]))['agents'] if a.get('offline')))" "$ROOT/agents/registry.json" 2>/dev/null || true)"
+    WANT="$(python3 - "$ROOT/agents/registry.json" "$HOST_PLAT" <<'PYEOF'
+import json,sys
+platform_id=sys.argv[2]
+os_id={'win-x64':'windows','linux-x64':'linux','linux-arm64':'linux','darwin-x64':'darwin','darwin-arm64':'darwin'}[platform_id]
+agents=json.load(open(sys.argv[1]))['agents']
+print(' '.join(a['id'] for a in agents if a.get('offline') and (not a.get('os') or os_id in a['os'])))
+PYEOF
+)"
 fi
 step "Agent 载荷：$WANT"
 for AID in $WANT; do
@@ -147,11 +197,12 @@ done
 # ---------- 4. 内置 Python（Windows 便携版）+ CoCo 离线载荷 ----------
 step '内置 Python（win-embed）…'
 mkdir -p "$STAGE/payloads/python"
-[ -f "$STAGE/payloads/python/win-embed.zip" ] || \
-    curl -fL -o "$STAGE/payloads/python/win-embed.zip" \
-        "https://mirrors.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip" \
-    || curl -fL -o "$STAGE/payloads/python/win-embed.zip" \
-        "https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip"
+[ -s "$STAGE/payloads/python/win-embed.zip" ] || \
+    fetch_file "https://mirrors.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip" \
+        "$STAGE/payloads/python/win-embed.zip" \
+    || fetch_file "https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip" \
+        "$STAGE/payloads/python/win-embed.zip" \
+    || { err "Windows Python 便携包下载失败"; exit 1; }
 ok 'win-embed.zip 就绪'
 
 # CoCo（script 类）离线载荷：发行包 + sha256 + Agnes 密钥 + Node 22.23 运行时
@@ -167,7 +218,10 @@ case " $WANT " in *" coco "*)
             "https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
         do
             F="$CDIR/$(basename "$U")"
-            [ -f "$F" ] || curl -fL -o "$F" "https://gh-proxy.com/$U" || curl -fL -o "$F" "https://ghfast.top/$U" || err "CoCo 载荷下载失败：$(basename "$U")"
+            [ -s "$F" ] || fetch_file "https://gh-proxy.com/$U" "$F" \
+                || fetch_file "https://ghfast.top/$U" "$F" \
+                || fetch_file "$U" "$F" \
+                || { err "CoCo 载荷下载失败：$(basename "$U")"; exit 1; }
         done
         case "$PLAT" in
             linux-x64) NF="node-v22.23.2-linux-x64.tar.gz" ;;
@@ -175,12 +229,20 @@ case " $WANT " in *" coco "*)
             darwin-x64) NF="node-v22.23.2-darwin-x64.tar.gz" ;;
             darwin-arm64) NF="node-v22.23.2-darwin-arm64.tar.gz" ;;
         esac
-        [ -f "$CDIR/$NF" ] || curl -fL -o "$CDIR/$NF" "https://registry.npmmirror.com/-/binary/node/v22.23.2/$NF"
+        if [ ! -s "$CDIR/$NF" ] || ! verify_node_archive "$CDIR/$NF" "v22.23.2" "$NF"; then
+            fetch_file "https://registry.npmmirror.com/-/binary/node/v22.23.2/$NF" "$CDIR/$NF" \
+                || fetch_file "https://nodejs.org/dist/v22.23.2/$NF" "$CDIR/$NF" \
+                || { err "CoCo Node 下载失败：$NF"; exit 1; }
+            verify_node_archive "$CDIR/$NF" "v22.23.2" "$NF" \
+                || { rm -f "$CDIR/$NF"; err "CoCo Node SHA-256 校验失败：$NF"; exit 1; }
+        fi
         ok "CoCo 离线载荷 [$PLAT] 就绪"
     done
 ;; esac
 
 # ---------- 5. 离线安装脚本 + 清单 ----------
+python3 "$ROOT/scripts/tools/validate_offline_payload.py" "$STAGE" "$PLATFORMS" "$(echo "$WANT" | tr ' ' ',')" \
+    || { err "离线载荷闭包校验失败，拒绝打包"; exit 1; }
 cp "$ROOT/scripts/install-offline.sh" "$STAGE/"
 cp "$ROOT/scripts/install-offline.ps1" "$STAGE/"
 {
@@ -208,7 +270,7 @@ for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
     if [ "$PLAT" = "win-x64" ]; then
         OUT="$DIST/AgentBoot-offline-$TAG-$PLAT.zip"
         (cd "$DIST/offline" && tar $EX -cf "$OUT" --zip AgentBoot) 2>/dev/null || \
-        (cd "$DIST/offline" && python3 -c "import zipfile,os,sys;[zipfile.ZipFile(sys.argv[1],'w',zipfile.ZIP_DEFLATED).write(os.path.join(r,f),os.path.relpath(os.path.join(r,f),sys.argv[2])) for r,ds,fs in os.walk(sys.argv[2]) for f in fs]" "$OUT" "$DIST/offline/AgentBoot")
+        python3 "$ROOT/scripts/tools/zip_tree.py" "$OUT" "$DIST/offline/AgentBoot" AgentBoot
     else
         OUT="$DIST/AgentBoot-offline-$TAG-$PLAT.tar.gz"
         (cd "$DIST/offline" && tar $EX -czf "$OUT" AgentBoot)

@@ -67,3 +67,13 @@ curl -fsSL https://boot.ide.pub/install.sh | head -n 5
 ## 版本升级
 
 `worker.js` 顶部的 `REPO` / `TAG` 与各安装脚本中的 `TAG` 保持一致；发新版本时同步修改。
+
+当前推荐使用已登录的 Wrangler OAuth 会话部署，配置位于 `wrangler.jsonc`：
+
+```sh
+cd cloudflare
+npx wrangler deploy --config wrangler.jsonc
+python3 ../scripts/verify-live-release.py
+```
+
+`verify-live-release.py` 会同时检查 `boot.ide.pub` 与 GitHub Pages：版本、安装器、在线 tar/zip 及 SHA-256 必须一致。

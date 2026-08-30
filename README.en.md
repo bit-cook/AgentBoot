@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 One command to install, mainstream agents to **choose from a menu** (not a bundle);
-a **built-in fallback agent** that always works; **full offline** and **slim custom** packages;
+a **built-in fallback agent** that always works; **verified slim offline** and **custom-built** packages;
 China-network adaptive out of the box. CLI UI in Chinese by default, English switchable.
 
 **Primary entry**: [boot.ide.pub](https://boot.ide.pub) · **Mirror**: [GitHub Pages](https://bit-cook.github.io/AgentBoot/)
@@ -52,7 +52,7 @@ Two commands after install:
 | 🛟 **Built-in fallback agent** | `ab`: single file, stdlib only, Agnes by default, offline Linux knowledge base, session persistence |
 | 🧠 **Model provider manager** | Named custom providers, Ollama/LM Studio presets, failover order, connectivity test |
 | 🇨🇳 **China network adaptive** | npmmirror / Node mirrors / Tsinghua PyPI, four-source downloads, proxy support |
-| 📴 **Two kinds of offline packages** | Full (0.8–1.6GB per platform) + slim custom builds (e.g. win-x64 + Pi ≈ 89MB) |
+| 📴 **Verified offline packages** | Releases provide Codex slim packs tested through install/run/uninstall; menu `[7]` builds other Agents on their target platform |
 | ➕ **Custom agents** | Add anything beyond the registry (npm / pip / script), stored in your home dir |
 | 🧹 **Safe uninstall** | Menu `[9]` or `agentboot uninstall <id>`; removes owned program files and preserves user data by default |
 | 🔐 **Verified install** | Enforced SHA-256, atomic app switching, rollback; custom scripts require HTTPS and avoid shell interpolation |
@@ -98,7 +98,7 @@ ab model                            # provider manager
 
 ## Offline packages
 
-Download from [Releases](https://github.com/bit-cook/AgentBoot/releases), copy to the target machine — no internet, no unzip software needed. Or build your own **slim package** (pick platforms and agents):
+Download a platform-and-Agent-specific verified pack from [Releases](https://github.com/bit-cook/AgentBoot/releases). v1.1.0 initially publishes Linux x64 and Windows x64 Codex packs only after CI installs them, runs `codex --version`, and uninstalls them. Build other Agents on their target platform with menu `[7]` or:
 
 ```bash
 python core/menu.py build-offline win-x64 claude-code,pi

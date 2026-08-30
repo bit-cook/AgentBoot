@@ -23,6 +23,12 @@ step() { printf '\n==> %s\n' "$*"; }
 
 step "AgentBoot 离线安装（无需联网）"
 
+for launcher in "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"; do
+    if [ -e "$launcher" ] && ! grep -q "AgentBoot" "$launcher" 2>/dev/null; then
+        err "拒绝覆盖不属于 AgentBoot 的命令：$launcher"; exit 1
+    fi
+done
+
 # ---------- 1. 校验离线载荷 ----------
 if [ ! -d "${SCRIPT_DIR}/payloads/agents" ]; then
     err "未找到 payloads/ 离线载荷目录。请确认脚本位于完整解压后的离线包根目录。"
@@ -32,14 +38,25 @@ ok "离线载荷校验通过：${SCRIPT_DIR}/payloads"
 
 # ---------- 2. 安装程序本体 ----------
 step "安装程序到 ${APP_DIR}"
-mkdir -p "$APP_DIR"
-cp -R "${SCRIPT_DIR}/core"      "$APP_DIR/"
-cp -R "${SCRIPT_DIR}/agents"    "$APP_DIR/"
-cp -R "${SCRIPT_DIR}/tools"     "$APP_DIR/"
-cp -R "${SCRIPT_DIR}/scripts"   "$APP_DIR/"
-for f in README.md 安装指南.md LICENSE CHANGELOG.md install.sh install.bat install-offline.sh install-offline.ps1; do
-    [ -f "${SCRIPT_DIR}/$f" ] && cp -f "${SCRIPT_DIR}/$f" "$APP_DIR/" || true
+mkdir -p "$AB_ROOT"
+NEW_APP="${AB_ROOT}/app.new.$$"
+OLD_APP="${AB_ROOT}/app.old.$$"
+rm -rf "$NEW_APP" "$OLD_APP"
+mkdir -p "$NEW_APP"
+cp -R "${SCRIPT_DIR}/core"      "$NEW_APP/"
+cp -R "${SCRIPT_DIR}/agents"    "$NEW_APP/"
+cp -R "${SCRIPT_DIR}/tools"     "$NEW_APP/"
+cp -R "${SCRIPT_DIR}/scripts"   "$NEW_APP/"
+for f in VERSION README.md 安装指南.md LICENSE CHANGELOG.md install.sh install.bat install-offline.sh install-offline.ps1; do
+    [ -f "${SCRIPT_DIR}/$f" ] && cp -f "${SCRIPT_DIR}/$f" "$NEW_APP/" || true
 done
+if [ ! -f "$NEW_APP/core/menu.py" ] || [ ! -f "$NEW_APP/core/agent.py" ]; then
+    err "离线包结构无效，保留现有版本"; rm -rf "$NEW_APP"; exit 1
+fi
+[ -d "$APP_DIR" ] && mv "$APP_DIR" "$OLD_APP"
+if mv "$NEW_APP" "$APP_DIR"; then rm -rf "$OLD_APP"
+else [ -d "$OLD_APP" ] && mv "$OLD_APP" "$APP_DIR"; err "升级失败，已恢复旧版本"; exit 1
+fi
 
 # ---------- 3. Python 检查（ab 需要；绝大多数系统自带） ----------
 PY="$(command -v python3 || command -v python || true)"
@@ -55,11 +72,13 @@ step "创建命令：agentboot（控制台） / ab（内置 Agent）"
 mkdir -p "$BIN_DIR"
 cat > "${BIN_DIR}/agentboot" <<EOF
 #!/bin/sh
+# AgentBoot launcher
 PYTHON="\$(command -v python3 || command -v python)"
 exec "\$PYTHON" "\$HOME/.agentboot/app/core/menu.py" "\$@"
 EOF
 cat > "${BIN_DIR}/ab" <<EOF
 #!/bin/sh
+# AgentBoot launcher
 PYTHON="\$(command -v python3 || command -v python)"
 exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" "\$@"
 EOF

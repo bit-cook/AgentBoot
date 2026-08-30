@@ -9,6 +9,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+TAG = "v" + (ROOT / "VERSION").read_text(encoding="ascii").strip()
 
 
 class OnlinePackageTests(unittest.TestCase):
@@ -20,8 +21,8 @@ class OnlinePackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             module.OUTPUTS = {
-                "tar": out / "agentboot-online-v1.0.0.tar.gz",
-                "zip": out / "agentboot-online-v1.0.0.zip",
+                "tar": out / ("agentboot-online-%s.tar.gz" % TAG),
+                "zip": out / ("agentboot-online-%s.zip" % TAG),
             }
             module.main()
             first = {path.name: hashlib.sha256(path.read_bytes()).hexdigest()

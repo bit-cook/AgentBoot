@@ -43,6 +43,14 @@ class NodeVersionTests(unittest.TestCase):
 
 
 class OfflineBuilderTests(unittest.TestCase):
+    def test_default_build_targets_native_platform_only(self):
+        shell = (ROOT / "scripts/build-offline.sh").read_text(encoding="utf-8")
+        powershell = (ROOT / "scripts/build-offline.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn('PLATFORMS="${PLATFORMS:-$HOST_PLAT}"', shell)
+        self.assertIn("if (-not $Platforms) { $Platforms = $HostPlat }", powershell)
+        self.assertIn("not a.get('os') or os_id in a['os']", shell)
+        self.assertIn("$_.os -contains 'windows'", powershell)
+
     def test_coco_builder_maps_every_supported_target(self):
         shell = (ROOT / "scripts/build-offline.sh").read_text(encoding="utf-8")
         powershell = (ROOT / "scripts/build-offline.ps1").read_text(encoding="utf-8-sig")
@@ -57,6 +65,11 @@ class OfflineBuilderTests(unittest.TestCase):
         self.assertIn("sys.argv[2]", seeder)
         shell = (ROOT / "scripts/build-offline.sh").read_text(encoding="utf-8")
         self.assertIn('seed_uv_generic.py" "$PREFIX/node_modules/hermes-agent" "$PLAT"', shell)
+
+    def test_online_uv_seed_verifies_downloaded_digest(self):
+        source = (ROOT / "core" / "menu.py").read_text(encoding="utf-8")
+        self.assertIn("hashlib.sha256(open(archive", source)
+        self.assertIn("uv SHA-256 校验失败", source)
 
 
 if __name__ == "__main__":

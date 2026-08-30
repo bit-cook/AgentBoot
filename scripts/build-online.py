@@ -12,13 +12,13 @@ import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TAG = "v1.0.0"
+TAG = "v" + (ROOT / "VERSION").read_text(encoding="ascii").strip()
 OUTPUTS = {
     "tar": ROOT / "pages" / ("agentboot-online-%s.tar.gz" % TAG),
     "zip": ROOT / "pages" / ("agentboot-online-%s.zip" % TAG),
 }
 TOP_LEVEL = (
-    ".gitattributes", ".gitignore", "CHANGELOG.md", "LICENSE", "README.md",
+    ".gitattributes", ".gitignore", "CHANGELOG.md", "LICENSE", "VERSION", "README.md",
     "README.en.md", "install.bat", "install.sh", "安装指南.md",
 )
 DIRECTORIES = ("agents", "cloudflare", "core", "docs", "scripts", "tools")
