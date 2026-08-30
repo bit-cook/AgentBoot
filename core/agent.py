@@ -17,6 +17,7 @@ import re
 import shlex
 import socket
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -50,8 +51,11 @@ def _utf8_console():
 
 
 def ensure_home():
-    if not os.path.isdir(AB_HOME):
-        os.makedirs(AB_HOME, exist_ok=True)
+    os.makedirs(AB_HOME, mode=0o700, exist_ok=True)
+    try:
+        os.chmod(AB_HOME, 0o700)
+    except OSError:
+        pass
 
 
 # Agnes 为官方预设的永久免费模型，开箱即用；其余为常见本地模型示例。
@@ -99,6 +103,21 @@ def load_config():
             cfg = json.load(f)
     except Exception:
         cfg = default_config()
+    if not isinstance(cfg, dict):
+        cfg = default_config()
+    if not isinstance(cfg.get("providers"), dict):
+        cfg["providers"] = {}
+    confirm = str(cfg.get("confirm", "smart")).strip().lower()
+    cfg["confirm"] = confirm if confirm in ("safe", "smart", "always") else "smart"
+    raw_steps = cfg.get("max_steps", 12)
+    try:
+        steps = int(raw_steps)
+    except (TypeError, ValueError):
+        steps = 12
+    cfg["max_steps"] = 12 if steps < 1 else min(steps, 50)
+    cfg["lang"] = "en" if str(cfg.get("lang", "zh")).lower().startswith("en") else "zh"
+    if not isinstance(cfg.get("fallback", []), list):
+        cfg["fallback"] = []
     for k, v in default_config().items():
         cfg.setdefault(k, v)
     return cfg
@@ -106,10 +125,33 @@ def load_config():
 
 def save_config(cfg):
     ensure_home()
-    tmp = CONFIG_PATH + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, CONFIG_PATH)
+    _atomic_private_json(CONFIG_PATH, cfg)
+
+
+def _atomic_private_json(path, data):
+    directory = os.path.dirname(path) or "."
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=os.path.basename(path) + ".", suffix=".tmp", dir=directory)
+    try:
+        try:
+            os.fchmod(fd, 0o600)
+        except (AttributeError, OSError):
+            pass
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(data, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp, path)
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 def get_provider(cfg, name=None):
@@ -177,7 +219,19 @@ _POOL = {}
 def _connect(scheme, host, port, timeout=180):
     import http.client
     import ssl
-    key = (scheme, host, port)
+    from urllib.parse import urlsplit
+    proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    if not proxy_url:
+        try:
+            env_path = os.path.join(AB_HOME, "env.json")
+            with open(env_path, "r", encoding="utf-8") as source:
+                proxy_url = (json.load(source) or {}).get("proxy")
+        except Exception:
+            proxy_url = None
+    proxy = urlsplit(proxy_url) if proxy_url else None
+    if proxy and (proxy.scheme not in ("http", "https") or not proxy.hostname):
+        raise ApiError("代理地址无效，仅支持 http/https。")
+    key = (scheme, host, port, proxy_url or "")
     conn = _POOL.get(key)
     if conn is not None:
         return conn
@@ -185,7 +239,17 @@ def _connect(scheme, host, port, timeout=180):
         ctx = ssl.create_default_context()
         if os.environ.get("AGENTBOOT_INSECURE") == "1":
             ctx = ssl._create_unverified_context()
-        conn = http.client.HTTPSConnection(host, port, timeout=timeout, context=ctx)
+        if proxy:
+            conn = http.client.HTTPSConnection(proxy.hostname, proxy.port or (443 if proxy.scheme == "https" else 80),
+                                               timeout=timeout, context=ctx)
+            tunnel_headers = {}
+            if proxy.username:
+                import base64
+                raw = "%s:%s" % (proxy.username, proxy.password or "")
+                tunnel_headers["Proxy-Authorization"] = "Basic " + base64.b64encode(raw.encode()).decode()
+            conn.set_tunnel(host, port, headers=tunnel_headers)
+        else:
+            conn = http.client.HTTPSConnection(host, port, timeout=timeout, context=ctx)
     elif scheme == "http":
         conn = http.client.HTTPConnection(host, port, timeout=timeout)
     else:
@@ -195,8 +259,11 @@ def _connect(scheme, host, port, timeout=180):
 
 
 def _drop_pool(scheme, host, port):
-    conn = _POOL.pop((scheme, host, port), None)
-    if conn is not None:
+    keys = [key for key in _POOL if key[:3] == (scheme, host, port)]
+    for key in keys:
+        conn = _POOL.pop(key, None)
+        if conn is None:
+            continue
         try:
             conn.close()
         except Exception:
@@ -436,10 +503,9 @@ SESSION_FILE = os.path.join(AB_HOME, "last-session.json")
 
 def save_session(history):
     try:
-        os.makedirs(AB_HOME, exist_ok=True)
-        with open(SESSION_FILE, "w", encoding="utf-8") as f:
-            json.dump({"saved": time.strftime("%Y-%m-%d %H:%M"),
-                       "history": history[-12:]}, f, ensure_ascii=False)
+        ensure_home()
+        _atomic_private_json(SESSION_FILE, {"saved": time.strftime("%Y-%m-%d %H:%M"),
+                                            "history": history[-12:]})
     except OSError:
         pass
 
@@ -474,7 +540,10 @@ def bench(cfg):
 def test_provider(cfg, name=None):
     """连通性测试：让模型回一个字。"""
     try:
-        content, _ = chat(cfg, [{"role": "user", "content": "请只回复两个字：正常"}],
+        target = dict(cfg)
+        if name:
+            target["active"] = name
+        content, _ = chat(target, [{"role": "user", "content": "请只回复两个字：正常"}],
                           stream_cb=None, max_tokens=16, temperature=0)
         return True, (content or "").strip()[:40] or "（空响应）"
     except Exception as e:
@@ -691,18 +760,56 @@ def run_cmd(cmd, timeout=60):
     import subprocess   # 惰性导入：保持启动极速
     timeout = min(max(int(timeout or 60), 5), 300)
     shell = ["cmd", "/c", cmd] if os.name == "nt" else ["/bin/sh", "-c", cmd]
+    out_file = tempfile.TemporaryFile(mode="w+b")
+    err_file = tempfile.TemporaryFile(mode="w+b")
     try:
-        r = subprocess.run(shell, capture_output=True, text=True,
-                           errors="replace", timeout=timeout)
-        out = ((r.stdout or "") + (("\n[stderr] " + r.stderr) if r.stderr.strip() else "")).strip()
-        code = r.returncode
+        kwargs = {"stdout": out_file, "stderr": err_file}
+        if os.name == "nt":
+            kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        else:
+            kwargs["start_new_session"] = True
+        process = subprocess.Popen(shell, **kwargs)
+        try:
+            process.wait(timeout=timeout)
+            code = process.returncode
+        except subprocess.TimeoutExpired:
+            code = 124
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                import signal
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                    process.wait(timeout=2)
+                except Exception:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except OSError:
+                        pass
+            process.wait()
+        def read_bounded(stream):
+            stream.flush()
+            size = stream.tell()
+            stream.seek(0)
+            if size <= 8000:
+                return stream.read().decode("utf-8", "replace")
+            first = stream.read(4000).decode("utf-8", "replace")
+            stream.seek(max(0, size - 4000))
+            last = stream.read(4000).decode("utf-8", "replace")
+            return first + "\n…（输出过长，已截断中间部分）…\n" + last
+        stdout = read_bounded(out_file)
+        stderr = read_bounded(err_file)
+        out = (stdout + (("\n[stderr] " + stderr) if stderr.strip() else "")).strip()
+        if code == 124:
+            out = "（命令超时 %ss，已终止整个进程树）\n%s" % (timeout, out)
     except subprocess.TimeoutExpired:
         out, code = "（命令超时 %ss，已终止）" % timeout, 124
     except FileNotFoundError as e:
         out, code = "启动 shell 失败：%s" % e, 127
-    if len(out) > 8000:
-        half = 4000
-        out = out[:half] + "\n…（输出过长，已截断中间部分）…\n" + out[-half:]
+    finally:
+        out_file.close()
+        err_file.close()
     return "exit=%d\n%s" % (code, out or "（无输出）")
 
 
@@ -961,6 +1068,13 @@ def _is_interactive():
 
 def system_prompt():
     plat = "%s / %s" % (platform_info(), sys.platform)
+    if i18n.get_lang() == "en":
+        return (
+            "You are AgentBoot's built-in terminal assistant running locally on %s.\n"
+            "Use tools for commands, files, the offline Linux knowledge base, and public web pages.\n"
+            "Rules: answer concisely in English; inspect with read-only tools before changing state; "
+            "explain destructive consequences first; put commands in code blocks; summarize verified results." % plat
+        )
     return (
         "你是 AgentBoot 内置的终端智能助手（ab），直接运行在用户本机，当前系统：%s。\n"
         "你可以调用工具：执行命令、读写文件、查询离线 Linux 知识库、抓取网页。\n"
@@ -1275,8 +1389,8 @@ def main():
         if not args:
             print("用法: ab run \"你的任务\"")
             return
-        final, _ = agent_loop(cfg, " ".join(args), stream=(not _is_interactive()))
-        if final and not _is_interactive():
+        final, _ = agent_loop(cfg, " ".join(args), stream=False)
+        if final:
             print(final)
         return
     if cmd == "bench":

@@ -10,6 +10,8 @@ echo   --------------------------------
 echo   即将下载并安装 AgentBoot 到 %%LOCALAPPDATA%%\AgentBoot
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"
+set "AB_EXIT=%ERRORLEVEL%"
 echo.
 echo   如果上方出现错误，请检查网络后重试，或使用离线安装包（见项目《安装指南.md》）。
 pause
+exit /b %AB_EXIT%

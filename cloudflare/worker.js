@@ -76,7 +76,7 @@ async function proxy(target, contentType, cacheTtl, incoming = null) {
     cf: { cacheEverything: !requestHeaders.has("Range"), cacheTtl },
     headers: requestHeaders,
   });
-  if (!resp.ok) {
+  if (!resp.ok && resp.status !== 304) {
     return text(`上游不可用（${resp.status}）：${target}\n请稍后重试或使用 GitHub 直链。\n`, 502);
   }
   const headers = new Headers(resp.headers);
@@ -162,7 +162,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 </style>
 </head>
 <body>
-<div class="wrap">
+<main class="wrap">
 
 <header>
   <h1><span class="g">AgentBoot</span></h1>
@@ -181,7 +181,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 <h3>Windows（PowerShell）</h3>
 <div class="cmd"><span class="c">powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</span>
   <button class="copy" data-c="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))&quot;">复制</button></div>
-<div class="note">备用入口：GitHub Pages（<a href="https://bit-cook.github.io/AgentBoot/">bit-cook.github.io/AgentBoot</a>）/ GitHub Releases / 国内加速镜像 —— 安装脚本内自动按序多源重试。</div>
+<div class="note">安装器只使用项目控制的 Worker / GitHub Pages / GitHub Release 三源，并对包与同源 SHA-256 一起校验。</div>
 
 <h2>🚀 三步上手</h2>
 <ol class="steps">
@@ -195,17 +195,17 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
   <div class="card"><b>📦 菜单自选安装（不是全家桶）</b><p>14 个主流 Agent 按需勾选：Claude Code、Codex、Qwen Code、OpenCode、CodeBuddy、MiMo、Cline、Pi、CoCo…</p></div>
   <div class="card"><b>🛟 内置保底 Agent（ab）</b><p>其他都装不上时它一定能用：零第三方依赖 Python 核心、Agnes 免费模型、离线 Linux 知识库、会话持久化。</p></div>
   <div class="card"><b>🧠 模型提供商管理器</b><p>Agnes 零配置开箱；自定义提供商命名管理；Ollama / LM Studio 本地模型；故障切换顺序。</p></div>
-  <div class="card"><b>🇨🇳 中国网络自适应</b><p>自动探测并切换 npmmirror / Node 镜像 / 清华 PyPI；四源下载容错；代理一键配置。</p></div>
+  <div class="card"><b>🇨🇳 中国网络自适应</b><p>自动切换 npm / Node / PyPI 镜像；Worker / Pages / Release 三源容错；代理一键配置。</p></div>
   <div class="card"><b>📴 已验证离线 & 按需构建</b><p>Release 精简包通过真实安装、启动与卸载冒烟；菜单 [7] 可在目标平台自选 Agent 构建。</p></div>
   <div class="card"><b>🧹 可追溯安全卸载</b><p>菜单 [9] 或 uninstall 命令批量卸载；只清理由 AgentBoot 管理的程序，默认保留配置、认证与会话。</p></div>
   <div class="card"><b>⚡ 可测性能</b><p>TLS 连接复用、知识库预建索引、上下文自动瘦身与流式中断保护；/bench 按当前网络与模型现场测量。</p></div>
-</div>
+</main>
 
 <h2>🤖 支持的 Agent（14 个）</h2>
 <div class="table-scroll" role="region" aria-label="支持的 Agent" tabindex="0"><table>
 <tr><th>#</th><th>Agent</th><th>命令</th><th>厂商</th><th>离线</th></tr>
 <tr><td>1</td><td>CoCo Agent</td><td><code>coco</code></td><td>BitCook</td><td class="ok">Linux/macOS</td></tr>
-<tr><td>2</td><td>OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td class="ok">✓</td></tr>
+<tr><td>2</td><td>OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td class="no">仅在线</td></tr>
 <tr><td>3</td><td>Hermes Agent</td><td><code>hermes</code></td><td>Hermes</td><td class="ok">✓（需 Git）</td></tr>
 <tr><td>4</td><td>Cline CLI</td><td><code>cline</code></td><td>Cline</td><td class="ok">✓</td></tr>
 <tr><td>5</td><td>CodeBuddy CLI</td><td><code>codebuddy</code></td><td>Tencent</td><td class="ok">✓</td></tr>
@@ -241,7 +241,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 <ul>
   <li><a href="https://github.com/${REPO}/blob/main/安装指南.md">安装指南（一键安装 / 离线部署 / 故障排查）</a></li>
   <li><a href="https://github.com/${REPO}/blob/main/README.md">README（功能总览 / 架构 / 自定义 Agent / 自定义离线包）</a></li>
-  <li><a href="https://github.com/${REPO}/releases">Releases（在线包 / 三平台离线包 / 自解压包）</a></li>
+  <li><a href="https://github.com/${REPO}/releases">Releases（在线包 / 已验证 Linux、Windows Codex 离线包）</a></li>
 </ul>
 
 <footer>
@@ -328,7 +328,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 </style>
 </head>
 <body>
-<div class="wrap">
+<main class="wrap">
 
 <header>
   <p class="lang"><b>English</b> | <a href="../">中文</a></p>
@@ -347,7 +347,7 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
 <h3>Windows (PowerShell)</h3>
 <div class="cmd"><span class="c">powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</span>
   <button class="copy" data-c="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))&quot;">Copy</button></div>
-<div class="note">Fallback entries: GitHub Pages (this page) / GitHub Releases / China mirrors — the installer retries sources in order automatically. The CLI UI is Chinese by default; language can be switched to English (<code>agentboot lang en</code>).</div>
+<div class="note">The installer uses project-controlled Worker / GitHub Pages / GitHub Release origins and verifies each archive against its same-origin SHA-256.</div>
 
 <h2>🚀 Three steps</h2>
 <ol class="steps">
@@ -361,17 +361,17 @@ pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14
   <div class="card"><b>📦 Choose what to install (no bundle bloat)</b><p>14 mainstream agents to pick from: Claude Code, Codex, Qwen Code, OpenCode, CodeBuddy, MiMo, Cline, Pi, CoCo…</p></div>
   <div class="card"><b>🛟 Built-in fallback agent (ab)</b><p>A zero-third-party-dependency Python core with Agnes, an offline Linux knowledge base, and session persistence.</p></div>
   <div class="card"><b>🧠 Model provider manager</b><p>Agnes out of the box; named custom providers; Ollama / LM Studio local models; failover order.</p></div>
-  <div class="card"><b>🇨🇳 China network adaptive</b><p>Auto-detects and switches to npmmirror / Node mirrors / Tsinghua PyPI; four-source download retry; one-click proxy.</p></div>
+  <div class="card"><b>🇨🇳 China network adaptive</b><p>npm / Node / PyPI mirrors, Worker/Pages/Release fallback, and one-click proxy configuration.</p></div>
   <div class="card"><b>📴 Verified offline & custom builds</b><p>Release packs pass real install/run/uninstall smoke tests; menu [7] builds selected Agents on their target platform.</p></div>
   <div class="card"><b>🧹 Ownership-aware uninstall</b><p>Menu [9] or the uninstall command removes AgentBoot-managed programs in batches while preserving config, credentials, and sessions by default.</p></div>
   <div class="card"><b>⚡ Measurable performance</b><p>TLS reuse, pre-indexed KB, context trimming, and stream protection; /bench measures the current network and provider.</p></div>
-</div>
+</main>
 
 <h2>🤖 Supported agents (14)</h2>
 <div class="table-scroll" role="region" aria-label="Supported Agents" tabindex="0"><table>
 <tr><th>#</th><th>Agent</th><th>Command</th><th>Vendor</th><th>Offline</th></tr>
 <tr><td>1</td><td>CoCo Agent</td><td><code>coco</code></td><td>BitCook</td><td class="ok">Linux/macOS</td></tr>
-<tr><td>2</td><td>OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td class="ok">✓</td></tr>
+<tr><td>2</td><td>OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td class="no">online only</td></tr>
 <tr><td>3</td><td>Hermes Agent</td><td><code>hermes</code></td><td>Hermes</td><td class="ok">✓ (needs Git)</td></tr>
 <tr><td>4</td><td>Cline CLI</td><td><code>cline</code></td><td>Cline</td><td class="ok">✓</td></tr>
 <tr><td>5</td><td>CodeBuddy CLI</td><td><code>codebuddy</code></td><td>Tencent</td><td class="ok">✓</td></tr>

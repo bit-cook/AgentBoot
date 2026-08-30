@@ -48,6 +48,12 @@ class NodeVersionTests(unittest.TestCase):
         self.assertTrue(menu._version_satisfies((24, 15, 0), requirement))
         self.assertFalse(menu._version_satisfies((24, 14, 9), requirement))
 
+    def test_unknown_architecture_is_rejected(self):
+        with mock.patch.object(menu.platform, "system", return_value="Linux"), \
+                mock.patch.object(menu.platform, "machine", return_value="riscv64"), \
+                self.assertRaisesRegex(RuntimeError, "不支持"):
+            menu.plat_id()
+
 
 class OfflineBuilderTests(unittest.TestCase):
     def test_default_build_targets_native_platform_only(self):
@@ -82,6 +88,11 @@ class OfflineBuilderTests(unittest.TestCase):
         source = (ROOT / "scripts/tools/seed_uv_generic.py").read_text(encoding="utf-8")
         self.assertIn("hashlib.sha256", source)
         self.assertIn("uv SHA-256 mismatch", source)
+
+    def test_posix_builder_uses_root_registry_and_verifies_windows_python(self):
+        shell = (ROOT / "scripts/build-offline.sh").read_text(encoding="utf-8")
+        self.assertIn('"$ROOT/agents/registry.json" "$AID"', shell)
+        self.assertIn("4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3", shell)
 
 
 if __name__ == "__main__":

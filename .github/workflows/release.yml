@@ -88,7 +88,7 @@ jobs:
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'agentboot-smoke'
           $extract = Join-Path $root 'extract'
-          $smokeHome = Join-Path $root 'home'
+          $smokeHome = Join-Path $root '测试-home'
           New-Item -ItemType Directory -Path $extract, $smokeHome -Force | Out-Null
           $tag = 'v' + (Get-Content VERSION -Raw).Trim()
           tar -xf "dist\AgentBoot-offline-$tag-win-x64.zip" -C $extract
@@ -106,10 +106,30 @@ jobs:
           name: offline-windows
           path: dist/AgentBoot-offline-*-win-x64-codex.zip
 
+  macos-smoke:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build and smoke native macOS Codex package
+        shell: bash
+        run: |
+          AGENTS=codex PLATFORMS=darwin-x64 TAG="v$(cat VERSION)" sh scripts/build-offline.sh
+          root="$(mktemp -d)"
+          mkdir -p "$root/extract" "$root/home"
+          tag="v$(cat VERSION)"
+          tar -xzf "dist/AgentBoot-offline-${tag}-darwin-x64.tar.gz" -C "$root/extract"
+          HOME="$root/home" sh "$root/extract/AgentBoot/install-offline.sh" codex
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" "$root/home/.agentboot/bin/codex" --version
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 "$root/home/.agentboot/app/core/menu.py" uninstall codex
+          test ! -e "$root/home/.agentboot/agents/codex"
+
   publish:
-    needs: [validate, online, offline-linux, offline-windows]
+    needs: [validate, online, offline-linux, offline-windows, macos-smoke]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
+    environment: release-production
     permissions:
       contents: write
     steps:
@@ -126,12 +146,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "AgentBoot $GITHUB_REF_NAME" \
-            --prerelease \
-            --generate-notes \
-            --verify-tag
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --prerelease --latest=false
+          else
+            gh release create "$GITHUB_REF_NAME" release/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "AgentBoot $GITHUB_REF_NAME" \
+              --prerelease \
+              --generate-notes \
+              --verify-tag
+          fi
       - name: Wait for Pages deployment
         env:
           GH_TOKEN: ${{ github.token }}

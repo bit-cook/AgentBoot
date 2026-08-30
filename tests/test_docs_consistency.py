@@ -36,6 +36,7 @@ class DocumentationConsistencyTests(unittest.TestCase):
             self.assertIn("minmax(min(100%,280px),1fr)", surface)
             self.assertIn("min-height:44px", surface)
             self.assertIn("aria-live", surface)
+            self.assertIn("<main", surface)
 
 
 if __name__ == "__main__":

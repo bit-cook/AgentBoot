@@ -123,6 +123,19 @@ class UninstallAcceptanceTests(unittest.TestCase):
         self.assertEqual(command[:4], ["npm", "uninstall", "-g", "@openai/codex"])
         self.assertFalse(wrapper.exists())
 
+    def test_managed_uninstall_prefers_recorded_package_over_changed_registry(self):
+        installed = self.npm_agent(package="old-package@1.0.0")
+        current = self.npm_agent(package="new-package@2.0.0")
+        wrapper = self.write_wrapper()
+        menu.record_install(installed, "online", str(wrapper))
+        completed = subprocess.CompletedProcess([], 0)
+        with mock.patch.object(menu, "npm_cmd", return_value="npm"), \
+                mock.patch.object(menu.subprocess, "run", return_value=completed) as run:
+            ok, _message = menu.uninstall_one(current)
+        self.assertTrue(ok)
+        self.assertIn("old-package", run.call_args.args[0])
+        self.assertNotIn("new-package", run.call_args.args[0])
+
     def test_online_pip_uninstall_uses_noninteractive_mode(self):
         agent = {"id": "aider", "name": "Aider", "bin": "aider",
                  "method": "pip", "pip": "aider-install"}
@@ -177,6 +190,19 @@ class UninstallAcceptanceTests(unittest.TestCase):
         with self.assertRaisesRegex(OSError, "符号链接"):
             menu._remove_coco(False)
         self.assertTrue((program / "coco").exists())
+
+    def test_coco_uninstall_removes_verified_external_launchers(self):
+        coco = self.home / ".coco"
+        (coco / "bin").mkdir(parents=True)
+        target = coco / "bin" / "coco"
+        target.write_text("app", encoding="utf-8")
+        external_dir = self.home / ".local" / "bin"
+        external_dir.mkdir(parents=True)
+        for name in ("coco", "web", "coweb"):
+            (external_dir / name).symlink_to(target)
+        entry = {"executable": str(external_dir / "coco")}
+        menu._remove_coco_external_launchers(entry)
+        self.assertFalse(any((external_dir / name).exists() for name in ("coco", "web", "coweb")))
 
     def test_coco_offline_private_node_survives_install_swap(self):
         payload = self.home / "payload"

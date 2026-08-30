@@ -16,6 +16,15 @@
 - 修复 Windows CMD shim 百分号格式、npm 真实入口解析和便携 Node 路径，Linux/Windows 均通过原生安装→启动→卸载矩阵。
 - Worker 支持 Range/If-Range 与真实资产健康探测；发布采用 prerelease→Pages/Worker live verify→Latest 的协调状态机。
 - 修正 Node engine 范围、离线资产名、相对链接、vLLM 文案、移动端表格溢出、触摸目标和旧性能固定数字。
+- 安全模式改为可信系统路径的固定 argv 执行，禁止 shell grammar、路径伪装与未知确认策略放行。
+- 截断/畸形 SSE 不再产生可执行工具调用；模型密钥仅发送到 HTTPS，网页工具默认拒绝内网/元数据地址。
+- 配置与会话使用 0700/0600 原子持久化，命令超时终止整个进程树，安装状态更新加入跨进程锁。
+- CoCo 卸载拒绝 symlink 根目录，私有 Node 在最终目录部署；Hermes uv、Node 与 Python 载荷完整校验。
+- Release/Pages Actions 固定 commit、最小权限、显式源码清单；离线 Agent 更新与应用/launcher 事务支持回滚。
+- Aider 改为 AgentBoot 私有 venv 安装；OpenCode 暂停离线声明，npm 离线入口按 JS/native/CMD 类型执行。
+- Agent配置、代理、会话和安装清单改为私密原子持久化；并发安装状态加锁，命令超时终止整棵进程树。
+- 在线/离线应用、launcher与Agent payload提交边界支持回滚；Windows中文路径、PowerShell 3哈希和批处理错误码修复。
+- 发布矩阵新增Intel macOS原生Codex smoke；同源安装包增加成员/大小检查，离线构建只复制显式文件清单。
 
 ## v1.0.0 (2026-08-29)
 

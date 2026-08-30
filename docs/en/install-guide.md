@@ -21,7 +21,7 @@ curl -fsSL https://boot.ide.pub/install.sh | sh
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"
 ```
 
-**Fallback entries** — the installer tries these sources in order automatically (no manual action needed): `boot.ide.pub` (Cloudflare) → GitHub Pages → GitHub Releases → China accelerators (`ghfast.top`, `gh-proxy.com`).
+**Fallback entries** — the installer uses project-controlled origins only: `boot.ide.pub` → GitHub Pages → GitHub Releases, with same-origin SHA-256 enforcement.
 
 **After install**
 
@@ -152,7 +152,7 @@ Custom packs use the same structure and install flow as Release packs. Size depe
 
 - Auto-detects `registry.npmjs.org` reachability and enables mirror mode;
 - npm → npmmirror, Node runtimes → npmmirror binary mirror, pip → Tsinghua mirror;
-- Multi-source downloads: `boot.ide.pub` → GitHub Pages → GitHub Releases → `ghfast.top` / `gh-proxy.com`;
+- Multi-source downloads: project-controlled `boot.ide.pub` → GitHub Pages → GitHub Releases, each with same-origin SHA-256;
 - Proxy: menu `[5]`, stored for npm and AgentBoot downloads;
 - Force with `AGENTBOOT_MIRROR=cn|off`.
 
@@ -208,6 +208,10 @@ agentboot uninstall coco --purge
 rm -rf ~/.agentboot ~/.local/bin/agentboot ~/.local/bin/ab        # Linux/macOS
 rmdir /s /q "%USERPROFILE%\.agentboot" & rmdir /s /q "%LOCALAPPDATA%\AgentBoot"   # Windows
 ```
+
+For a complete POSIX uninstall, also remove the block from `# >>> agentboot >>>` through `# <<< agentboot <<<` in `.bashrc`, `.profile`, and `.zshrc`. On Windows, remove the two AgentBoot bin entries from the user `Path`.
+
+Before extraction, download the Release's `SHA256SUMS.txt` and run `sha256sum -c SHA256SUMS.txt --ignore-missing`. The bundled `PAYLOAD_SHA256SUMS.txt` performs a second, per-file check after extraction.
 
 You can also choose menu `[9] Uninstall Agents`. AgentBoot records ownership in `~/.agentboot/installed-agents.json`, so an unrelated command with the same name is never removed. Normal uninstall preserves every Agent's config and sessions; `--purge` currently has a defined data-removal boundary for CoCo only. Legacy installs are cleaned automatically only when ownership can be proven from an AgentBoot payload directory or marked shim; otherwise the command stops with manual removal guidance.
 

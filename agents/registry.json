@@ -24,7 +24,7 @@
       "method": "npm",
       "npm": "opencode-ai",
       "node": ">=18",
-      "offline": true,
+      "offline": false,
       "npm_install_flags": ["--ignore-scripts"],
       "script": "https://opencode.ai/install",
       "notes": ["已预置 Agnes 免费模型（~/.config/opencode/opencode.json），安装即用", "也可用官方脚本安装：curl -fsSL https://opencode.ai/install | bash"]
@@ -169,11 +169,11 @@
       "vendor": "Aider AI",
       "desc": "经典 AI 结对编程 CLI（Python/pip 生态，暂不支持离线）",
       "bin": "aider",
-      "method": "pip",
-      "pip": "aider-install",
+      "method": "venv",
+      "pip": "aider-chat",
       "node": null,
       "offline": false,
-      "notes": ["通过 aider-install 安装，需要本机 Python 3.8+", "pip 包的离线分发需要按平台打包 wheel，暂未支持"]
+      "notes": ["安装到 AgentBoot 私有 venv，不污染系统 Python", "需要 Python 3.10+；暂不支持离线"]
     }
   ]
 }

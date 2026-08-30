@@ -115,14 +115,8 @@ ZH = {
     "menu.custom_saved": "已保存到 %s",
     "menu.pick_platforms": "选择目标平台（可多选，空格/逗号分隔；回车 = 常用三平台）：",
     "menu.pick_offline_agents": "选择要打入离线包的 Agent（可多选；回车 = 全选）：",
-    "menu.build_aider_hint": "  （aider 为 pip 生态暂不支持离线，已自动排除）",
     "menu.build_plan": "即将构建：平台 %s · Agent %s",
     "menu.build_yn": "确认开始? [Y/n] ",
-    "menu.build_start": "开始构建：平台=%s · Agent=%s",
-    "menu.build_wait": "（首次构建会自动下载便携 Node/Python 与各 Agent 依赖，耗时取决于网速，请耐心等待）",
-    "menu.build_done": "构建完成，产物在 %s：",
-    "menu.build_fail": "构建脚本退出码 %s",
-    "menu.build_empty": "未选择任何 Agent",
     "agent.banner_model": "模型: %s @ %s（Agnes 官方免费预设，可用 /model 切换）",
     "agent.banner_resume": "↩ 已恢复上次会话（%d 条对话记忆，/继续 可随时恢复）",
     "agent.prompt": "\n你 › ",
@@ -275,14 +269,8 @@ EN = {
     "menu.custom_saved": "Saved to %s",
     "menu.pick_platforms": "Pick target platforms (multi-select; Enter = common three):",
     "menu.pick_offline_agents": "Pick agents to include (multi-select; Enter = all):",
-    "menu.build_aider_hint": "  (aider is pip-based, offline not supported — excluded automatically)",
     "menu.build_plan": "About to build: platforms %s · agents %s",
     "menu.build_yn": "Start? [Y/n] ",
-    "menu.build_start": "Building: platforms=%s · agents=%s",
-    "menu.build_wait": "(First build downloads portable Node/Python and agent deps; may take a while)",
-    "menu.build_done": "Build finished, artifacts in %s:",
-    "menu.build_fail": "Build script exit code %s",
-    "menu.build_empty": "No agent selected",
     "agent.banner_model": "Model: %s @ %s (Agnes free preset, /model to switch)",
     "agent.banner_resume": "↩ Restored last session (%d messages, /继续 to restore again)",
     "agent.prompt": "\nyou › ",
@@ -343,8 +331,5 @@ def t(key, *args):
     if s is None:
         s = ZH.get(key, key)
     if args:
-        try:
-            return s % args
-        except Exception:
-            return s
+        return s % args
     return s

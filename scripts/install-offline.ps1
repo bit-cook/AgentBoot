@@ -22,6 +22,13 @@ function Write-Ok($m)   { Write-Host "OK $m" -ForegroundColor Green }
 function Write-Err($m)  { Write-Host "X  $m" -ForegroundColor Red }
 function Write-Step($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 
+function Get-Sha256([string]$path) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $stream = [IO.File]::OpenRead($path)
+    try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
+    finally { $stream.Dispose(); $sha.Dispose() }
+}
+
 function Expand-Pkg([string]$pkg, [string]$dest) {
     $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
     if (Test-Path $tar) {
@@ -63,6 +70,22 @@ function Set-LauncherAtomic([string]$path, [string]$content) {
     } finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
 }
 
+function Restore-AppAtomic {
+    if ($script:PendingApp -and (Test-Path $script:PendingApp)) {
+        Remove-Item $script:PendingApp -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if ($script:PendingOldApp -and (Test-Path $script:PendingOldApp)) {
+        Move-Item $script:PendingOldApp $script:PendingApp
+    }
+    $script:PendingOldApp = $null; $script:PendingApp = $null
+}
+function Complete-AppAtomic {
+    if ($script:PendingOldApp -and (Test-Path $script:PendingOldApp)) { Remove-Item $script:PendingOldApp -Recurse -Force }
+    $script:PendingOldApp = $null; $script:PendingApp = $null
+}
+$script:PendingOldApp = $null; $script:PendingApp = $null
+trap { Restore-AppAtomic; Write-Error $_; exit 1 }
+
 $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $LocalRoot  = Join-Path $env:LOCALAPPDATA 'AgentBoot'
 $AppDir     = Join-Path $LocalRoot 'app'
@@ -90,7 +113,7 @@ foreach ($line in Get-Content $sums) {
     $parts = $line -split '\s+', 2
     $file = Join-Path $ScriptDir $parts[1].Replace('/', [IO.Path]::DirectorySeparatorChar)
     if (-not (Test-Path $file)) { throw "载荷缺失：$($parts[1])" }
-    if ((Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $parts[0].ToLowerInvariant()) {
+    if ((Get-Sha256 $file) -ne $parts[0].ToLowerInvariant()) {
         throw "载荷 SHA-256 校验失败：$($parts[1])"
     }
 }
@@ -114,7 +137,11 @@ if (-not (Test-Path (Join-Path $newApp 'core\menu.py')) -or -not (Test-Path (Joi
     Remove-Item $newApp -Recurse -Force -ErrorAction SilentlyContinue; throw '离线包结构无效'
 }
 if (Test-Path $AppDir) { Move-Item $AppDir $oldApp }
-try { Move-Item $newApp $AppDir; if (Test-Path $oldApp) { Remove-Item $oldApp -Recurse -Force } }
+try {
+    Move-Item $newApp $AppDir
+    $script:PendingOldApp = if (Test-Path $oldApp) { $oldApp } else { $null }
+    $script:PendingApp = $AppDir
+}
 catch { if (Test-Path $oldApp) { Move-Item $oldApp $AppDir }; throw }
 
 # ---------- 3. Python：系统优先，否则用离线包内置便携版 ----------
@@ -169,6 +196,7 @@ if exist "%AB_INSTALL%\runtime\python\python.exe" set "PYTHON=%AB_INSTALL%\runti
 "@
 Set-LauncherAtomic (Join-Path $BinDir 'agentboot.cmd') $agentbootLauncher
 Set-LauncherAtomic (Join-Path $BinDir 'ab.cmd') $abLauncher
+Complete-AppAtomic
 Write-Ok "已写入 $BinDir"
 
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')

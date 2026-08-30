@@ -51,7 +51,7 @@ Two commands after install:
 | 📦 **Choose what to install** | 14 mainstream agents, multi-select in the menu |
 | 🛟 **Built-in fallback agent** | `ab`: zero third-party dependencies, Agnes by default, offline Linux knowledge base, session persistence |
 | 🧠 **Model provider manager** | Named custom providers, Ollama/LM Studio presets, failover order, connectivity test |
-| 🇨🇳 **China network adaptive** | npmmirror / Node mirrors / Tsinghua PyPI, four-source downloads, proxy support |
+| 🇨🇳 **China network adaptive** | npmmirror / Node mirrors / Tsinghua PyPI, Worker/Pages/Release fallback, proxy support |
 | 📴 **Verified offline packages** | Releases provide Codex slim packs tested through install/run/uninstall; menu `[7]` builds other Agents on their target platform |
 | ➕ **Custom agents** | Add anything beyond the registry (npm / pip / script), stored in your home dir |
 | 🧹 **Safe uninstall** | Menu `[9]` or `agentboot uninstall <id>`; removes owned program files and preserves user data by default |
@@ -63,7 +63,7 @@ Two commands after install:
 | # | Agent | Command | Vendor | Offline |
 |---|---|---|---|---|
 | 1 | CoCo Agent | `coco` | BitCook | Linux/macOS |
-| 2 | OpenCode | `opencode` | opencode.ai | ✓ |
+| 2 | OpenCode | `opencode` | opencode.ai | online only (postinstall not yet offline-verified) |
 | 3 | Hermes Agent | `hermes` | Hermes | ✓ (needs Git) |
 | 4 | Cline CLI | `cline` | Cline | ✓ |
 | 5 | CodeBuddy CLI | `codebuddy` | Tencent | ✓ |

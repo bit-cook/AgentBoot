@@ -307,7 +307,10 @@ tmp="$(mktemp -d 2>/dev/null || echo /tmp/agentboot-sfx-$$)"
 mkdir -p "$tmp"
 echo "==> AgentBoot 离线自解压安装：解压中，请稍候 …"
 tail -n +"$SKIP" "$0" | { base64 -d 2>/dev/null || base64 -D 2>/dev/null || openssl base64 -d -A; } | tar -xzf - -C "$tmp"
-exec sh "$tmp/AgentBoot/install-offline.sh" "$@"
+code=0
+sh "$tmp/AgentBoot/install-offline.sh" "$@" || code=$?
+rm -rf "$tmp"
+exit "$code"
 __AGENTBOOT_PAYLOAD_BELOW__
 '@
         [IO.File]::WriteAllText($sfx, ($header -replace "`r`n", "`n"), (New-Object System.Text.UTF8Encoding($false)))

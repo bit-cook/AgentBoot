@@ -67,10 +67,32 @@ function Install-AppAtomic([string]$source, [string]$destination) {
             if (Test-Path $oldApp) { Move-Item $oldApp $destination }
             throw
         }
-        if (Test-Path $oldApp) { Remove-Item $oldApp -Recurse -Force }
+        $script:PendingOldApp = if (Test-Path $oldApp) { $oldApp } else { $null }
+        $script:PendingApp = $destination
     } finally {
         if (Test-Path $newApp) { Remove-Item $newApp -Recurse -Force -ErrorAction SilentlyContinue }
     }
+}
+
+function Restore-AppAtomic {
+    if ($script:PendingApp -and (Test-Path $script:PendingApp)) {
+        Remove-Item $script:PendingApp -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if ($script:PendingOldApp -and (Test-Path $script:PendingOldApp)) {
+        Move-Item $script:PendingOldApp $script:PendingApp
+    }
+    $script:PendingOldApp = $null; $script:PendingApp = $null
+}
+function Complete-AppAtomic {
+    if ($script:PendingOldApp -and (Test-Path $script:PendingOldApp)) { Remove-Item $script:PendingOldApp -Recurse -Force }
+    $script:PendingOldApp = $null; $script:PendingApp = $null
+}
+$script:PendingOldApp = $null; $script:PendingApp = $null
+trap {
+    Restore-AppAtomic
+    if ($tmp -and (Test-Path $tmp)) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    Write-Error $_
+    exit 1
 }
 
 function Assert-ManagedLauncher([string]$path) {
@@ -123,16 +145,14 @@ foreach ($launcher in $launchers) {
     Assert-ManagedLauncher $launcher
 }
 
-# ---------- 1. 下载（多源容错：Cloudflare → GitHub → 国内加速镜像） ----------
+# ---------- 1. 下载（项目控制的三源：Worker → Pages → GitHub Release） ----------
 $tmp  = Join-Path $env:TEMP ("agentboot-" + [guid]::NewGuid().ToString('N').Substring(0,8))
 New-Item -ItemType Directory -Path $tmp, (Join-Path $tmp 'src') -Force | Out-Null
 $pkg  = Join-Path $tmp $ZipName
 $sources = @(
     "$BootBase/rel/$ZipName",
     "https://bit-cook.github.io/AgentBoot/$ZipName",
-    "$GH/$ZipName",
-    "https://ghfast.top/$GH/$ZipName",
-    "https://gh-proxy.com/$GH/$ZipName"
+    "$GH/$ZipName"
 )
 $dl = $false
 foreach ($u in $sources) {
@@ -140,7 +160,7 @@ foreach ($u in $sources) {
     $ok = Get-Url $u $pkg
     $sumFile = "$pkg.sha256"
     $sumOk = Get-Url "$u.sha256" $sumFile
-    if ($ok -and $sumOk -and (Test-Path $pkg) -and ((Get-Item $pkg).Length -gt 10KB)) {
+    if ($ok -and $sumOk -and (Test-Path $pkg) -and ((Get-Item $pkg).Length -gt 10KB) -and ((Get-Item $pkg).Length -le 20MB)) {
         $expected = ((Get-Content $sumFile -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
         if ($expected -match '^[0-9a-f]{64}$' -and (Get-Sha256 $pkg) -eq $expected) {
             Write-Ok 'SHA-256 校验通过'
@@ -158,10 +178,6 @@ Write-Step '解压安装包'
 if (-not (Expand-Pkg $pkg (Join-Path $tmp 'src'))) { Write-Err '解压失败'; exit 1 }
 $srcDir = Get-ChildItem (Join-Path $tmp 'src') | Where-Object { $_.PSIsContainer } | Select-Object -First 1
 if ($srcDir) { $srcDir = $srcDir.FullName } else { $srcDir = Join-Path $tmp 'src' }
-
-Write-Step "安装程序到 $AppDir"
-New-Item -ItemType Directory -Path $LocalRoot -Force | Out-Null
-Install-AppAtomic $srcDir $AppDir
 
 # ---------- 3. Python：优先内置便携版（免管理员、够用最快） ----------
 Write-Step '准备 Python 运行时（内置 Agent ab 需要）'
@@ -206,6 +222,13 @@ if (-not $pyExe) {
         $pyExe = (Get-Command python -ErrorAction SilentlyContinue).Source
     }
 } else { Write-Ok "检测到系统 Python：$pyExe" }
+if (-not $pyExe) { throw '未能准备 Python3，保留现有版本并退出' }
+try { $null = & $pyExe -c "import sys; assert sys.version_info[0] == 3" }
+catch { throw 'Python3 执行验证失败，保留现有版本并退出' }
+
+Write-Step "安装程序到 $AppDir"
+New-Item -ItemType Directory -Path $LocalRoot -Force | Out-Null
+Install-AppAtomic $srcDir $AppDir
 
 # ---------- 4. 命令入口（agentboot / ab） ----------
 Write-Step '创建命令：agentboot（控制台） / ab（内置 Agent）'
@@ -230,6 +253,7 @@ if exist "%AB_INSTALL%\runtime\python\python.exe" set "PYTHON=%AB_INSTALL%\runti
 "@
 Set-LauncherAtomic (Join-Path $BinDir 'agentboot.cmd') $agentbootLauncher
 Set-LauncherAtomic (Join-Path $BinDir 'ab.cmd') $abLauncher
+Complete-AppAtomic
 Write-Ok "已写入 $BinDir"
 
 # ---------- 5. PATH 注册（用户级，幂等） ----------
@@ -250,6 +274,7 @@ Write-Step '环境体检'
 if ($pyExe) {
     try { & $pyExe (Join-Path $AppDir 'core\agent.py') doctor } catch { Write-Err '体检脚本执行失败（不影响安装）' }
 }
+if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
 
 # ---------- 7. 完成 ----------
 Write-Host ''
