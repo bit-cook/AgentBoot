@@ -78,6 +78,25 @@ class InstallTrackingTests(unittest.TestCase):
                 shim = (root / "bin" / "codex").read_text(encoding="utf-8")
         self.assertIn('exec "/portable/node"', shim)
 
+    def test_windows_offline_shim_escapes_cmd_percent_variables(self):
+        agent = {"id": "codex", "name": "Codex", "bin": "codex", "method": "npm",
+                 "npm": "@openai/codex@0.90.0"}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "agents" / "codex" / "node_modules" / "@openai" / "codex"
+            (package / "bin").mkdir(parents=True)
+            (package / "package.json").write_text(
+                '{"bin":{"codex":"bin/codex.js"}}', encoding="utf-8")
+            (package / "bin" / "codex.js").write_text("#!/usr/bin/env node\n", encoding="utf-8")
+            with mock.patch.object(menu, "AGENTS_DIR", str(root / "agents")), \
+                    mock.patch.object(menu, "AB_HOME", str(root)), \
+                    mock.patch.object(menu, "POSIX", False):
+                self.assertTrue(menu.write_shim(agent, node_path="C:\\portable\\node.exe"))
+                shim = (root / "bin" / "codex.cmd").read_text(encoding="ascii")
+        self.assertIn("%AB_ROOT%", shim)
+        self.assertIn("%PATH%", shim)
+        self.assertIn('"C:\\portable\\node.exe"', shim)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

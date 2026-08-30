@@ -1367,8 +1367,8 @@ def write_shim(a, env_extra=None, args_prefix=None, node_path=None):
             with open(path, "w", encoding="ascii", newline="") as f:
                 f.write("@echo off\r\nrem AgentBoot shim for %s\r\n"
                         'set "AB_ROOT=%%USERPROFILE%%\\.agentboot"\r\n'
-                        'if exist "%AB_ROOT%\\runtime\\node-win-x64\\node.exe" '
-                        'set "PATH=%AB_ROOT%\\runtime\\node-win-x64;%%PATH%%"\r\n%s' % (aid, body))
+                        'if exist "%%AB_ROOT%%\\runtime\\node-win-x64\\node.exe" '
+                        'set "PATH=%%AB_ROOT%%\\runtime\\node-win-x64;%%PATH%%"\r\n%s' % (aid, body))
         return True
     except Exception as e:
         log_err("写入 shim 失败：%s" % e)
