@@ -167,13 +167,16 @@ if (($All -or $Agents) -and $pyExe) {
     if ($All) {
         $manifest = Get-Content (Join-Path $ScriptDir 'MANIFEST.txt') | Where-Object { $_ -match '^agents\s*:' } | Select-Object -First 1
         if (-not $manifest) { throw 'MANIFEST.txt 未列出 Agent' }
-        $ids = (($manifest -split ':', 2)[1].Trim()) -split ',\s*'
+        $packed = (($manifest -split ':', 2)[1]).Trim()
+        $ids = @($packed -split ',\s*' | Where-Object { $_ })
     } else {
-        $ids = @($Agents -split ',') | Where-Object { $_ }
+        $ids = @($Agents -split ',' | Where-Object { $_ })
     }
     if ($ids) {
         Write-Step "离线安装：$($ids -join ' ')"
-        & $pyRef $menu offline --payload $PayloadDir @ids
+        $menuArgs = @($menu, 'offline', '--payload', $PayloadDir) + @($ids)
+        & $pyRef @menuArgs
+        if ($LASTEXITCODE -ne 0) { throw "Agent 离线安装失败（exit=$LASTEXITCODE）" }
     }
 } elseif (($All -or $Agents) -and -not $pyExe) {
     Write-Err '缺少 Python 运行时，无法执行 Agent 离线安装（控制台菜单功能依赖 Python）'
