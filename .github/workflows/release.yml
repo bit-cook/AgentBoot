@@ -25,7 +25,6 @@ jobs:
           node --check cloudflare/worker.js
 
   online:
-    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +44,6 @@ jobs:
             pages/VERSION
 
   offline-linux:
-    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +69,6 @@ jobs:
           path: dist/AgentBoot-offline-*-linux-x64-codex*
 
   offline-windows:
-    needs: validate
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -101,7 +98,7 @@ jobs:
           path: dist/AgentBoot-offline-*-win-x64-codex.zip
 
   publish:
-    needs: [online, offline-linux, offline-windows]
+    needs: [validate, online, offline-linux, offline-windows]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
