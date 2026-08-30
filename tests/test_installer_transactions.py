@@ -39,6 +39,17 @@ class InstallerTransactionTests(unittest.TestCase):
             text = (ROOT / relative).read_text(encoding="utf-8-sig")
             self.assertIn("VERSION", text, relative)
 
+    def test_launchers_reject_links_and_write_atomically(self):
+        for relative in ("install.sh", "scripts/install-offline.sh"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn('[ -L "$launcher" ]', text, relative)
+            self.assertIn('.agentboot.new.', text, relative)
+            self.assertIn('mv -f "$agentboot_tmp"', text, relative)
+        for relative in ("scripts/install.ps1", "scripts/install-offline.ps1"):
+            text = (ROOT / relative).read_text(encoding="utf-8-sig")
+            self.assertIn("ReparsePoint", text, relative)
+            self.assertIn("Set-LauncherAtomic", text, relative)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

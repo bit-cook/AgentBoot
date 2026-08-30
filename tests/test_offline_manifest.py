@@ -37,7 +37,7 @@ class OfflineManifestTests(unittest.TestCase):
     def test_windows_installer_preserves_single_agent_as_argument(self):
         powershell = (ROOT / "scripts/install-offline.ps1").read_text(encoding="utf-8-sig")
         self.assertIn("$menuArgs = @($menu, 'offline', '--payload', $PayloadDir) + @($ids)", powershell)
-        self.assertIn("& $pyRef @menuArgs", powershell)
+        self.assertIn("& $pyExe @menuArgs", powershell)
         self.assertIn("Agent 离线安装失败", powershell)
 
 

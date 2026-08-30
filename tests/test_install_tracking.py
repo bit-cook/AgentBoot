@@ -97,6 +97,20 @@ class InstallTrackingTests(unittest.TestCase):
         self.assertIn("%PATH%", shim)
         self.assertIn('"C:\\portable\\node.exe"', shim)
 
+    def test_posix_path_block_uses_npm_bin_and_upgrades_existing_block(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            bashrc = home / ".bashrc"
+            bashrc.write_text("before\n# >>> agentboot >>>\nold\n# <<< agentboot <<<\nafter\n", encoding="utf-8")
+            with mock.patch.object(menu, "POSIX", True), \
+                    mock.patch.object(menu, "AB_HOME", str(home / ".agentboot")), \
+                    mock.patch.object(menu, "NPM_PREFIX", str(home / ".agentboot" / "npm-prefix")), \
+                    mock.patch.object(menu.os.path, "expanduser", side_effect=lambda p: str(home / p[2:]) if p.startswith("~/") else p):
+                menu.ensure_path_registered()
+            content = bashrc.read_text(encoding="utf-8")
+        self.assertIn("npm-prefix/bin", content)
+        self.assertNotIn("\nold\n", content)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

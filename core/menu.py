@@ -524,6 +524,31 @@ def _remove_path(path):
         os.remove(path)
 
 
+def _safe_extract_tar(archive, destination):
+    """Extract after rejecting traversal, device nodes, and escaping links."""
+    import tarfile
+    root = os.path.realpath(destination)
+    os.makedirs(root, exist_ok=True)
+    for member in archive.getmembers():
+        target = os.path.realpath(os.path.join(root, member.name))
+        if not _inside(target, root):
+            raise ValueError("tar 成员越界：%s" % member.name)
+        if member.isdev() or member.isfifo():
+            raise ValueError("tar 包含设备或管道：%s" % member.name)
+        if member.issym():
+            link_target = os.path.realpath(os.path.join(os.path.dirname(target), member.linkname))
+            if not _inside(link_target, root):
+                raise ValueError("tar 符号链接越界：%s" % member.name)
+        elif member.islnk():
+            link_target = os.path.realpath(os.path.join(root, member.linkname))
+            if not _inside(link_target, root):
+                raise ValueError("tar 硬链接越界：%s" % member.name)
+    if hasattr(tarfile, "data_filter"):
+        archive.extractall(root, filter="data")
+    else:
+        archive.extractall(root)
+
+
 def _remove_owned_shims(a, entry):
     candidates = [entry.get("executable")]
     suffix = "" if POSIX else ".cmd"
@@ -550,9 +575,13 @@ def _remove_coco(purge=False):
     root = os.path.expanduser("~/.coco")
     if not os.path.exists(root):
         return
+    if os.path.islink(root) or not _inside(os.path.realpath(root), os.path.realpath(os.path.expanduser("~"))):
+        raise OSError("拒绝删除符号链接或用户目录之外的 CoCo 路径：%s" % root)
     if purge:
         shutil.rmtree(root)
         return
+    if not any(os.path.exists(os.path.join(root, name)) for name in ("bin", "runtime", "resources")):
+        raise OSError("CoCo 程序目录缺少预期结构，拒绝自动删除：%s" % root)
     # CoCo 的 agent/ 内含会话、认证与用户设置；默认只移除程序文件。
     for name in os.listdir(root):
         if name == "agent":
@@ -1048,8 +1077,13 @@ def coco_offline_install(a, payload):
     if not (os.path.exists(tgz) and os.path.exists(side) and os.path.exists(key_file)):
         log_err("CoCo 离线载荷不完整（缺 coco-0.8.0.tgz / .sha256 / agnes.key）")
         return False
-    expected = open(side, "r", encoding="utf-8").read().split()[0].lower()
-    h = hashlib.sha256(open(tgz, "rb").read()).hexdigest()
+    with open(side, "r", encoding="utf-8") as source:
+        expected = source.read().split()[0].lower()
+    hasher = hashlib.sha256()
+    with open(tgz, "rb") as source:
+        for chunk in iter(lambda: source.read(1 << 20), b""):
+            hasher.update(chunk)
+    h = hasher.hexdigest()
     if h != expected:
         log_err("CoCo 发行包 SHA-256 校验失败")
         return False
@@ -1070,6 +1104,7 @@ def coco_offline_install(a, payload):
             return False
 
     node_bin = shutil.which("node")
+    node_archive = None
     if node_bin and _node_ok(node_bin):
         log_ok("使用系统 Node")
     else:
@@ -1078,17 +1113,7 @@ def coco_offline_install(a, payload):
         if not ntgz:
             log_err("系统 Node 过旧且载荷无内置 Node 运行时")
             return False
-        runtime = os.path.join(install_dir, "runtime")
-        if os.path.isdir(runtime):
-            shutil.rmtree(runtime, ignore_errors=True)
-        os.makedirs(runtime, exist_ok=True)
-        with tarfile.open(ntgz, "r:gz") as t:
-            t.extractall(runtime, filter="tar")
-        inner = os.listdir(runtime)[0]
-        os.replace(os.path.join(runtime, inner), os.path.join(runtime, "node"))
-        node_bin = os.path.join(runtime, "node", "bin", "node")
-        os.chmod(node_bin, 0o755)
-        log_ok("使用载荷内置 Node：%s" % node_bin)
+        node_archive = ntgz
 
     # 备份用户 agent 配置 → 换新发行包 → 还原配置
     agent_dir = os.path.join(install_dir, "agent")
@@ -1106,7 +1131,7 @@ def coco_offline_install(a, payload):
         shutil.rmtree(extract)
     os.makedirs(extract, exist_ok=True)
     with tarfile.open(tgz, "r:gz") as t:
-        t.extractall(extract, filter="tar")
+        _safe_extract_tar(t, extract)
     try:
         os.replace(os.path.join(extract, "package"), install_dir)
         shutil.rmtree(extract, ignore_errors=True)
@@ -1119,6 +1144,22 @@ def coco_offline_install(a, payload):
         raise
     os.makedirs(os.path.join(agent_dir, "sessions"), exist_ok=True)
     os.makedirs(os.path.join(agent_dir, "languages"), exist_ok=True)
+
+    if node_archive:
+        runtime = os.path.join(install_dir, "runtime")
+        shutil.rmtree(runtime, ignore_errors=True)
+        os.makedirs(runtime, exist_ok=True)
+        with tarfile.open(node_archive, "r:gz") as archive:
+            _safe_extract_tar(archive, runtime)
+        children = [name for name in os.listdir(runtime) if name != "node"]
+        if len(children) != 1 or not os.path.isdir(os.path.join(runtime, children[0])):
+            raise ValueError("CoCo Node 载荷结构无效")
+        os.replace(os.path.join(runtime, children[0]), os.path.join(runtime, "node"))
+        node_bin = os.path.join(runtime, "node", "bin", "node")
+        if not os.path.isfile(node_bin):
+            raise ValueError("CoCo Node 入口缺失")
+        os.chmod(node_bin, 0o755)
+        log_ok("使用载荷内置 Node：%s" % node_bin)
 
     # 写配置：models 骨架 + Agnes 密钥 + 默认设置
     registry_path = os.path.join(install_dir, "resources", "provider-registry.v1.json")
@@ -1137,7 +1178,8 @@ def coco_offline_install(a, payload):
         _write_json(models_path, {"providers": providers})
     auth_path = os.path.join(agent_dir, "auth.json")
     if not os.path.exists(auth_path):
-        agnes_key = open(key_file, "r", encoding="utf-8").read().strip()
+        with open(key_file, "r", encoding="utf-8") as source:
+            agnes_key = source.read().strip()
         _write_json(auth_path, {"agnes": {"type": "api_key", "key": agnes_key}})
     settings_path = os.path.join(agent_dir, "settings.json")
     if not os.path.exists(settings_path):
@@ -1399,9 +1441,10 @@ def ensure_path_registered():
     if POSIX:
         block_begin = "# >>> agentboot >>>"
         block_end = "# <<< agentboot <<<"
+        npm_bin = os.path.join(NPM_PREFIX, "bin")
         block = "\n".join([block_begin,
                            '# AgentBoot 添加的 PATH',
-                           'for _d in "$HOME/.agentboot/bin" "$HOME/.local/bin" "%s"; do' % NPM_PREFIX,
+                           'for _d in "$HOME/.agentboot/bin" "$HOME/.local/bin" "%s"; do' % npm_bin,
                            '  [ -d "$_d" ] && case ":$PATH:" in *":$_d:"*) ;; *) export PATH="$_d:$PATH";; esac',
                            'done',
                            'unset _d',
@@ -1413,10 +1456,15 @@ def ensure_path_registered():
                 if os.path.exists(rc):
                     with open(rc, "r", encoding="utf-8") as f:
                         content = f.read()
-                if block_begin in content:
-                    continue
-                with open(rc, "a", encoding="utf-8") as f:
-                    f.write("\n" + block)
+                if block_begin in content and block_end in content:
+                    before, rest = content.split(block_begin, 1)
+                    _old, after = rest.split(block_end, 1)
+                    updated = before.rstrip("\n") + "\n" + block + after.lstrip("\n")
+                    with open(rc, "w", encoding="utf-8") as f:
+                        f.write(updated)
+                else:
+                    with open(rc, "a", encoding="utf-8") as f:
+                        f.write("\n" + block)
             except Exception:
                 pass
     else:

@@ -4,6 +4,7 @@
 用法：python seed_uv_generic.py <hermes-agent 包根目录> [目标平台]
 """
 import json
+import hashlib
 import os
 import re
 import sys
@@ -74,6 +75,11 @@ def main():
             print("  failed:", e)
     else:
         raise SystemExit("uv download failed from all sources")
+
+    actual = hashlib.sha256(open(archive, "rb").read()).hexdigest()
+    if actual != sha.lower():
+        os.remove(archive)
+        raise SystemExit("uv SHA-256 mismatch: expected %s, got %s" % (sha, actual))
 
     if asset.endswith(".zip"):
         data = zipfile.ZipFile(archive).read(member)

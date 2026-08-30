@@ -2,6 +2,7 @@
 """Fixed acceptance tests for AgentBoot's Agent uninstall lifecycle."""
 
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -10,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tarfile
 import unittest
 from unittest import mock
 
@@ -164,6 +166,56 @@ class UninstallAcceptanceTests(unittest.TestCase):
 
         self.assertTrue(ok)
         self.assertFalse(coco.exists())
+
+    def test_coco_uninstall_refuses_symlinked_root(self):
+        target = self.home / "coco-target"
+        target.mkdir()
+        program = target / "bin"
+        program.mkdir()
+        (program / "coco").write_text("keep", encoding="utf-8")
+        (self.home / ".coco").symlink_to(target, target_is_directory=True)
+        with self.assertRaisesRegex(OSError, "符号链接"):
+            menu._remove_coco(False)
+        self.assertTrue((program / "coco").exists())
+
+    def test_coco_offline_private_node_survives_install_swap(self):
+        payload = self.home / "payload"
+        payload.mkdir()
+        tgz = payload / "coco-0.8.0.tgz"
+        with tarfile.open(tgz, "w:gz") as archive:
+            info = tarfile.TarInfo("package/bin/coco")
+            data = b"console.log('coco')\n"
+            info.size = len(data)
+            info.mode = 0o755
+            archive.addfile(info, io.BytesIO(data))
+        digest = hashlib.sha256(tgz.read_bytes()).hexdigest()
+        (payload / "coco-0.8.0.tgz.sha256").write_text(digest + "\n", encoding="ascii")
+        (payload / "agnes.key").write_text("test-key", encoding="ascii")
+        node_archive = payload / "node-v22.23.2-linux-x64.tar.gz"
+        with tarfile.open(node_archive, "w:gz") as archive:
+            info = tarfile.TarInfo("node-v22.23.2-linux-x64/bin/node")
+            data = b"#!/bin/sh\necho v22.23.2\n"
+            info.size = len(data)
+            info.mode = 0o755
+            archive.addfile(info, io.BytesIO(data))
+        agent = {"id": "coco", "name": "CoCo", "bin": "coco", "method": "script"}
+        with mock.patch.object(menu.shutil, "which", return_value=None):
+            self.assertTrue(menu.coco_offline_install(agent, str(payload)))
+        node = self.home / ".coco" / "runtime" / "node" / "bin" / "node"
+        self.assertTrue(node.is_file())
+        shim = (self.bin_dir / "coco").read_text(encoding="utf-8")
+        self.assertIn(str(node), shim)
+
+    def test_safe_tar_rejects_parent_traversal(self):
+        archive_path = self.home / "evil.tar.gz"
+        with tarfile.open(archive_path, "w:gz") as archive:
+            info = tarfile.TarInfo("../escaped")
+            data = b"bad"
+            info.size = len(data)
+            archive.addfile(info, io.BytesIO(data))
+        with tarfile.open(archive_path, "r:gz") as archive, \
+                self.assertRaisesRegex(ValueError, "越界"):
+            menu._safe_extract_tar(archive, str(self.home / "extract"))
 
     def test_generic_script_install_refuses_unsafe_automatic_removal(self):
         agent = {"id": "custom-script", "name": "Custom", "bin": "custom",

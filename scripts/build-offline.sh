@@ -57,8 +57,6 @@ verify_node_archive() { # verify_node_archive <archive> <version> <filename>
     [ "$actual" = "$expected" ]
 }
 
-step "AgentBoot 离线包构建 $TAG · 平台：$PLATFORMS"
-
 case "$(uname -s)-$(uname -m)" in
     Darwin-arm*) HOST_PLAT="darwin-arm64" ;;
     Darwin-*) HOST_PLAT="darwin-x64" ;;
@@ -66,6 +64,7 @@ case "$(uname -s)-$(uname -m)" in
     *) HOST_PLAT="linux-x64" ;;
 esac
 PLATFORMS="${PLATFORMS:-$HOST_PLAT}"
+step "AgentBoot 离线包构建 $TAG · 平台：$PLATFORMS"
 
 # ---------- 0. 确保 npm ----------
 if ! command -v npm >/dev/null 2>&1; then
@@ -93,10 +92,7 @@ ok "npm：$(command -v npm)"
 step '复制项目文件 …'
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
-(cd "$ROOT" && tar -cf - \
-    --exclude='./.git' --exclude='./dist' --exclude='./payloads' \
-    --exclude='./node_modules' --exclude='./__pycache__' --exclude='*.pyc' \
-    .) | tar -xf - -C "$STAGE"
+python3 "$ROOT/scripts/tools/stage_application.py" "$ROOT" "$STAGE"
 
 # ---------- 2. 各平台 Node 运行时 ----------
 mkdir -p "$STAGE/payloads/node"

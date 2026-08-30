@@ -24,7 +24,10 @@ step() { printf '\n==> %s\n' "$*"; }
 step "AgentBoot 离线安装（无需联网）"
 
 for launcher in "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"; do
-    if [ -e "$launcher" ] && ! grep -q "AgentBoot" "$launcher" 2>/dev/null; then
+    if [ -L "$launcher" ]; then
+        err "拒绝覆盖符号链接命令：$launcher"; exit 1
+    fi
+    if [ -e "$launcher" ] && ! grep -q '^# AgentBoot ' "$launcher" 2>/dev/null; then
         err "拒绝覆盖不属于 AgentBoot 的命令：$launcher"; exit 1
     fi
 done
@@ -83,19 +86,24 @@ ok "Python：$PY"
 # ---------- 4. 命令入口 ----------
 step "创建命令：agentboot（控制台） / ab（内置 Agent）"
 mkdir -p "$BIN_DIR"
-cat > "${BIN_DIR}/agentboot" <<EOF
+agentboot_tmp="${BIN_DIR}/.agentboot.new.$$"
+ab_tmp="${BIN_DIR}/.ab.new.$$"
+rm -f "$agentboot_tmp" "$ab_tmp"
+cat > "$agentboot_tmp" <<EOF
 #!/bin/sh
 # AgentBoot launcher
 PYTHON="\$(command -v python3 || command -v python)"
 exec "\$PYTHON" "\$HOME/.agentboot/app/core/menu.py" "\$@"
 EOF
-cat > "${BIN_DIR}/ab" <<EOF
+cat > "$ab_tmp" <<EOF
 #!/bin/sh
 # AgentBoot launcher
 PYTHON="\$(command -v python3 || command -v python)"
 exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" "\$@"
 EOF
-chmod +x "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"
+chmod +x "$agentboot_tmp" "$ab_tmp"
+mv -f "$agentboot_tmp" "${BIN_DIR}/agentboot"
+mv -f "$ab_tmp" "${BIN_DIR}/ab"
 
 # PATH（幂等写入）
 case ":$PATH:" in

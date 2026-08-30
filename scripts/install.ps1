@@ -73,6 +73,25 @@ function Install-AppAtomic([string]$source, [string]$destination) {
     }
 }
 
+function Assert-ManagedLauncher([string]$path) {
+    if (-not (Test-Path -LiteralPath $path)) { return }
+    $item = Get-Item -LiteralPath $path -Force
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "拒绝覆盖重解析点命令：$path"
+    }
+    if (-not (Select-String -LiteralPath $path -Pattern '^rem AgentBoot ' -Quiet)) {
+        throw "拒绝覆盖不属于 AgentBoot 的命令：$path"
+    }
+}
+
+function Set-LauncherAtomic([string]$path, [string]$content) {
+    $tmp = "$path.new.$([guid]::NewGuid().ToString('N').Substring(0,8))"
+    try {
+        $content -replace '\r?\n', "`r`n" | Set-Content -LiteralPath $tmp -Encoding ASCII
+        Move-Item -LiteralPath $tmp -Destination $path -Force
+    } finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+}
+
 function Expand-Pkg([string]$pkg, [string]$dest) {
     # 优先系统自带 tar（Win10+ 可解 zip），其次 .NET，最后 Shell COM —— 免装解压软件
     $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
@@ -101,9 +120,7 @@ Write-Step "AgentBoot 在线安装 $Tag"
 
 $launchers = @((Join-Path $BinDir 'agentboot.cmd'), (Join-Path $BinDir 'ab.cmd'))
 foreach ($launcher in $launchers) {
-    if ((Test-Path $launcher) -and -not (Select-String -Path $launcher -Pattern 'AgentBoot' -Quiet)) {
-        throw "拒绝覆盖不属于 AgentBoot 的命令：$launcher"
-    }
+    Assert-ManagedLauncher $launcher
 }
 
 # ---------- 1. 下载（多源容错：Cloudflare → GitHub → 国内加速镜像） ----------
@@ -193,20 +210,26 @@ if (-not $pyExe) {
 # ---------- 4. 命令入口（agentboot / ab） ----------
 Write-Step '创建命令：agentboot（控制台） / ab（内置 Agent）'
 New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
-$pyRef = if ($pyExe) { $pyExe } else { 'python' }
-$abRootRef = $AbRoot
-
-@"
+$pyCommand = if ($pyExe -and ([IO.Path]::GetFileName($pyExe) -like 'py*')) { 'py' } else { 'python' }
+$agentbootLauncher = @"
 @echo off
 rem AgentBoot 控制台
-"$pyRef" "$AppDir\core\menu.py" %*
-"@ -replace '\r?\n', "`r`n" | Set-Content -Path (Join-Path $BinDir 'agentboot.cmd') -Encoding ASCII
+set "AB_INSTALL=%~dp0.."
+set "PYTHON=$pyCommand"
+if exist "%AB_INSTALL%\runtime\python\python.exe" set "PYTHON=%AB_INSTALL%\runtime\python\python.exe"
+"%PYTHON%" "%AB_INSTALL%\app\core\menu.py" %*
+"@
 
-@"
+$abLauncher = @"
 @echo off
 rem AgentBoot 内置最小 Agent
-"$pyRef" "$AppDir\core\agent.py" %*
-"@ -replace '\r?\n', "`r`n" | Set-Content -Path (Join-Path $BinDir 'ab.cmd') -Encoding ASCII
+set "AB_INSTALL=%~dp0.."
+set "PYTHON=$pyCommand"
+if exist "%AB_INSTALL%\runtime\python\python.exe" set "PYTHON=%AB_INSTALL%\runtime\python\python.exe"
+"%PYTHON%" "%AB_INSTALL%\app\core\agent.py" %*
+"@
+Set-LauncherAtomic (Join-Path $BinDir 'agentboot.cmd') $agentbootLauncher
+Set-LauncherAtomic (Join-Path $BinDir 'ab.cmd') $abLauncher
 Write-Ok "已写入 $BinDir"
 
 # ---------- 5. PATH 注册（用户级，幂等） ----------

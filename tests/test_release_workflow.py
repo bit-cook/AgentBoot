@@ -21,6 +21,10 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("needs: [validate, online, offline-linux, offline-windows]", text)
         self.assertIn("$smokeHome", text)
         self.assertNotIn("$home =", text)
+        self.assertIn("contents: read", text)
+        self.assertIn("contents: write", text)
+        self.assertIn("persist-credentials: false", text)
+        self.assertIn("actions/checkout@11d5960a326750d5838078e36cf38b85af677262", text)
         self.assertIn("install-offline.sh\" codex", text)
         self.assertIn("install-offline.ps1\" -Agents codex", text)
 

@@ -78,6 +78,11 @@ class OfflineBuilderTests(unittest.TestCase):
         self.assertIn("hashlib.sha256(open(archive", source)
         self.assertIn("uv SHA-256 校验失败", source)
 
+    def test_generic_uv_seeder_verifies_downloaded_digest(self):
+        source = (ROOT / "scripts/tools/seed_uv_generic.py").read_text(encoding="utf-8")
+        self.assertIn("hashlib.sha256", source)
+        self.assertIn("uv SHA-256 mismatch", source)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

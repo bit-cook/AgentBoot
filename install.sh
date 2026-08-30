@@ -61,7 +61,11 @@ step "AgentBoot 在线安装 ${TAG} · $(uname -s) $(uname -m)"
 
 # 在替换 app 前先保护用户已有的同名命令，避免应用已升级但 launcher 更新失败。
 for launcher in "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"; do
-    if [ -e "$launcher" ] && ! grep -q "AgentBoot" "$launcher" 2>/dev/null; then
+    if [ -L "$launcher" ]; then
+        err "拒绝覆盖符号链接命令：$launcher"
+        exit 1
+    fi
+    if [ -e "$launcher" ] && ! grep -q '^# AgentBoot ' "$launcher" 2>/dev/null; then
         err "拒绝覆盖不属于 AgentBoot 的命令：$launcher"
         exit 1
     fi
@@ -134,19 +138,24 @@ chmod +x "${APP_DIR}/install.sh" 2>/dev/null || true
 # ---------- 3. 生成命令行入口 ----------
 step "创建命令：agentboot（控制台） / ab（内置 Agent）"
 mkdir -p "$BIN_DIR"
-cat > "${BIN_DIR}/agentboot" <<EOF
+agentboot_tmp="${BIN_DIR}/.agentboot.new.$$"
+ab_tmp="${BIN_DIR}/.ab.new.$$"
+rm -f "$agentboot_tmp" "$ab_tmp"
+cat > "$agentboot_tmp" <<EOF
 #!/bin/sh
 # AgentBoot 控制台
 PYTHON="\$(command -v python3 || command -v python)"
 exec "\$PYTHON" "\$HOME/.agentboot/app/core/menu.py" "\$@"
 EOF
-cat > "${BIN_DIR}/ab" <<EOF
+cat > "$ab_tmp" <<EOF
 #!/bin/sh
 # AgentBoot 内置最小 Agent
 PYTHON="\$(command -v python3 || command -v python)"
 exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" "\$@"
 EOF
-chmod +x "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"
+chmod +x "$agentboot_tmp" "$ab_tmp"
+mv -f "$agentboot_tmp" "${BIN_DIR}/agentboot"
+mv -f "$ab_tmp" "${BIN_DIR}/ab"
 ok "已写入 ${BIN_DIR}"
 
 # ---------- 4. PATH 注册（幂等） ----------
