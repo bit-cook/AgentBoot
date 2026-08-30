@@ -12,6 +12,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
     def test_release_supports_prerelease_dry_run_and_tag_only_publish(self):
         text = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
         self.assertIn("workflow_dispatch:", text)
+        self.assertIn("pull_request:", text)
         self.assertIn("if: github.ref_type == 'tag'", text)
         self.assertIn("Smoke install, execute, and uninstall", text)
         self.assertIn("--prerelease", text)
