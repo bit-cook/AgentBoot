@@ -7,7 +7,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)](#one-command-install)
 [![Agents](https://img.shields.io/badge/Agents-14_indigo)](#supported-agents)
 [![Model](https://img.shields.io/badge/Default_model-Agnes_free-orange)](#models)
-[![License](https://img.shields.io/badge/License-MIT-green)](../LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 One command to install, mainstream agents to **choose from a menu** (not a bundle);
 a **built-in fallback agent** that always works; **full offline** and **slim custom** packages;
@@ -15,7 +15,7 @@ China-network adaptive out of the box. CLI UI in Chinese by default, English swi
 
 **Primary entry**: [boot.ide.pub](https://boot.ide.pub) · **Mirror**: [GitHub Pages](https://bit-cook.github.io/AgentBoot/)
 
-**语言 / Language**: [中文 README](../README.md) | **English (this file)**
+**语言 / Language**: [中文 README](README.md) | **English (this file)**
 
 </div>
 
@@ -55,6 +55,7 @@ Two commands after install:
 | 📴 **Two kinds of offline packages** | Full (0.8–1.6GB per platform) + slim custom builds (e.g. win-x64 + Pi ≈ 89MB) |
 | ➕ **Custom agents** | Add anything beyond the registry (npm / pip / script), stored in your home dir |
 | 🧹 **Safe uninstall** | Menu `[9]` or `agentboot uninstall <id>`; removes owned program files and preserves user data by default |
+| 🔐 **Verified install** | Enforced SHA-256, atomic app switching, rollback; custom scripts require HTTPS and avoid shell interpolation |
 | ⚡ **Extreme performance** | TLS connection reuse (~440ms off per turn), pre-indexed KB (<1ms warm), `/bench` |
 
 ## Supported agents (14)
@@ -139,7 +140,9 @@ Reuse benefit : ~437 ms saved per turn
 ## Security
 
 - The free Agnes model credentials are built in by design; remove `PRESETS["agnes"]["api_key"]` in `core/agent.py` if you fork;
-- Command execution blocks dangerous operations by default (confirm in interactive mode).
+- `smart` inspects every command-chain segment, blocks dangerous operations, and requires interactive confirmation for ordinary mutations; non-interactive runs never silently approve writes;
+- `safe` permits read-only commands/tools only. Automation that intentionally mutates the machine must explicitly set `confirm=always`.
+- Online tar/zip archives are fetched with same-origin `.sha256` sidecars and verified before an atomic app-directory switch; failed upgrades preserve or restore the previous version.
 
 ## License
 

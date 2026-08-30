@@ -24,7 +24,10 @@ import socket
 import subprocess
 import sys
 import platform
+import tempfile
 import time
+import urllib.parse
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import agent  # noqa: E402  复用配置与模型能力
@@ -40,7 +43,7 @@ AGENTS_DIR = os.path.join(AB_HOME, "agents")
 NPM_PREFIX = os.path.join(AB_HOME, "npm-prefix")
 ENV_JSON = os.path.join(AB_HOME, "env.json")
 
-NODE_VERSION = "v22.14.0"
+NODE_VERSION = "v22.23.2"
 NPM_MIRROR = "https://registry.npmmirror.com"
 NPM_OFFICIAL = "https://registry.npmjs.org"
 NODE_MIRROR_CN = "https://registry.npmmirror.com/-/binary/node"
@@ -281,14 +284,15 @@ def node_exe():
     return os.path.join(d, "node.exe") if not POSIX else os.path.join(d, "bin", "node")
 
 
-def npm_cmd():
+def npm_cmd(minimum=None):
     """优先系统 npm，其次运行时自带 npm。"""
     n = shutil.which("npm")
-    if n:
+    system_node = shutil.which("node")
+    if n and node_ok(system_node, minimum):
         return n
     d = runtime_node_dir()
     cand = os.path.join(d, "npm.cmd") if not POSIX else os.path.join(d, "bin", "npm")
-    return cand if os.path.exists(cand) else None
+    return cand if os.path.exists(cand) and node_ok(node_exe(), minimum) else None
 
 
 def child_env():
@@ -306,24 +310,33 @@ def child_env():
 
 # ---------------------------------------------------------------- Node 运行时
 
-def node_ok():
+def _version_tuple(value):
+    match = re.search(r"(\d+)(?:\.(\d+))?(?:\.(\d+))?", str(value or ""))
+    if not match:
+        return None
+    return tuple(int(part or 0) for part in match.groups())
+
+
+def node_ok(path=None, minimum=None):
     try:
-        out = subprocess.run([shutil.which("node") or node_exe(), "--version"],
+        executable = path or shutil.which("node") or node_exe()
+        out = subprocess.run([executable, "--version"],
                              capture_output=True, text=True, timeout=10)
         if out.returncode == 0:
-            major = int(re.match(r"v?(\d+)", out.stdout.strip()).group(1))
-            return major >= 18
+            current = _version_tuple(out.stdout.strip())
+            required = _version_tuple(minimum or ">=18")
+            return bool(current and required and current >= required)
     except Exception:
         pass
     return False
 
 
-def ensure_node():
-    """确保 node>=18 可用；缺失时从镜像下载便携运行时到 ~/.agentboot/runtime。"""
+def ensure_node(minimum=None):
+    """确保 Node 满足 Agent 最低版本；不足时部署便携运行时。"""
     sysnode = shutil.which("node")
-    if sysnode and node_ok():
+    if sysnode and node_ok(sysnode, minimum):
         return sysnode
-    if os.path.exists(node_exe()) and node_ok():
+    if os.path.exists(node_exe()) and node_ok(node_exe(), minimum):
         return node_exe()
 
     pid = plat_id()
@@ -378,7 +391,7 @@ def ensure_node():
         os.remove(archive)
     except OSError:
         pass
-    if node_ok():
+    if node_ok(node_exe(), minimum):
         return node_exe()
     return None
 
@@ -603,14 +616,19 @@ def uninstall_agents(ids, purge=False):
 
 # ---------------------------------------------------------------- 在线安装
 
-def npm_install(pkg):
-    if not (shutil.which("npm") or npm_cmd()):
-        got = ensure_node()
+def npm_install(pkg, minimum=None):
+    npm = npm_cmd(minimum)
+    if not npm:
+        got = ensure_node(minimum)
         if not got:
-            log_err("需要 Node.js（无法自动下载，请检查网络或手动安装 Node 18+）")
+            log_err("需要 Node.js %s（无法自动部署，请检查网络）" % (minimum or ">=18"))
             return False
+        npm = npm_cmd(minimum)
+    if not npm:
+        log_err("Node 已就绪但未找到匹配的 npm")
+        return False
     ensure_npm_prefix()
-    cmd = [npm_cmd() or "npm", "install", "-g", pkg, "--prefix", NPM_PREFIX,
+    cmd = [npm, "install", "-g", pkg, "--prefix", NPM_PREFIX,
            "--no-audit", "--no-fund"]
     if cn_mode():
         cmd += ["--registry", NPM_MIRROR]
@@ -649,7 +667,7 @@ def install_online(ids):
             if not ok:
                 log_err("专用流程失败：可检查 Git 是否安装、或配置代理后重试")
         elif method == "npm":
-            ok = npm_install(a["npm"])
+            ok = npm_install(a["npm"], a.get("node"))
         elif method == "script":
             ok = install_via_script(a)
         elif method == "pip":
@@ -688,23 +706,65 @@ def install_online(ids):
 
 def install_via_script(a):
     url = a.get("script")
-    if not url:
+    parsed = urllib.parse.urlsplit(url or "")
+    if parsed.scheme.lower() != "https" or not parsed.netloc:
+        log_err("安装脚本必须使用有效的 HTTPS URL")
         return False
     urls = [url]
-    if cn_mode():
+    if cn_mode() and parsed.hostname in ("github.com", "raw.githubusercontent.com"):
         for p in ("https://gh-proxy.com/", "https://ghfast.top/"):
             urls.append(p + url)
     for u in urls:
-        if POSIX:
-            cmd = ["sh", "-c", 'curl -fsSL "%s" | sh' % u]
-        else:
-            cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
-                   "iwr -useb %s | iex" % u]
-        log_info("$ %s" % " ".join(cmd))
-        if subprocess.run(cmd, env=child_env()).returncode == 0:
-            return True
-        log_err("该脚本地址不可用，尝试下一个源 …")
+        path = None
+        try:
+            path = _download_script(u, ".sh" if POSIX else ".ps1")
+            cmd = (["sh", path] if POSIX else
+                   ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path])
+            log_info("执行已下载脚本：%s" % u)
+            if subprocess.run(cmd, env=child_env()).returncode == 0:
+                return True
+            log_err("安装脚本执行失败，尝试下一个源 …")
+        except Exception as e:
+            log_err("脚本下载失败(%s)：%s" % (u, e))
+        finally:
+            if path:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
     return False
+
+
+def _download_script(url, suffix):
+    request = urllib.request.Request(url, headers={"User-Agent": "AgentBoot/1.0"})
+    fd, path = tempfile.mkstemp(prefix="agentboot-script-", suffix=suffix)
+    try:
+        total = 0
+        with os.fdopen(fd, "wb") as output, urllib.request.urlopen(request, timeout=60) as response:
+            final_url = urllib.parse.urlsplit(response.geturl())
+            if final_url.scheme.lower() != "https":
+                raise ValueError("安装脚本重定向到了非 HTTPS 地址")
+            while True:
+                chunk = response.read(65536)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > 4 * 1024 * 1024:
+                    raise ValueError("安装脚本超过 4 MiB 限制")
+                output.write(chunk)
+        if total == 0:
+            raise ValueError("安装脚本为空")
+        return path
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        raise
 
 
 def install_via_pip(a):
@@ -721,9 +781,9 @@ def install_via_pip(a):
 
 # ---------------------------------------------------------------- hermes-agent 国内专用安装
 
-def _npm_global_root(env):
+def _npm_global_root(env, npm=None):
     try:
-        r = subprocess.run([npm_cmd() or "npm", "root", "-g", "--prefix", NPM_PREFIX], capture_output=True,
+        r = subprocess.run([npm or npm_cmd() or "npm", "root", "-g", "--prefix", NPM_PREFIX], capture_output=True,
                            text=True, timeout=60, env=env)
         return r.stdout.strip()
     except Exception:
@@ -835,8 +895,16 @@ def _github_git_reachable():
 def install_hermes_special(a):
     """hermes-agent：分步安装（包体 → uv 预置 → postinstall，git/Python/PyPI 自动适配网络）。"""
     # 1) 包体（跳过会直连 GitHub 的 postinstall）
+    npm = npm_cmd(a.get("node"))
+    if not npm:
+        if not ensure_node(a.get("node")):
+            log_err("Hermes 需要 Node.js %s" % (a.get("node") or ">=20"))
+            return False
+        npm = npm_cmd(a.get("node"))
+    if not npm:
+        return False
     ensure_npm_prefix()
-    cmd = [npm_cmd() or "npm", "install", "--ignore-scripts", "-g", a["npm"],
+    cmd = [npm, "install", "--ignore-scripts", "-g", a["npm"],
            "--prefix", NPM_PREFIX, "--no-audit", "--no-fund"]
     if cn_mode():
         cmd += ["--registry", NPM_MIRROR]
@@ -844,7 +912,7 @@ def install_hermes_special(a):
     env = child_env()
     if subprocess.run(cmd, env=env).returncode != 0:
         return False
-    root = _npm_global_root(env)
+    root = _npm_global_root(env, npm)
     pkg_root = os.path.join(root, "hermes-agent")
     if not os.path.isdir(pkg_root):
         log_err("未定位到 hermes-agent 包目录")

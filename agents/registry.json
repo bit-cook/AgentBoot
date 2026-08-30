@@ -135,7 +135,7 @@
       "bin": "openclaw",
       "method": "npm",
       "npm": "openclaw",
-      "node": ">=22",
+      "node": ">=22.22.0",
       "offline": true,
       "notes": ["需要较新 Node（22.22+ 或 24+），旧版 Node 仅警告仍可尝试", "文档：https://docs.openclaw.ai"]
     },

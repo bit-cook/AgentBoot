@@ -14,7 +14,7 @@ param(
     [string]$Tag = 'v1.0.0',
     [string]$Platforms = 'linux-x64,win-x64,darwin-arm64',
     [string]$Agents = '',
-    [string]$NodeVersion = 'v22.14.0'
+    [string]$NodeVersion = 'v22.23.2'
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -24,6 +24,7 @@ $Root   = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Dist   = Join-Path $Root 'dist'
 $Stage  = Join-Path $Dist "offline\AgentBoot"
 $Tar    = Join-Path $env:SystemRoot 'System32\tar.exe'
+$HostPlat = 'win-x64'
 
 function Write-Step($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 function Write-Ok($m)   { Write-Host "OK $m" -ForegroundColor Green }
@@ -134,8 +135,13 @@ foreach ($a in $registry.agents) {
 
         # hermes 特殊：完整运行时（uv 预置 + postinstall），并写 PACK_ROOT 供离线安装时修复 venv 路径
         if ($a.id -eq 'hermes' -and (Test-Path (Join-Path $prefix 'node_modules\hermes-agent'))) {
+            if ($plat -ne $HostPlat) {
+                Write-Err "Hermes 完整运行时必须在目标平台构建：当前 $HostPlat，目标 $plat；已移除半成品载荷"
+                Remove-Item $prefix -Recurse -Force -ErrorAction SilentlyContinue
+                continue
+            }
             $pkg = Join-Path $prefix 'node_modules\hermes-agent'
-            & python (Join-Path $Root 'scripts\tools\seed_uv_generic.py') $pkg
+            & python (Join-Path $Root 'scripts\tools\seed_uv_generic.py') $pkg $plat
             $env:GIT_CONFIG_COUNT = '1'
             $env:GIT_CONFIG_KEY_0 = 'url.https://gh-proxy.com/https://github.com/.insteadOf'
             $env:GIT_CONFIG_VALUE_0 = 'https://github.com/'
@@ -181,7 +187,12 @@ if ($wantCoco) {
                 if (-not (Get-Url $f[0] $dest)) { Write-Err "CoCo 载荷下载失败：$($f[1])" }
             }
         }
-        if ($plat -eq 'linux-x64') { $nf = "node-v22.23.2-linux-x64.tar.gz" } else { $nf = "node-v22.23.2-darwin-arm64.tar.gz" }
+        $nf = switch ($plat) {
+            'linux-x64'    { 'node-v22.23.2-linux-x64.tar.gz' }
+            'linux-arm64'  { 'node-v22.23.2-linux-arm64.tar.gz' }
+            'darwin-x64'   { 'node-v22.23.2-darwin-x64.tar.gz' }
+            'darwin-arm64' { 'node-v22.23.2-darwin-arm64.tar.gz' }
+        }
         $ndest = Join-Path $cdir $nf
         if (-not (Test-Path $ndest)) {
             if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/v22.23.2/$nf" $ndest)) {

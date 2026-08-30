@@ -13,6 +13,7 @@ AgentBoot 内置最小 Agent（命令 ab）
 import json
 import os
 import re
+import shlex
 import sys
 import time
 
@@ -342,11 +343,10 @@ def _ttfb(cfg, prompt="回复：1"):
                 break
             s = line.decode("utf-8", "replace").strip()
             if s.startswith("data:") and s[5:].strip() not in ("", "[DONE]"):
-                try:
-                    resp.read()   # 排空，保持连接可复用
-                except Exception:
-                    pass
-                return (time.perf_counter() - t0) * 1000.0
+                elapsed = (time.perf_counter() - t0) * 1000.0
+                # 流还未结束，连接不可安全复用；关闭而不是把排空正文算进 TTFB。
+                _drop_pool(scheme, host, port)
+                return elapsed
         return None
     except Exception:
         _drop_pool(scheme, host, port)
@@ -500,12 +500,12 @@ SAFE_FIRST = {
     "ls", "cat", "pwd", "head", "tail", "wc", "grep", "find", "stat", "file",
     "df", "du", "free", "ps", "uname", "uptime", "which", "whereis", "id",
     "whoami", "hostname", "date", "ip", "ss", "ping", "dig", "nslookup",
-    "echo", "lscpu", "lsblk", "lsmod", "lspci", "lsusb", "env", "printenv",
-    "systemctl", "journalctl", "dmesg", "man", "apropos", "top", "vmstat",
-    "iostat", "sar", "netstat", "route", "arp", "getenforce", "sestatus",
+    "echo", "lscpu", "lsblk", "lsmod", "lspci", "lsusb", "printenv",
+    "journalctl", "dmesg", "man", "apropos", "top", "vmstat",
+    "iostat", "sar", "netstat", "getenforce", "sestatus",
     # Windows 常见只读命令
     "dir", "type", "ipconfig", "systeminfo", "tasklist", "ver", "whoami",
-    "netstat", "where", "wmic", "sc", "driverquery", "hostname",
+    "netstat", "where", "driverquery", "hostname",
 }
 
 DANGER_RE = [
@@ -520,18 +520,54 @@ DANGER_RE = [
     r"\bufw\s+disable\b", r"\bswapoff\b", r"\buserdel\b", r"\bpasswd\s+-d\b",
 ]
 
+READ_ONLY_SUBCOMMANDS = {
+    "systemctl": {"status", "show", "cat", "is-active", "is-enabled", "is-failed",
+                  "list-units", "list-unit-files", "list-dependencies", "get-default"},
+    "sc": {"query", "queryex", "qc", "qdescription", "qfailure", "qtriggerinfo"},
+}
+
+
+def _simple_command_level(segment):
+    """Conservatively classify one shell pipeline segment."""
+    try:
+        words = shlex.split(segment, posix=os.name != "nt")
+    except ValueError:
+        return "normal"
+    if not words:
+        return "safe"
+    while words and ("=" in words[0] and not words[0].startswith(("=", "-"))):
+        words.pop(0)
+    while words and os.path.basename(words[0]).lower() in ("sudo", "command", "nohup"):
+        words.pop(0)
+    if not words:
+        return "normal"
+    first = os.path.basename(words[0]).lower()
+    args = [str(word).lower() for word in words[1:]]
+    if first in ("sh", "bash", "zsh", "dash", "cmd", "powershell", "pwsh", "env"):
+        return "normal"
+    if first == "find" and any(arg in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for arg in args):
+        return "normal"
+    if first == "ip":
+        if not args:
+            return "safe"
+        family = args[0]
+        return "safe" if family in ("addr", "address", "route", "link", "neigh", "neighbor") and \
+            (len(args) == 1 or args[1] in ("show", "list", "get")) else "normal"
+    if first in READ_ONLY_SUBCOMMANDS:
+        return "safe" if args and args[0] in READ_ONLY_SUBCOMMANDS[first] else "normal"
+    return "safe" if first in SAFE_FIRST else "normal"
+
 
 def classify_cmd(cmd):
     c = cmd.strip()
-    low = c.lower()
     for pat in DANGER_RE:
-        if re.search(pat, low):
+        if re.search(pat, c, re.IGNORECASE):
             return "danger"
-    first = re.split(r"[\s|;&]+", low)[0] if low else ""
-    path_first = os.path.basename(first)
-    if first in SAFE_FIRST or path_first in SAFE_FIRST:
-        return "safe"
-    return "normal"
+    if re.search(r"`|\$\(|(^|[^<])>{1,2}|\btee\b", c):
+        return "normal"
+    segments = [part.strip() for part in re.split(r"(?:&&|\|\||[;|\n])", c) if part.strip()]
+    levels = [_simple_command_level(segment) for segment in segments]
+    return "safe" if levels and all(level == "safe" for level in levels) else "normal"
 
 
 def run_cmd(cmd, timeout=60):
@@ -705,9 +741,12 @@ def execute_tool(cfg, name, args, session_allow):
     if name == "run_cmd":
         cmd = args.get("command", "")
         level = classify_cmd(cmd)
-        if level == "danger" and cfg.get("confirm") != "always" and cmd not in session_allow:
+        policy = cfg.get("confirm", "smart")
+        if policy == "safe" and level != "safe":
+            return "safe 模式只允许只读命令，已拒绝：%s" % cmd, level == "danger"
+        if level == "danger" and policy != "always" and cmd not in session_allow:
             return "已拦截高危命令（如需放行请在交互模式下确认，或修改配置 confirm=always）：%s" % cmd, True
-        if level != "safe" and cfg.get("confirm") == "smart" and cmd not in session_allow:
+        if level != "safe" and policy == "smart" and cmd not in session_allow:
             if _is_interactive():
                 print("\n  ⚠ 将执行命令：\n    %s" % cmd)
                 ans = input("  允许执行? [y=允许 / n=拒绝 / a=本会话总是允许] ").strip().lower()
@@ -715,17 +754,40 @@ def execute_tool(cfg, name, args, session_allow):
                     session_allow.add(cmd)
                 elif ans != "y":
                     return "用户拒绝了该命令。", False
-            # 非交互（run 模式/管道）：放行普通命令，仅拦截 danger
+            else:
+                return "非交互模式无法确认写操作，已拒绝；如需自动执行请设置 confirm=always。", False
         return run_cmd(cmd, args.get("timeout")), level == "danger"
     if name == "read_file":
         return read_file(args.get("path", "")), False
     if name == "write_file":
-        if _is_interactive():
-            print("  ✎ 写入文件：%s" % args.get("path", ""))
+        policy = cfg.get("confirm", "smart")
+        key = "write_file:%s" % args.get("path", "")
+        if policy == "safe":
+            return "safe 模式只允许只读工具，已拒绝写入文件。", False
+        if policy == "smart" and key not in session_allow:
+            if not _is_interactive():
+                return "非交互模式无法确认写文件，已拒绝；如需自动执行请设置 confirm=always。", False
+            print("\n  ✎ 将写入文件：%s" % args.get("path", ""))
+            ans = input("  允许写入? [y=允许 / n=拒绝 / a=本会话允许此路径] ").strip().lower()
+            if ans == "a":
+                session_allow.add(key)
+            elif ans != "y":
+                return "用户拒绝了文件写入。", False
         return write_file(args.get("path", ""), args.get("content", "")), False
     if name == "edit_file":
-        if _is_interactive():
-            print("  ✎ 修改文件：%s" % args.get("path", ""))
+        policy = cfg.get("confirm", "smart")
+        key = "edit_file:%s" % args.get("path", "")
+        if policy == "safe":
+            return "safe 模式只允许只读工具，已拒绝修改文件。", False
+        if policy == "smart" and key not in session_allow:
+            if not _is_interactive():
+                return "非交互模式无法确认修改文件，已拒绝；如需自动执行请设置 confirm=always。", False
+            print("\n  ✎ 将修改文件：%s" % args.get("path", ""))
+            ans = input("  允许修改? [y=允许 / n=拒绝 / a=本会话允许此路径] ").strip().lower()
+            if ans == "a":
+                session_allow.add(key)
+            elif ans != "y":
+                return "用户拒绝了文件修改。", False
         return edit_file(args.get("path", ""), args.get("old", ""), args.get("new", "")), False
     if name == "list_dir":
         return list_dir(args.get("path", ".")), False

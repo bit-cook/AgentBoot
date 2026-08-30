@@ -13,7 +13,7 @@ set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TAG="${TAG:-v1.0.0}"
-NODE_VERSION="${NODE_VERSION:-v22.14.0}"
+NODE_VERSION="${NODE_VERSION:-v22.23.2}"
 PLATFORMS="${PLATFORMS:-linux-x64,win-x64,darwin-arm64}"
 AGENTS_ENV="${AGENTS:-}"
 NPM_MIRROR="https://registry.npmmirror.com"
@@ -26,6 +26,13 @@ err()  { printf '✗ %s\n' "$*"; }
 step() { printf '\n==> %s\n' "$*"; }
 
 step "AgentBoot 离线包构建 $TAG · 平台：$PLATFORMS"
+
+case "$(uname -s)-$(uname -m)" in
+    Darwin-arm*) HOST_PLAT="darwin-arm64" ;;
+    Darwin-*) HOST_PLAT="darwin-x64" ;;
+    Linux-aarch*|Linux-arm64) HOST_PLAT="linux-arm64" ;;
+    *) HOST_PLAT="linux-x64" ;;
+esac
 
 # ---------- 0. 确保 npm ----------
 if ! command -v npm >/dev/null 2>&1; then
@@ -119,7 +126,12 @@ PYEOF
         fi
         # hermes 特殊：完整运行时（uv 预置 + postinstall）+ PACK_ROOT 标记
         if [ "$AID" = "hermes" ] && [ -d "$PREFIX/node_modules/hermes-agent" ]; then
-            python3 "$ROOT/scripts/tools/seed_uv_generic.py" "$PREFIX/node_modules/hermes-agent"
+            if [ "$PLAT" != "$HOST_PLAT" ]; then
+                err "Hermes 完整运行时必须在目标平台构建：当前 $HOST_PLAT，目标 $PLAT；已移除半成品载荷"
+                rm -rf "$PREFIX"
+                continue
+            fi
+            python3 "$ROOT/scripts/tools/seed_uv_generic.py" "$PREFIX/node_modules/hermes-agent" "$PLAT"
             GIT_CONFIG_COUNT=1 \
             GIT_CONFIG_KEY_0="url.https://gh-proxy.com/https://github.com/.insteadOf" \
             GIT_CONFIG_VALUE_0="https://github.com/" \
@@ -157,7 +169,12 @@ case " $WANT " in *" coco "*)
             F="$CDIR/$(basename "$U")"
             [ -f "$F" ] || curl -fL -o "$F" "https://gh-proxy.com/$U" || curl -fL -o "$F" "https://ghfast.top/$U" || err "CoCo 载荷下载失败：$(basename "$U")"
         done
-        if [ "$PLAT" = "linux-x64" ]; then NF="node-v22.23.2-linux-x64.tar.gz"; else NF="node-v22.23.2-darwin-arm64.tar.gz"; fi
+        case "$PLAT" in
+            linux-x64) NF="node-v22.23.2-linux-x64.tar.gz" ;;
+            linux-arm64) NF="node-v22.23.2-linux-arm64.tar.gz" ;;
+            darwin-x64) NF="node-v22.23.2-darwin-x64.tar.gz" ;;
+            darwin-arm64) NF="node-v22.23.2-darwin-arm64.tar.gz" ;;
+        esac
         [ -f "$CDIR/$NF" ] || curl -fL -o "$CDIR/$NF" "https://registry.npmmirror.com/-/binary/node/v22.23.2/$NF"
         ok "CoCo 离线载荷 [$PLAT] 就绪"
     done

@@ -42,6 +42,7 @@ jobs:
         run: python3 scripts/build-online.py
       - name: Verify package payload
         run: |
+          (cd pages && sha256sum -c agentboot-online-v1.0.0.tar.gz.sha256 agentboot-online-v1.0.0.zip.sha256)
           tar -tzf pages/agentboot-online-v1.0.0.tar.gz | grep -F 'AgentBoot/core/menu.py'
           python3 -m zipfile -l pages/agentboot-online-v1.0.0.zip | grep -F 'AgentBoot/core/menu.py'
 

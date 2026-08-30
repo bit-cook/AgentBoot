@@ -54,6 +54,26 @@ class HighImpactRegressionTests(unittest.TestCase):
         self.assertIn("--prefix", command)
         self.assertEqual(command[command.index("--prefix") + 1], "/managed/agentboot/npm-prefix")
 
+    def test_ttfb_does_not_wait_for_remaining_response_body(self):
+        class Response:
+            def __init__(self):
+                self.lines = iter([b"data: {\"choices\":[]}\n"])
+
+            def readline(self):
+                return next(self.lines, b"")
+
+            def read(self):
+                raise AssertionError("TTFB must not drain the response body")
+
+        connection = mock.Mock()
+        connection.getresponse.return_value = Response()
+        cfg = {"active": "agnes", "providers": {}}
+        with mock.patch.object(agent, "_connect", return_value=connection), \
+                mock.patch.object(agent, "_drop_pool") as drop:
+            latency = agent._ttfb(cfg)
+        self.assertIsInstance(latency, float)
+        drop.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -31,6 +31,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | `ab` | Built-in fallback agent — **free Agnes model, works immediately** |
 
 > On Windows, newly installed commands need a **new terminal window** to appear in PATH.
+>
+> The online installer fetches and enforces a same-origin `.sha256` sidecar, then atomically switches the complete app directory. A corrupt download or failed upgrade does not overwrite the current version.
 
 ---
 
@@ -83,7 +85,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1 -Agents 
 3. Python: system python3 on Linux/macOS; on Windows deploys a **portable Python** from the package (no admin);
 4. Node: deploys the bundled Node 22 runtime when the system has none;
 5. Copies the selected agents' payloads directly (no npm), generates command shims;
-6. Registers `~/.local/bin` (Windows: `%LOCALUSERPROFILE%\AgentBoot\bin`) into the user PATH (idempotent);
+6. Registers `~/.local/bin` (Windows: `%LOCALAPPDATA%\AgentBoot\bin`) into the user PATH (idempotent);
 7. `ab` works immediately: Agnes free model online; local models (Ollama / LM Studio) for fully-offline machines.
 
 ### Offline package layout
@@ -126,6 +128,8 @@ python core/menu.py add-agent --del myagent
 ```
 
 Stored in `~/.agentboot/custom-agents.json` — survives upgrades. Same install pipeline as built-ins (mirrors included).
+
+> Hermes' offline payload contains a platform-specific Python venv and must be built on its target platform (for example, Windows on Windows and darwin-arm64 on Apple Silicon). The builder explicitly drops cross-target Hermes partial payloads instead of shipping a package that cannot run. Other npm Agents still support cross-target `--os/--cpu` packaging.
 
 ## 📦 Custom offline packages (slim)
 
