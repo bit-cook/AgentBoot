@@ -33,6 +33,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("install-offline.ps1\" -Agents codex", text)
         self.assertIn("runs-on: macos-15-intel", text)
         self.assertIn("PLATFORMS=darwin-x64", text)
+        self.assertIn("vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest'", text)
 
     def test_live_verifier_covers_primary_and_mirror(self):
         text = (ROOT / "scripts/verify-live-release.py").read_text(encoding="utf-8")
