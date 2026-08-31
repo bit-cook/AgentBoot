@@ -13,6 +13,7 @@ AgentBoot 内置最小 Agent（命令 ab）
 import json
 import os
 import re
+import socket
 import sys
 import time
 
@@ -925,7 +926,6 @@ def search_files(pattern, path=".", regex=False, max_results=40):
 
 def _validate_public_http_url(url):
     import ipaddress
-    import socket
     from urllib.parse import urlsplit
     parsed = urlsplit(url or "")
     if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
