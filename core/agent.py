@@ -214,11 +214,21 @@ def _validate_model_transport(scheme, host, api_key):
 
 # 连接池：复用 TLS 连接，砍掉每轮对话的握手开销（极限性能核心）
 _POOL = {}
+_SSL_CONTEXTS = {}
+
+
+def _ssl_context():
+    import ssl
+    insecure = os.environ.get("AGENTBOOT_INSECURE") == "1"
+    context = _SSL_CONTEXTS.get(insecure)
+    if context is None:
+        context = ssl._create_unverified_context() if insecure else ssl.create_default_context()
+        _SSL_CONTEXTS[insecure] = context
+    return context
 
 
 def _connect(scheme, host, port, timeout=180):
     import http.client
-    import ssl
     from urllib.parse import urlsplit
     proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
     if not proxy_url:
@@ -236,9 +246,7 @@ def _connect(scheme, host, port, timeout=180):
     if conn is not None:
         return conn
     if scheme == "https":
-        ctx = ssl.create_default_context()
-        if os.environ.get("AGENTBOOT_INSECURE") == "1":
-            ctx = ssl._create_unverified_context()
+        ctx = _ssl_context()
         if proxy:
             conn = http.client.HTTPSConnection(proxy.hostname, proxy.port or (443 if proxy.scheme == "https" else 80),
                                                timeout=timeout, context=ctx)
