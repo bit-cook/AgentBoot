@@ -22,21 +22,39 @@ class DocumentationConsistencyTests(unittest.TestCase):
     def test_web_surfaces_share_release_critical_facts(self):
         surfaces = [(ROOT / "pages/index.html").read_text(encoding="utf-8"),
                     (ROOT / "pages/en/index.html").read_text(encoding="utf-8"),
-                    (ROOT / "cloudflare/worker.js").read_text(encoding="utf-8")]
+                    (ROOT / "cloudflare/web-assets.js").read_text(encoding="utf-8")]
         for fact in ("v1.1.0", "Codex", "uninstall"):
             for surface in surfaces:
                 self.assertIn(fact, surface, fact)
 
-    def test_web_surfaces_include_mobile_overflow_and_touch_fixes(self):
-        surfaces = [(ROOT / "pages/index.html").read_text(encoding="utf-8"),
-                    (ROOT / "pages/en/index.html").read_text(encoding="utf-8"),
-                    (ROOT / "cloudflare/worker.js").read_text(encoding="utf-8")]
-        for surface in surfaces:
+    def test_pages_include_accessible_responsive_interactions(self):
+        pages = [(ROOT / "pages/index.html").read_text(encoding="utf-8"),
+                 (ROOT / "pages/en/index.html").read_text(encoding="utf-8")]
+        css = (ROOT / "pages/assets/site.css").read_text(encoding="utf-8")
+        script = (ROOT / "pages/assets/site.js").read_text(encoding="utf-8")
+        for surface in pages:
             self.assertIn("table-scroll", surface)
-            self.assertIn("minmax(min(100%,280px),1fr)", surface)
-            self.assertIn("min-height:44px", surface)
             self.assertIn("aria-live", surface)
             self.assertIn("<main", surface)
+            self.assertIn("skip-link", surface)
+            self.assertIn("data-copy", surface)
+        self.assertIn("min-height: 44px", css)
+        self.assertIn("@media (max-width: 480px)", css)
+        self.assertIn("prefers-reduced-motion: reduce", css)
+        self.assertIn(":focus-visible", css)
+        self.assertIn("navigator.clipboard", script)
+        self.assertIn("document.execCommand", script)
+
+    def test_worker_web_bundle_is_generated_and_cacheable(self):
+        worker = (ROOT / "cloudflare/worker.js").read_text(encoding="utf-8")
+        assets = (ROOT / "cloudflare/web-assets.js").read_text(encoding="utf-8")
+        self.assertIn('import { WEB_ASSETS } from "./web-assets.js"', worker)
+        self.assertIn("max-age=86400, stale-while-revalidate=604800", worker)
+        self.assertIn('request.headers.get("If-None-Match")', worker)
+        self.assertIn("status: 304", worker)
+        self.assertIn('return webResponse(request, "/404.html", "no-store", 404)', worker)
+        for fact in ("v1.1.0", "Codex", "uninstall", "site.css", "site.js"):
+            self.assertIn(fact, assets)
 
 
 if __name__ == "__main__":

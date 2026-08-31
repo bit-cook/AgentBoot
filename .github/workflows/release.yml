@@ -24,6 +24,7 @@ jobs:
           python3 -m unittest discover -s tests -v
           python3 -m py_compile core/*.py scripts/*.py scripts/tools/*.py tests/*.py
           sh -n install.sh scripts/*.sh pages/install.sh cloudflare/deploy.sh
+          python3 scripts/sync-web-assets.py --check
           node --check cloudflare/worker.js
 
   online:

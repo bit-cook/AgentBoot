@@ -1,164 +1,255 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AgentBoot · 一键安装 AI Agent 启动器</title>
-<meta name="description" content="极简 · 极速 · 开箱即用的 AI Agent 启动器。一条命令装好，14 个主流 Agent 菜单自选，安全卸载、可验证离线包、中国网络自适应。">
-<style>
-:root{
-  --bg:#fafafa;--fg:#18181b;--muted:#71717a;--card:#ffffff;--line:#e4e4e7;
-  --brand:#4f46e5;--brand2:#f97316;--code-bg:#18181b;--code-fg:#f4f4f5;
-}
-@media (prefers-color-scheme:dark){
-  :root{--bg:#0f0f11;--fg:#f4f4f5;--muted:#a1a1aa;--card:#17171a;--line:#27272a;
-        --brand:#818cf8;--brand2:#fb923c;--code-bg:#000;--code-fg:#e4e4e7;}
-}
-*{box-sizing:border-box}
-body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
-     background:var(--bg);color:var(--fg);margin:0;line-height:1.75;}
-.wrap{max-width:980px;margin:0 auto;padding:0 22px}
-header{padding:64px 0 30px;border-bottom:1px solid var(--line)}
-.lang{font-size:14px;margin:0 0 10px;color:var(--muted)}
-h1{font-size:44px;margin:0 0 6px;letter-spacing:-.5px}
-h1 .g{background:linear-gradient(90deg,var(--brand),var(--brand2));
-     -webkit-background-clip:text;background-clip:text;color:transparent}
-.tag{color:var(--muted);font-size:19px;margin:0 0 18px}
-.badges span{display:inline-block;background:var(--card);border:1px solid var(--line);
-  border-radius:99px;padding:2px 12px;font-size:13px;margin:0 6px 6px 0;color:var(--muted)}
-h2{font-size:26px;margin:54px 0 14px;padding-top:14px;border-top:1px solid var(--line)}
-h3{font-size:18px;margin:22px 0 8px}
-.cmd{position:relative;background:var(--code-bg);color:var(--code-fg);border-radius:10px;
-     padding:14px 16px;font-size:14.5px;overflow-x:auto;margin:10px 0 6px;font-family:ui-monospace,Consolas,monospace}
-.cmd .c{color:#7dd3fc}
-.copy{position:absolute;top:8px;right:8px;background:#3f3f46;color:#d4d4d8;border:0;
-      border-radius:6px;min-height:44px;padding:8px 12px;font-size:12px;cursor:pointer}
-.copy:hover{background:#52525b}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px;margin:18px 0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
-.card b{display:block;margin-bottom:6px;font-size:15.5px}
-.card p{margin:0;font-size:14px;color:var(--muted)}
-table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;background:var(--card);
-      border:1px solid var(--line);border-radius:10px;overflow:hidden}
-th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line)}
-th{background:var(--card);color:var(--muted);font-weight:600}
-tr:last-child td{border-bottom:0}
-.table-scroll{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.ok{color:#15803d;font-weight:600}.no{color:var(--muted)}
-.steps{counter-reset:s;list-style:none;padding:0;margin:16px 0}
-.steps li{counter-increment:s;position:relative;padding:0 0 14px 46px}
-.steps li:before{content:counter(s);position:absolute;left:0;top:0;width:30px;height:30px;
-  border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;
-  justify-content:center;font-weight:700;font-size:15px}
-.note{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--brand2);
-  border-radius:8px;padding:10px 14px;font-size:14px;color:var(--muted);margin:14px 0}
-footer{border-top:1px solid var(--line);margin-top:60px;padding:26px 0 40px;
-       color:var(--muted);font-size:13.5px}
-a{color:var(--brand);text-decoration:none}a:hover{text-decoration:underline}
-code{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:.9em}
-pre{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px}
-@media(max-width:640px){h1{font-size:32px}.tag{font-size:16px}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#fffdf5">
+  <meta name="color-scheme" content="light">
+  <title>AgentBoot · 一条命令，启动你的 AI Agent</title>
+  <meta name="description" content="一条命令按需安装 14 个主流 AI Agent。支持 Linux、macOS、Windows、安全卸载、可验证离线包与中国网络自适应。">
+  <link rel="canonical" href="https://osome.work/AgentBoot/">
+  <link rel="alternate" hreflang="zh-CN" href="https://osome.work/AgentBoot/">
+  <link rel="alternate" hreflang="en" href="https://osome.work/AgentBoot/en/">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/site.css?v=1.2.0">
+  <script src="assets/site.js?v=1.2.0" defer></script>
 </head>
 <body>
-<main class="wrap">
+  <a class="skip-link" href="#main">跳到主要内容</a>
 
-<header>
-  <h1><span class="g">AgentBoot</span></h1>
-  <p class="tag">极简 · 极速 · 开箱即用的 AI Agent 启动器 —— 一条命令装好，主流 Agent 菜单自选</p>
-  <div class="badges">
-    <span>v1.1.0</span><span>Linux · macOS · Windows</span><span>界面中文</span>
-    <span>14 个 Agent 自选</span><span>离线安装</span><span>中国镜像自适应</span><span>MIT</span>
-  </div>
-  <p class="lang"><b>中文</b> | <a href="en/">English</a></p>
-</header>
+  <nav class="site-nav shell" aria-label="主导航">
+    <a class="brand" href="#top" aria-label="AgentBoot 首页">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>AgentBoot</span>
+    </a>
+    <div class="nav-links">
+      <a class="nav-link" href="#install">安装</a>
+      <a class="nav-link" href="#features">能力</a>
+      <a class="nav-link" href="#agents">Agent</a>
+      <a class="nav-link" href="#docs">文档</a>
+      <a class="language-link" href="en/" lang="en" hreflang="en">EN</a>
+    </div>
+  </nav>
 
-<h2>⚡ 一键安装</h2>
-<h3>Linux / macOS</h3>
-<div class="cmd"><span class="c">curl -fsSL https://boot.ide.pub/install.sh | sh</span>
-  <button class="copy" data-c="curl -fsSL https://boot.ide.pub/install.sh | sh">复制</button></div>
-<h3>Windows（PowerShell）</h3>
-<div class="cmd"><span class="c">powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</span>
-  <button class="copy" data-c="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))&quot;">复制</button></div>
-<div class="note">安装器只使用项目控制的 Worker / GitHub Pages / GitHub Release 三源，并对包与同源 SHA-256 一起校验。</div>
+  <header class="hero shell" id="top">
+    <div>
+      <p class="eyebrow">v1.1.0 · 免费开源 · 三平台可用</p>
+      <h1>一条命令，<br><span class="hero-highlight">Agent 就位</span></h1>
+      <p class="hero-copy">把安装、模型、镜像、离线包和安全卸载收进一个清楚的菜单。你选择要用的 AI Agent，AgentBoot 负责把它可靠地装好。</p>
+      <div class="hero-actions">
+        <a class="button button-primary" href="#install">
+          立即安装
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="button button-secondary" href="https://github.com/bit-cook/AgentBoot">
+          查看 GitHub
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h5v5M10 14 20 4M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>
+        </a>
+      </div>
+      <ul class="hero-proof" aria-label="支持范围">
+        <li>14 个 Agent 按需选择</li>
+        <li>Linux · macOS · Windows</li>
+        <li>离线安装</li>
+        <li>MIT License</li>
+      </ul>
+    </div>
 
-<h2>🚀 三步上手</h2>
-<ol class="steps">
-  <li><b>安装 AgentBoot</b><br>上面一条命令，10 秒完成；只会装 AgentBoot 本体与内置 Agent。</li>
-  <li><b>打开控制台菜单</b><br><code>agentboot</code> —— 环境体检 / 安装与卸载 Agent / 模型配置 / 镜像代理 / 自定义离线包。</li>
-  <li><b>或直接对话</b><br><code>ab</code> —— 内置保底 Agent，默认 <b>Agnes 免费模型</b>，零配置开箱即用。</li>
-</ol>
+    <div class="launch-visual" aria-label="AgentBoot 终端安装完成示意图">
+      <span class="orbit orbit-one" aria-hidden="true"></span>
+      <span class="orbit orbit-two" aria-hidden="true"></span>
+      <span class="orbit-dot" aria-hidden="true"></span>
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="terminal-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>agentboot</span>
+        </div>
+        <div class="terminal-body">
+          <p><span class="prompt">$</span> agentboot</p>
+          <p class="terminal-muted">检查系统环境与网络…</p>
+          <p><span class="terminal-check">✓</span> 选择你想安装的 Agent</p>
+          <p><span class="terminal-check">✓</span> 校验来源与 SHA-256</p>
+          <p><span class="terminal-check">✓</span> 安装完成，开始创造。</p>
+        </div>
+      </div>
+    </div>
+  </header>
 
-<h2>✨ 特性</h2>
-<div class="grid">
-  <div class="card"><b>📦 菜单自选安装（不是全家桶）</b><p>14 个主流 Agent 按需勾选：Claude Code、Codex、Qwen Code、OpenCode、CodeBuddy、MiMo、Cline、Pi、CoCo…</p></div>
-  <div class="card"><b>🛟 内置保底 Agent（ab）</b><p>其他都装不上时它一定能用：零第三方依赖 Python 核心、Agnes 免费模型、离线 Linux 知识库、会话持久化。</p></div>
-  <div class="card"><b>🧠 模型提供商管理器</b><p>Agnes 零配置开箱；自定义提供商命名管理；Ollama / LM Studio 本地模型；故障切换顺序。</p></div>
-  <div class="card"><b>🇨🇳 中国网络自适应</b><p>自动切换 npm / Node / PyPI 镜像；Worker / Pages / Release 三源容错；代理一键配置。</p></div>
-  <div class="card"><b>📴 已验证离线 & 按需构建</b><p>Release 精简包通过真实安装、启动与卸载冒烟；菜单 [7] 可在目标平台自选 Agent 构建。</p></div>
-  <div class="card"><b>🧹 可追溯安全卸载</b><p>菜单 [9] 或 uninstall 命令批量卸载；只清理由 AgentBoot 管理的程序，默认保留配置、认证与会话。</p></div>
-  <div class="card"><b>⚡ 可测性能</b><p>TLS 连接复用、知识库预建索引、上下文自动瘦身与流式中断保护；/bench 按当前网络与模型现场测量。</p></div>
-</main>
+  <main id="main">
+    <section class="section section-soft" id="install">
+      <div class="shell install-layout">
+        <div class="install-intro">
+          <div>
+            <p class="kicker">从这里开始</p>
+            <h2>复制一行，马上启动</h2>
+            <p>安装完成后输入 <code class="inline-code">agentboot</code> 打开控制台菜单，或输入 <code class="inline-code">ab</code> 直接与内置 Agent 对话。</p>
+          </div>
+          <div class="security-note">
+            <span class="security-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 2.7 7.8 7 10 4.3-2.2 7-5.5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-5"/></svg>
+            </span>
+            <p>安装器仅使用项目控制的 Worker、GitHub Pages 与 GitHub Release，并对安装包执行同源 SHA-256 校验。</p>
+          </div>
+        </div>
 
-<h2>🤖 支持的 Agent（14 个）</h2>
-<div class="table-scroll" role="region" aria-label="支持的 Agent" tabindex="0"><table>
-<tr><th>#</th><th>Agent</th><th>命令</th><th>厂商</th><th>离线</th></tr>
-<tr><td>1</td><td>CoCo Agent</td><td><code>coco</code></td><td>BitCook</td><td class="ok">Linux/macOS</td></tr>
-<tr><td>2</td><td>OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td class="no">仅在线</td></tr>
-<tr><td>3</td><td>Hermes Agent</td><td><code>hermes</code></td><td>Hermes</td><td class="ok">✓（需 Git）</td></tr>
-<tr><td>4</td><td>Cline CLI</td><td><code>cline</code></td><td>Cline</td><td class="ok">✓</td></tr>
-<tr><td>5</td><td>CodeBuddy CLI</td><td><code>codebuddy</code></td><td>Tencent</td><td class="ok">✓</td></tr>
-<tr><td>6</td><td>Pi Coding Agent</td><td><code>pi</code></td><td>Earendil Works</td><td class="ok">✓</td></tr>
-<tr><td>7</td><td>Claude Code</td><td><code>claude</code></td><td>Anthropic</td><td class="ok">✓</td></tr>
-<tr><td>8</td><td>OpenAI Codex CLI</td><td><code>codex</code></td><td>OpenAI</td><td class="ok">✓（Agnes 预置）</td></tr>
-<tr><td>9</td><td>Qwen Code</td><td><code>qwen</code></td><td>Alibaba</td><td class="ok">✓（Agnes 预置）</td></tr>
-<tr><td>10</td><td>MiMo Code</td><td><code>mimo</code></td><td>Xiaomi</td><td class="ok">✓</td></tr>
-<tr><td>11</td><td>OpenClaw</td><td><code>openclaw</code></td><td>OpenClaw</td><td class="ok">✓</td></tr>
-<tr><td>12</td><td>Gemini CLI</td><td><code>gemini</code></td><td>Google</td><td class="ok">✓</td></tr>
-<tr><td>13</td><td>iFlow CLI</td><td><code>iflow</code></td><td>iFlow 心流</td><td class="ok">✓</td></tr>
-<tr><td>14</td><td>Aider</td><td><code>aider</code></td><td>Aider AI</td><td class="no">仅在线（pip）</td></tr>
-</table></div>
-<div class="note">✓ = 支持离线安装（离线包内置完整依赖与运行时）。Codex / Qwen 安装后<b>自动预置 Agnes 免费模型</b>；自定义 Agent 可通过菜单 <code>+</code> 或 <code>add-agent</code> 命令添加。</div>
+        <div class="command-stack">
+          <article class="command-card">
+            <div class="command-head">
+              <span class="command-platform"><i class="platform-dot" aria-hidden="true"></i>Linux / macOS</span>
+              <button class="copy-button" type="button" data-copy="curl -fsSL https://boot.ide.pub/install.sh | sh" data-label-idle="复制" data-label-success="已复制" data-label-error="请手动选择" aria-live="polite">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+                <span data-copy-label>复制</span>
+              </button>
+            </div>
+            <code class="command-code">curl -fsSL https://boot.ide.pub/install.sh | sh</code>
+          </article>
 
-<h2>📴 离线安装</h2>
-<p>无网机器？两条路：</p>
-<ul>
-  <li><b>已验证精简包</b>：v1.1.0 首批提供 Linux x64 / Windows x64 的 Codex 包，CI 实际执行安装、版本启动与卸载；</li>
-  <li><b>自建离线包</b>：菜单 <code>[7]</code> 或 <code>build-offline</code> 在目标平台自选 Agent；Hermes 必须在对应平台构建。</li>
-</ul>
-<p>目标机无需联网、无需解压软件（Windows 资源管理器 / 系统自带 tar / 自解压脚本三选一），运行包内 <code>install-offline.ps1</code> 或 <code>sh install-offline.sh</code> 即可。</p>
+          <article class="command-card">
+            <div class="command-head">
+              <span class="command-platform"><i class="platform-dot" aria-hidden="true"></i>Windows PowerShell</span>
+              <button class="copy-button" type="button" data-copy="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))&quot;" data-label-idle="复制" data-label-success="已复制" data-label-error="请手动选择" aria-live="polite">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+                <span data-copy-label>复制</span>
+              </button>
+            </div>
+            <code class="command-code">powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</code>
+          </article>
+        </div>
+      </div>
 
-<h2>🧠 模型：开箱即用 + 完全自定义</h2>
-<ul>
-  <li><b>Agnes 免费模型</b>（官方预设）：ab 零配置直接用；Codex / Qwen 安装后自动接线；</li>
-  <li><b>自定义提供商</b>：任意 OpenAI 兼容接口，命名管理、随时增删切换；</li>
-  <li><b>本地模型</b>：内置 Ollama / LM Studio 预设，也可把 vLLM 添加为自定义 OpenAI 兼容提供商；</li>
-  <li><b>故障切换</b>：设置备用顺序，主模型失败自动降级。</li>
-</ul>
+      <ol class="steps shell" aria-label="三步上手">
+        <li class="step"><h3>安装 AgentBoot</h3><p>上面一条命令约 10 秒完成，只安装 AgentBoot 本体与内置 Agent。</p></li>
+        <li class="step"><h3>选择需要的 Agent</h3><p>运行 <code class="inline-code">agentboot</code>，在菜单中安装、卸载和配置。</p></li>
+        <li class="step"><h3>开始工作</h3><p>运行选好的 Agent；也可以直接输入 <code class="inline-code">ab</code> 零配置对话。</p></li>
+      </ol>
+    </section>
 
-<h2>📚 文档</h2>
-<ul>
-  <li><a href="https://github.com/bit-cook/AgentBoot/blob/main/安装指南.md">安装指南（一键安装 / 离线部署 / 故障排查）</a></li>
-  <li><a href="https://github.com/bit-cook/AgentBoot/blob/main/README.md">README（功能总览 / 架构 / 自定义 Agent / 自定义离线包）</a></li>
-  <li><a href="https://github.com/bit-cook/AgentBoot/releases">Releases（在线包 / 已验证 Linux、Windows Codex 离线包）</a></li>
-</ul>
+    <section class="section shell" id="features">
+      <div class="section-heading">
+        <div><p class="kicker">不仅是安装脚本</p><h2>复杂留在里面，选择留给你</h2></div>
+        <p class="section-lede">不塞给你一个全家桶，也不把失败留给你排查。AgentBoot 把最容易出错的环境、网络、来源与卸载边界统一处理。</p>
+      </div>
 
-<footer>
-  MIT License · <a href="https://github.com/bit-cook/AgentBoot">github.com/bit-cook/AgentBoot</a>
-  · 主入口 <a href="https://boot.ide.pub">boot.ide.pub</a>（Cloudflare）
-  · 本页为 GitHub Pages 镜像入口
-  <br>ab 内置 Agent 默认使用 Agnes 免费模型；执行命令类操作默认拦截高危行为。
-</footer>
-</div>
-<script>
-document.querySelectorAll('.copy').forEach(function(b){
-  b.setAttribute('aria-live','polite');
-  b.addEventListener('click',function(){
-    navigator.clipboard.writeText(b.dataset.c).then(function(){
-      var t=b.textContent;b.textContent='已复制 ✓';
-      setTimeout(function(){b.textContent='复制'},1600);
-    });
-  });
-});
-</script>
+      <div class="feature-layout">
+        <article class="feature-spotlight">
+          <p class="kicker">始终可用的起点</p>
+          <h3>即使其他 Agent 装不上，<code>ab</code> 也能马上工作</h3>
+          <p>零第三方依赖 Python 核心，默认接入 Agnes 免费模型，并内置离线 Linux 知识库、会话持久化和高危命令拦截。</p>
+        </article>
+
+        <ol class="feature-list">
+          <li class="feature-row"><span class="feature-index">01</span><div><h3>按需安装，不装全家桶</h3><p>14 个主流 Agent 自由选择：Claude Code、Codex、Qwen Code、OpenCode、MiMo、Cline、Pi、CoCo 等。</p></div></li>
+          <li class="feature-row"><span class="feature-index">02</span><div><h3>模型提供商统一管理</h3><p>Agnes 零配置可用，也支持命名管理任意 OpenAI 兼容接口、Ollama、LM Studio 与故障切换顺序。</p></div></li>
+          <li class="feature-row"><span class="feature-index">03</span><div><h3>中国网络自动适配</h3><p>自动选择 npm、Node、PyPI 镜像，Worker、Pages、Release 三源容错，并提供一键代理配置。</p></div></li>
+          <li class="feature-row"><span class="feature-index">04</span><div><h3>离线包经过真实验证</h3><p>发布包完成安装、启动、卸载冒烟；菜单 <code>[7]</code> 还能在目标平台按需构建自定义包。</p></div></li>
+          <li class="feature-row"><span class="feature-index">05</span><div><h3>卸载知道自己该删什么</h3><p>菜单 <code>[9]</code> 或 <code>uninstall</code> 只清理由 AgentBoot 管理的程序，默认保留配置、认证和会话。</p></div></li>
+          <li class="feature-row"><span class="feature-index">06</span><div><h3>性能可以现场测量</h3><p>TLS 连接复用、知识库预建索引、上下文自动瘦身和流式中断保护；<code>/bench</code> 基于当前网络与模型实测。</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section section-soft" id="agents">
+      <div class="shell">
+        <div class="section-heading">
+          <div><p class="kicker">你的工具箱</p><h2>14 个 Agent，一个入口</h2></div>
+          <p class="section-lede">在线安装按需选择；标记为离线可用的 Agent 可连同依赖与运行时一起打包。</p>
+        </div>
+
+        <div class="agent-panel">
+          <div class="agent-panel-head">
+            <div class="agent-count"><strong>14</strong><span>个内置选项</span></div>
+            <span class="agent-legend">绿点表示支持离线安装</span>
+          </div>
+          <div class="table-scroll" role="region" aria-label="支持的 Agent，可横向滚动" tabindex="0">
+            <table class="agent-table">
+              <thead><tr><th>#</th><th>Agent</th><th>命令</th><th>厂商</th><th>离线</th></tr></thead>
+              <tbody>
+                <tr><td>01</td><td class="agent-name">CoCo Agent</td><td><code>coco</code></td><td>BitCook</td><td><span class="status status-ready">Linux/macOS</span></td></tr>
+                <tr><td>02</td><td class="agent-name">OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td><span class="status">仅在线</span></td></tr>
+                <tr><td>03</td><td class="agent-name">Hermes Agent</td><td><code>hermes</code></td><td>Hermes</td><td><span class="status status-ready">需 Git</span></td></tr>
+                <tr><td>04</td><td class="agent-name">Cline CLI</td><td><code>cline</code></td><td>Cline</td><td><span class="status status-ready">支持</span></td></tr>
+                <tr><td>05</td><td class="agent-name">CodeBuddy CLI</td><td><code>codebuddy</code></td><td>Tencent</td><td><span class="status status-ready">支持</span></td></tr>
+                <tr><td>06</td><td class="agent-name">Pi Coding Agent</td><td><code>pi</code></td><td>Earendil Works</td><td><span class="status status-ready">支持</span></td></tr>
+                <tr><td>07</td><td class="agent-name">Claude Code</td><td><code>claude</code></td><td>Anthropic</td><td><span class="status status-ready">支持</span></td></tr>
+                <tr><td>08</td><td class="agent-name">OpenAI Codex CLI</td><td><code>codex</code></td><td>OpenAI</td><td><span class="status status-ready">Agnes 预置</span></td></tr>
+                <tr><td>09</td><td class="agent-name">Qwen Code</td><td><code>qwen</code></td><td>Alibaba</td><td><span class="status status-ready">Agnes 预置</span></td></tr>
+                <tr><td>10</td><td class="agent-name">MiMo Code</td><td><code>mimo</code></td><td>Xiaomi</td><td><span class="status status-ready">支持</span></td></tr>
+                <tr><td>11</td><td class="agent-name">OpenClaw</td><td><code>openclaw</code></td><td>OpenClaw</td><td><span class="status status-ready">支持</span></td></tr>
+                <tr><td>12</td><td class="agent-name">Gemini CLI</td><td><code>gemini</code></td><td>Google</td><td><span class="status status-ready">支持</span></td></tr>
+                <tr><td>13</td><td class="agent-name">iFlow CLI</td><td><code>iflow</code></td><td>iFlow 心流</td><td><span class="status status-ready">支持</span></td></tr>
+                <tr><td>14</td><td class="agent-name">Aider</td><td><code>aider</code></td><td>Aider AI</td><td><span class="status">仅在线</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="agent-footnote">Codex 与 Qwen 安装后自动预置 Agnes 免费模型；也可通过菜单 <code>+</code> 或 <code>add-agent</code> 添加自己的 Agent。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section shell" aria-label="离线安装与模型">
+      <div class="detail-grid">
+        <article class="detail-block rich-text">
+          <p class="kicker">没有网络，也能安装</p>
+          <h3>可验证离线包，把完整运行环境一起带走</h3>
+          <p>v1.1.0 首批提供 Linux x64 与 Windows x64 Codex 精简包，CI 实际执行安装、版本启动与卸载。</p>
+          <ul>
+            <li><strong>已验证精简包：</strong>从 Releases 下载后直接带到目标机。</li>
+            <li><strong>自建离线包：</strong>用菜单 <code>[7]</code> 或 <code>build-offline</code> 在目标平台按需构建。</li>
+            <li><strong>无需额外解压软件：</strong>运行包内 <code>install-offline.ps1</code> 或 <code>sh install-offline.sh</code>。</li>
+          </ul>
+        </article>
+
+        <article class="detail-block rich-text">
+          <p class="kicker">模型由你决定</p>
+          <h3>开箱即用，也完全允许自定义</h3>
+          <ul>
+            <li><strong>Agnes 免费模型：</strong><code>ab</code> 零配置直接用，Codex 与 Qwen 自动接线。</li>
+            <li><strong>自定义提供商：</strong>任意 OpenAI 兼容接口，命名管理、随时切换。</li>
+            <li><strong>本地模型：</strong>内置 Ollama 与 LM Studio 预设，也可添加 vLLM。</li>
+            <li><strong>故障切换：</strong>设置备用顺序，主模型失败后自动降级。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section section-soft" id="docs">
+      <div class="shell">
+        <div class="section-heading">
+          <div><p class="kicker">需要更多细节</p><h2>文档直接说人话</h2></div>
+          <p class="section-lede">从安装、离线部署到自定义 Agent，按你当前要解决的问题继续阅读。</p>
+        </div>
+        <ul class="docs-list">
+          <li><a class="docs-link" href="https://github.com/bit-cook/AgentBoot/blob/main/安装指南.md"><strong>安装指南</strong><span>一键安装 · 离线部署 · 故障排查</span></a></li>
+          <li><a class="docs-link" href="https://github.com/bit-cook/AgentBoot/blob/main/README.md"><strong>项目说明</strong><span>功能总览 · 架构 · 自定义 Agent</span></a></li>
+          <li><a class="docs-link" href="https://github.com/bit-cook/AgentBoot/releases"><strong>版本与下载</strong><span>在线包 · 已验证离线包 · 校验文件</span></a></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section shell">
+      <div class="final-call">
+        <h2>少折腾环境，早点开始创造</h2>
+        <p>AgentBoot 是 MIT 许可的开源项目。先用一条命令开始，所有选择依然掌握在你手里。</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#install">现在安装</a>
+          <a class="button button-secondary" href="https://github.com/bit-cook/AgentBoot">在 GitHub 查看源码</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer shell">
+    <div class="footer-row">
+      <div>
+        <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span><span>AgentBoot</span></a>
+        <p class="footer-note">内置 <code>ab</code> 默认使用 Agnes 免费模型；执行命令类操作默认拦截高危行为。MIT License。</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/bit-cook/AgentBoot">GitHub</a>
+        <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a>
+        <a href="https://bit-cook.github.io/AgentBoot/">Pages 镜像</a>
+        <a href="https://boot.ide.pub/health">健康检查</a>
+      </div>
+    </div>
+  </footer>
 </body>
 </html>
