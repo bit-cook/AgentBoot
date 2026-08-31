@@ -11,10 +11,13 @@ AgentBoot 内置最小 Agent（命令 ab）
   * 工具：run_cmd / read_file / write_file / edit_file / list_dir / linux_help / http_get
 """
 import json
+import ipaddress
 import os
 import re
+import shlex
 import socket
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -126,7 +129,6 @@ def save_config(cfg):
 
 
 def _atomic_private_json(path, data):
-    import tempfile
     directory = os.path.dirname(path) or "."
     os.makedirs(directory, mode=0o700, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=os.path.basename(path) + ".", suffix=".tmp", dir=directory)
@@ -194,7 +196,6 @@ def _split_base(base_url):
 
 
 def _is_literal_loopback(host):
-    import ipaddress
     if str(host or "").lower() == "localhost":
         return True
     try:
@@ -665,7 +666,6 @@ MUTATING_FLAGS = {
 
 def _simple_command_level(segment):
     """Conservatively classify one shell pipeline segment."""
-    import shlex
     try:
         words = shlex.split(segment, posix=os.name != "nt")
     except ValueError:
@@ -728,7 +728,6 @@ def _trusted_executable(name):
 
 
 def safe_command_argv(cmd):
-    import shlex
     if classify_cmd(cmd) != "safe":
         return None
     try:
@@ -759,7 +758,6 @@ def run_safe_cmd(cmd, timeout=60):
 
 def run_cmd(cmd, timeout=60):
     import subprocess   # 惰性导入：保持启动极速
-    import tempfile
     timeout = min(max(int(timeout or 60), 5), 300)
     shell = ["cmd", "/c", cmd] if os.name == "nt" else ["/bin/sh", "-c", cmd]
     out_file = tempfile.TemporaryFile(mode="w+b")
@@ -925,7 +923,6 @@ def search_files(pattern, path=".", regex=False, max_results=40):
 
 
 def _validate_public_http_url(url):
-    import ipaddress
     from urllib.parse import urlsplit
     parsed = urlsplit(url or "")
     if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
