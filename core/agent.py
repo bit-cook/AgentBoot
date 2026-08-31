@@ -27,7 +27,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     VERSION = open(os.path.join(APP_DIR, "VERSION"), "r", encoding="ascii").read().strip()
 except OSError:
-    VERSION = "1.1.0"
+    VERSION = "1.2.0"
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
 CONFIG_PATH = os.path.join(AB_HOME, "config.json")
 KB_DIR = os.path.join(APP_DIR, "tools", "linux-kb")

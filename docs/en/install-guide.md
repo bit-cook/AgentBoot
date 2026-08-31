@@ -1,6 +1,6 @@
 # AgentBoot Installation Guide
 
-> **v1.1.0** · Linux / macOS / Windows · CLI UI in Chinese by default (switchable to English: `agentboot lang en`)
+> **v1.2.0** · Linux / macOS / Windows · CLI UI in Chinese by default (switchable to English: `agentboot lang en`)
 > AgentBoot is a minimal, fast, ready-to-run AI Agent launcher: it ships a built-in fallback agent (free **Agnes** model by default), while the other agents (Claude Code, Codex, Qwen Code, OpenCode, CodeBuddy, MiMo Code, Cline, Pi, CoCo, …) are installed **from a menu of your choice**.
 
 **目录 / Table of contents**: [One-command online install](#one-command-online-install) · [One-command offline install](#one-command-offline-install) · [Custom agents](#custom-agents-beyond-the-registry) · [Custom offline packages](#custom-offline-packages-slim) · [China network](#china-network-adaptive) · [Model providers](#model-providers) · [Built-in agent](#built-in-agent-ab) · [Upgrade & uninstall](#upgrade--uninstall) · [Troubleshooting](#online-install-troubleshooting) · [FAQ](#faq)
@@ -43,9 +43,9 @@ Three steps: **① get an offline package → ② copy & extract → ③ run the
 ### Step 1 — Get an offline package
 
 - **Option A**: download from [Releases](https://github.com/bit-cook/AgentBoot/releases)
-  - `AgentBoot-offline-v1.1.0-win-x64-codex.zip` (Windows x64)
-  - `AgentBoot-offline-v1.1.0-linux-x64-codex.tar.gz` (Linux x64)
-  - `AgentBoot-offline-v1.1.0-linux-x64-codex-sfx.sh` (Linux x64 self-extracting file)
+  - `AgentBoot-offline-v1.2.0-win-x64-codex.zip` (Windows x64)
+  - `AgentBoot-offline-v1.2.0-linux-x64-codex.tar.gz` (Linux x64)
+  - `AgentBoot-offline-v1.2.0-linux-x64-codex-sfx.sh` (Linux x64 self-extracting file)
 - **Option B — build your own slim package** (recommended; see [Custom offline packages](#custom-offline-packages-slim)):
   pick platforms and agents, output goes to `dist/`.
 
@@ -54,9 +54,9 @@ Three steps: **① get an offline package → ② copy & extract → ③ run the
 | Target machine | How |
 |---|---|
 | Windows (any) | Right-click the ZIP → Extract All (built into Explorer) |
-| Windows 10/11 (CLI) | `tar -xf AgentBoot-offline-v1.1.0-win-x64-codex.zip` |
-| Linux x64 | `tar -xzf AgentBoot-offline-v1.1.0-linux-x64-codex.tar.gz -C ~` |
-| Minimal Linux x64 | `sh AgentBoot-offline-v1.1.0-linux-x64-codex-sfx.sh` |
+| Windows 10/11 (CLI) | `tar -xf AgentBoot-offline-v1.2.0-win-x64-codex.zip` |
+| Linux x64 | `tar -xzf AgentBoot-offline-v1.2.0-linux-x64-codex.tar.gz -C ~` |
+| Minimal Linux x64 | `sh AgentBoot-offline-v1.2.0-linux-x64-codex-sfx.sh` |
 
 ### Step 3 — Run the offline installer
 

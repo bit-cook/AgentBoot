@@ -6,9 +6,9 @@
 import { WEB_ASSETS } from "./web-assets.js";
 
 const REPO = "bit-cook/AgentBoot";
-const TAG = "v1.1.0";
+const TAG = "v1.2.0";
 const GH_REL = `https://github.com/${REPO}/releases/download/${TAG}`;
-const ASSET_CACHE = "public, max-age=86400, stale-while-revalidate=604800";
+const ASSET_CACHE = "public, max-age=31536000, immutable";
 const PAGE_CACHE = "public, max-age=300, stale-while-revalidate=3600";
 
 export default {
@@ -24,7 +24,7 @@ export default {
       await Promise.all(required.map(async (name) => {
         try {
           const response = await fetch(`${GH_REL}/${name}`, {
-            method: "HEAD", headers: { "User-Agent": "AgentBoot-Worker/1.1" },
+            method: "HEAD", headers: { "User-Agent": "AgentBoot-Worker/1.2" },
             cf: { cacheEverything: false },
           });
           assets[name] = response.status;
@@ -61,7 +61,7 @@ export default {
 };
 
 async function proxy(target, contentType, cacheTtl, incoming = null) {
-  const requestHeaders = new Headers({ "User-Agent": "AgentBoot-Worker/1.1" });
+  const requestHeaders = new Headers({ "User-Agent": "AgentBoot-Worker/1.2" });
   if (incoming) {
     for (const name of ["Range", "If-Range", "If-None-Match", "If-Modified-Since"]) {
       const value = incoming.headers.get(name);

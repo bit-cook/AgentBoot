@@ -98,7 +98,7 @@ ab model                            # provider manager
 
 ## Offline packages
 
-Download a platform-and-Agent-specific verified pack from [Releases](https://github.com/bit-cook/AgentBoot/releases). v1.1.0 initially publishes Linux x64 and Windows x64 Codex packs only after CI installs them, runs `codex --version`, and uninstalls them. Build other Agents on their target platform with menu `[7]` or:
+Download a platform-and-Agent-specific verified pack from [Releases](https://github.com/bit-cook/AgentBoot/releases). v1.2.0 initially publishes Linux x64 and Windows x64 Codex packs only after CI installs them, runs `codex --version`, and uninstalls them. Build other Agents on their target platform with menu `[7]` or:
 
 ```bash
 python core/menu.py build-offline win-x64 claude-code,pi

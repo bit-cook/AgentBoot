@@ -9,7 +9,7 @@
 set -eu
 
 REPO="bit-cook/AgentBoot"
-TAG="v1.1.0"
+TAG="v1.2.0"
 TARBALL="agentboot-online-${TAG}.tar.gz"
 BOOT_BASE="https://boot.ide.pub"
 GH="https://github.com/${REPO}/releases/download/${TAG}"
@@ -156,7 +156,7 @@ OLD_APP="${AB_ROOT}/app.old.$$"
 rm -rf "$NEW_APP" "$OLD_APP"
 mkdir -p "$NEW_APP"
 cp -R "${SRC_DIR}/." "$NEW_APP/"
-if [ ! -f "$NEW_APP/core/menu.py" ] || [ ! -f "$NEW_APP/core/agent.py" ]; then
+if [ ! -f "$NEW_APP/core/menu.py" ] || [ ! -f "$NEW_APP/core/agent.py" ] || [ ! -f "$NEW_APP/core/launch.py" ]; then
     err "安装包结构无效，保留现有版本"
     rm -rf "$NEW_APP"
     exit 1
