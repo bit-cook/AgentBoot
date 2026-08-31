@@ -295,7 +295,7 @@ def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature
     if p.get("api_key"):
         headers["Authorization"] = "Bearer " + p["api_key"]
 
-    payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    payload = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
     last_err = None
     for attempt in range(3):
@@ -455,7 +455,7 @@ def _ttfb(cfg, prompt="回复：1"):
     headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
     if p.get("api_key"):
         headers["Authorization"] = "Bearer " + p["api_key"]
-    payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    payload = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     t0 = time.perf_counter()
     try:
         conn = _connect(scheme, host, port)

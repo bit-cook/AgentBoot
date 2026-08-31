@@ -15,6 +15,10 @@ import menu  # noqa: E402
 
 
 class HighImpactRegressionTests(unittest.TestCase):
+    def test_model_request_uses_compact_json(self):
+        source = (ROOT / "core" / "agent.py").read_text(encoding="utf-8")
+        self.assertGreaterEqual(source.count('separators=(",", ":")'), 2)
+
     def test_installed_ab_wrappers_forward_subcommands(self):
         files = ("install.sh", "scripts/install-offline.sh", "scripts/install.ps1",
                  "scripts/install-offline.ps1")
