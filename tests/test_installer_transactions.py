@@ -44,6 +44,7 @@ class InstallerTransactionTests(unittest.TestCase):
         for relative in ("scripts/install-offline.sh", "scripts/install-offline.ps1"):
             text = (ROOT / relative).read_text(encoding="utf-8-sig")
             self.assertIn("VERSION", text, relative)
+            self.assertIn("launch.py", text, relative)
 
     def test_launchers_reject_links_and_write_atomically(self):
         for relative in ("install.sh", "scripts/install-offline.sh"):

@@ -24,6 +24,7 @@ class ReleaseStagingTests(unittest.TestCase):
             stage = Path(tmp) / "stage"
             subprocess.run([sys.executable, str(STAGER), str(ROOT), str(stage)], check=True)
             self.assertTrue((stage / "core" / "agent.py").is_file())
+            self.assertTrue((stage / "core" / "launch.py").is_file())
             for relative in ("tests", "pages", ".github", "results.tsv", "run.log", ".env"):
                 self.assertFalse((stage / relative).exists(), relative)
 

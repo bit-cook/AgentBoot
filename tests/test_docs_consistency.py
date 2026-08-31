@@ -12,7 +12,7 @@ class DocumentationConsistencyTests(unittest.TestCase):
     def test_chinese_guides_share_release_critical_facts(self):
         guides = [(ROOT / "安装指南.md").read_text(encoding="utf-8"),
                   (ROOT / "docs/zh/安装指南.md").read_text(encoding="utf-8")]
-        facts = ("v1.1.0", "win-x64-codex.zip", "linux-x64-codex.tar.gz",
+        facts = ("v1.2.0", "win-x64-codex.zip", "linux-x64-codex.tar.gz",
                  "PAYLOAD_SHA256SUMS.txt", "agentboot uninstall", "--purge",
                  "Hermes", "目标平台")
         for fact in facts:
@@ -23,7 +23,7 @@ class DocumentationConsistencyTests(unittest.TestCase):
         surfaces = [(ROOT / "pages/index.html").read_text(encoding="utf-8"),
                     (ROOT / "pages/en/index.html").read_text(encoding="utf-8"),
                     (ROOT / "cloudflare/web-assets.js").read_text(encoding="utf-8")]
-        for fact in ("v1.1.0", "Codex", "uninstall"):
+        for fact in ("v1.2.0", "Codex", "uninstall"):
             for surface in surfaces:
                 self.assertIn(fact, surface, fact)
 
@@ -49,11 +49,11 @@ class DocumentationConsistencyTests(unittest.TestCase):
         worker = (ROOT / "cloudflare/worker.js").read_text(encoding="utf-8")
         assets = (ROOT / "cloudflare/web-assets.js").read_text(encoding="utf-8")
         self.assertIn('import { WEB_ASSETS } from "./web-assets.js"', worker)
-        self.assertIn("max-age=86400, stale-while-revalidate=604800", worker)
+        self.assertIn("max-age=31536000, immutable", worker)
         self.assertIn('request.headers.get("If-None-Match")', worker)
         self.assertIn("status: 304", worker)
         self.assertIn('return webResponse(request, "/404.html", "no-store", 404)', worker)
-        for fact in ("v1.1.0", "Codex", "uninstall", "site.css", "site.js"):
+        for fact in ("v1.2.0", "Codex", "uninstall", "site.css", "site.js"):
             self.assertIn(fact, assets)
 
 

@@ -35,6 +35,12 @@ class VersionConsistencyTests(unittest.TestCase):
             text = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn(TAG, text, relative)
 
+    def test_web_asset_cache_busters_match_version(self):
+        for relative in ("pages/index.html", "pages/en/index.html"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("site.css?v=%s" % VERSION, text, relative)
+            self.assertIn("site.js?v=%s" % VERSION, text, relative)
+
     def test_online_builder_names_current_version(self):
         text = (ROOT / "scripts/build-online.py").read_text(encoding="utf-8")
         self.assertIn('ROOT / "VERSION"', text)

@@ -9,7 +9,7 @@ $ProgressPreference = 'SilentlyContinue'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $Repo      = 'bit-cook/AgentBoot'
-$Tag       = 'v1.1.0'
+$Tag       = 'v1.2.0'
 $ZipName   = "agentboot-online-$Tag.zip"
 $BootBase  = 'https://boot.ide.pub'
 $GH        = "https://github.com/$Repo/releases/download/$Tag"
@@ -58,7 +58,8 @@ function Install-AppAtomic([string]$source, [string]$destination) {
         New-Item -ItemType Directory -Path $newApp -Force | Out-Null
         Copy-Item -Path (Join-Path $source '*') -Destination $newApp -Recurse -Force
         if (-not (Test-Path (Join-Path $newApp 'core\menu.py')) -or
-            -not (Test-Path (Join-Path $newApp 'core\agent.py'))) {
+            -not (Test-Path (Join-Path $newApp 'core\agent.py')) -or
+            -not (Test-Path (Join-Path $newApp 'core\launch.py'))) {
             throw '安装包结构无效'
         }
         if (Test-Path $destination) { Move-Item $destination $oldApp }

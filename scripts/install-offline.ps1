@@ -133,7 +133,9 @@ foreach ($d in 'core', 'agents', 'tools', 'scripts') {
 foreach ($f in 'VERSION', 'README.md', '安装指南.md', 'LICENSE', 'CHANGELOG.md', 'install.sh', 'install.bat') {
     if (Test-Path (Join-Path $ScriptDir $f)) { Copy-Item (Join-Path $ScriptDir $f) $newApp -Force }
 }
-if (-not (Test-Path (Join-Path $newApp 'core\menu.py')) -or -not (Test-Path (Join-Path $newApp 'core\agent.py'))) {
+if (-not (Test-Path (Join-Path $newApp 'core\menu.py')) -or
+    -not (Test-Path (Join-Path $newApp 'core\agent.py')) -or
+    -not (Test-Path (Join-Path $newApp 'core\launch.py'))) {
     Remove-Item $newApp -Recurse -Force -ErrorAction SilentlyContinue; throw '离线包结构无效'
 }
 if (Test-Path $AppDir) { Move-Item $AppDir $oldApp }
