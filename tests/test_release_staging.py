@@ -13,6 +13,12 @@ STAGER = ROOT / "scripts" / "tools" / "stage_application.py"
 
 
 class ReleaseStagingTests(unittest.TestCase):
+    def test_online_package_excludes_deploy_and_benchmark_sources(self):
+        source = (ROOT / "scripts" / "build-online.py").read_text(encoding="utf-8")
+        self.assertNotIn('"cloudflare", "core"', source)
+        self.assertIn('"scripts/benchmark-performance.py"', source)
+        self.assertIn('"scripts/sync-web-assets.py"', source)
+
     def test_explicit_stage_excludes_workspace_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:
             stage = Path(tmp) / "stage"
