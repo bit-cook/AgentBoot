@@ -57,6 +57,8 @@ class HighImpactRegressionTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertIn("--prefix", command)
         self.assertEqual(command[command.index("--prefix") + 1], "/managed/agentboot/npm-prefix")
+        for option in ("--no-audit", "--no-fund", "--prefer-offline", "--progress=false", "--loglevel=error"):
+            self.assertIn(option, command)
 
     def test_ttfb_does_not_wait_for_remaining_response_body(self):
         class Response:

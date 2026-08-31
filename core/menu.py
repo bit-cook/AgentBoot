@@ -777,7 +777,8 @@ def npm_install(pkg, minimum=None, context=None):
         return False
     ensure_npm_prefix()
     cmd = [npm, "install", "-g", pkg, "--prefix", NPM_PREFIX,
-           "--no-audit", "--no-fund"]
+           "--no-audit", "--no-fund", "--prefer-offline",
+           "--progress=false", "--loglevel=error"]
     if "cn" not in context:
         context["cn"] = cn_mode()
     if context["cn"]:
@@ -1113,7 +1114,8 @@ def install_hermes_special(a):
         return False
     ensure_npm_prefix()
     cmd = [npm, "install", "--ignore-scripts", "-g", a["npm"],
-           "--prefix", NPM_PREFIX, "--no-audit", "--no-fund"]
+           "--prefix", NPM_PREFIX, "--no-audit", "--no-fund", "--prefer-offline",
+           "--progress=false", "--loglevel=error"]
     if cn_mode():
         cmd += ["--registry", NPM_MIRROR]
     log_info("$ %s" % " ".join(cmd))
