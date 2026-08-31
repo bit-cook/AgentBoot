@@ -762,6 +762,9 @@ def uninstall_agents(ids, purge=False):
 # ---------------------------------------------------------------- 在线安装
 
 def npm_install(pkg, minimum=None, context=None):
+    packages = [pkg] if isinstance(pkg, str) else list(pkg)
+    if not packages:
+        return True
     context = context if context is not None else {}
     versions = context.setdefault("node_versions", {})
     npm = npm_cmd(minimum, versions)
@@ -776,7 +779,7 @@ def npm_install(pkg, minimum=None, context=None):
         log_err("Node 已就绪但未找到匹配的 npm")
         return False
     ensure_npm_prefix()
-    cmd = [npm, "install", "-g", pkg, "--prefix", NPM_PREFIX,
+    cmd = [npm, "install", "-g"] + packages + ["--prefix", NPM_PREFIX,
            "--no-audit", "--no-fund", "--prefer-offline",
            "--progress=false", "--loglevel=error"]
     if "cn" not in context:
@@ -794,7 +797,7 @@ def install_online(ids):
     agents = load_registry()
     by_id = {a["id"]: a for a in agents}
     ok_list, fail_list = [], []
-    npm_context = {}
+    npm_context, ready = {}, []
     for aid in ids:
         a = by_id.get(aid)
         if not a:
@@ -813,6 +816,25 @@ def install_online(ids):
             log_err(t("menu.install_os_limit") % (a["name"], "/".join(os_limits), plat_id()))
             fail_list.append(aid)
             continue
+        ready.append(a)
+
+    npm_groups = {}
+    for a in ready:
+        if a.get("method", "npm") == "npm" and not a.get("special_install"):
+            npm_groups.setdefault(a.get("node") or ">=18", []).append(a)
+    batched = set()
+    for minimum, group in npm_groups.items():
+        if len(group) < 2:
+            continue
+        packages = [a["npm"] for a in group]
+        log_info("批量安装 %d 个 npm Agent（共用依赖解析与连接）" % len(group))
+        if npm_install(packages, minimum, npm_context):
+            batched.update(a["id"] for a in group)
+        else:
+            log_info("批量安装失败，回退逐个安装以定位问题")
+
+    for a in ready:
+        aid = a["id"]
         method = a.get("method", "npm")
         ok = False
         if a.get("special_install") == "hermes":
@@ -821,7 +843,7 @@ def install_online(ids):
             if not ok:
                 log_err("专用流程失败：可检查 Git 是否安装、或配置代理后重试")
         elif method == "npm":
-            ok = npm_install(a["npm"], a.get("node"), npm_context)
+            ok = aid in batched or npm_install(a["npm"], a.get("node"), npm_context)
         elif method == "script":
             ok = install_via_script(a)
         elif method == "pip":
