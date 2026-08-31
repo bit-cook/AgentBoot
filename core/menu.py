@@ -29,7 +29,6 @@ import platform
 import tempfile
 import time
 import urllib.parse
-import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import agent  # noqa: E402  复用配置与模型能力
@@ -391,6 +390,7 @@ def node_ok(path=None, minimum=None):
 
 def ensure_node(minimum=None):
     """确保 Node 满足 Agent 最低版本；不足时部署便携运行时。"""
+    from urllib import request as urllib_request
     sysnode = shutil.which("node")
     if sysnode and node_ok(sysnode, minimum):
         return sysnode
@@ -421,8 +421,8 @@ def ensure_node(minimum=None):
     for u in urls:
         try:
             log_info("下载 Node 运行时：%s" % u)
-            req = urllib.request.Request(u, headers={"User-Agent": "AgentBoot/1.0"})
-            with urllib.request.urlopen(req, timeout=60) as r, open(archive, "wb") as f:
+            req = urllib_request.Request(u, headers={"User-Agent": "AgentBoot/1.0"})
+            with urllib_request.urlopen(req, timeout=60) as r, open(archive, "wb") as f:
                 while True:
                     chunk = r.read(1 << 20)
                     if not chunk:
@@ -437,8 +437,8 @@ def ensure_node(minimum=None):
     try:
         if not os.path.exists(sums_path):
             sums_url = "%s/%s/SHASUMS256.txt" % (NODE_MIRROR_GLOBAL, NODE_VERSION)
-            req = urllib.request.Request(sums_url, headers={"User-Agent": "AgentBoot/1.0"})
-            with urllib.request.urlopen(req, timeout=60) as response, open(sums_path, "wb") as output:
+            req = urllib_request.Request(sums_url, headers={"User-Agent": "AgentBoot/1.0"})
+            with urllib_request.urlopen(req, timeout=60) as response, open(sums_path, "wb") as output:
                 shutil.copyfileobj(response, output)
         expected = None
         with open(sums_path, "r", encoding="ascii") as sums:
@@ -880,11 +880,12 @@ def install_via_script(a):
 
 
 def _download_script(url, suffix):
-    request = urllib.request.Request(url, headers={"User-Agent": "AgentBoot/1.0"})
+    from urllib import request as urllib_request
+    request = urllib_request.Request(url, headers={"User-Agent": "AgentBoot/1.0"})
     fd, path = tempfile.mkstemp(prefix="agentboot-script-", suffix=suffix)
     try:
         total = 0
-        with os.fdopen(fd, "wb") as output, urllib.request.urlopen(request, timeout=60) as response:
+        with os.fdopen(fd, "wb") as output, urllib_request.urlopen(request, timeout=60) as response:
             final_url = urllib.parse.urlsplit(response.geturl())
             if final_url.scheme.lower() != "https":
                 raise ValueError("安装脚本重定向到了非 HTTPS 地址")

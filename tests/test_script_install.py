@@ -71,7 +71,7 @@ class ScriptInstallTests(unittest.TestCase):
             def read(self, _size):
                 return b"echo unsafe"
 
-        with mock.patch.object(menu.urllib.request, "urlopen", return_value=Response()), \
+        with mock.patch("urllib.request.urlopen", return_value=Response()), \
                 self.assertRaisesRegex(ValueError, "非 HTTPS"):
             menu._download_script("https://example.test/install.sh", ".sh")
 
