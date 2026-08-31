@@ -223,7 +223,6 @@ esac
 
 # ---------- 6. 体检 ----------
 step "环境体检"
-"$PY" "${APP_DIR}/core/agent.py" doctor >/dev/null 2>&1 || true
 "$PY" "${APP_DIR}/core/agent.py" doctor 2>/dev/null || true
 
 # ---------- 7. 完成 ----------

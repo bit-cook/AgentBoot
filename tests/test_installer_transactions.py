@@ -9,6 +9,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InstallerTransactionTests(unittest.TestCase):
+    def test_posix_online_installer_runs_one_visible_doctor_pass(self):
+        shell = (ROOT / "install.sh").read_text(encoding="utf-8")
+        self.assertEqual(shell.count('"${APP_DIR}/core/agent.py" doctor'), 1)
+
     def test_posix_installers_use_atomic_app_switch(self):
         for relative in ("install.sh", "scripts/install-offline.sh"):
             text = (ROOT / relative).read_text(encoding="utf-8")
