@@ -2061,8 +2061,10 @@ def menu_mirror():
 
 def resolve_lang():
     """语言解析：环境变量 AGENTBOOT_LANG 优先，其次配置文件，默认中文。"""
-    lang = os.environ.get("AGENTBOOT_LANG") or agent.load_config().get("lang") or "zh"
+    cfg = agent.load_config()
+    lang = os.environ.get("AGENTBOOT_LANG") or cfg.get("lang") or "zh"
     i18n.set_lang(lang)
+    return cfg
 
 
 def set_lang_persist(lang, cfg=None):
@@ -2096,9 +2098,8 @@ def banner():
     print(i18n.t("menu.tagline") + "\n")
 
 
-def main_menu():
-    resolve_lang()
-    cfg = agent.load_config()
+def main_menu(cfg=None):
+    cfg = cfg if isinstance(cfg, dict) else resolve_lang()
     agents = load_registry()
     while True:
         banner()
@@ -2149,11 +2150,11 @@ def main_menu():
 
 
 def main():
-    resolve_lang()
+    cfg = resolve_lang()
     agent._utf8_console()
     argv = sys.argv[1:]
     if not argv:
-        main_menu()
+        main_menu(cfg)
         return
     cmd = argv[0]
     if cmd == "lang":
@@ -2261,7 +2262,7 @@ def main():
     elif cmd in ("version", "--version"):
         print("AgentBoot 控制台 v%s" % VERSION)
     elif cmd == "menu":
-        main_menu()
+        main_menu(cfg)
     else:
         print(__doc__)
 

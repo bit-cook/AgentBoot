@@ -15,6 +15,12 @@ import menu  # noqa: E402
 
 
 class LanguagePersistenceTests(unittest.TestCase):
+    def test_resolve_language_returns_the_loaded_config(self):
+        cfg = {"lang": "en"}
+        with mock.patch.object(menu.agent, "load_config", return_value=cfg) as load:
+            self.assertIs(menu.resolve_lang(), cfg)
+        load.assert_called_once_with()
+
     def test_language_switch_mutates_live_config(self):
         cfg = agent.default_config()
         with mock.patch.object(menu.agent, "save_config"):
