@@ -54,6 +54,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", text)
         self.assertIn("actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e", text)
         self.assertIn("scripts/sync-web-assets.py --check", text)
+        self.assertIn("vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest'", text)
 
     def test_worker_health_checks_assets_and_proxy_forwards_ranges(self):
         text = (ROOT / "cloudflare/worker.js").read_text(encoding="utf-8")
