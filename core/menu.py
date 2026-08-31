@@ -323,15 +323,15 @@ def node_exe():
     return os.path.join(d, "node.exe") if not POSIX else os.path.join(d, "bin", "node")
 
 
-def npm_cmd(minimum=None):
+def npm_cmd(minimum=None, version_cache=None):
     """优先系统 npm，其次运行时自带 npm。"""
     n = shutil.which("npm")
     system_node = shutil.which("node")
-    if n and node_ok(system_node, minimum):
+    if n and node_ok(system_node, minimum, version_cache):
         return n
     d = runtime_node_dir()
     cand = os.path.join(d, "npm.cmd") if not POSIX else os.path.join(d, "bin", "npm")
-    return cand if os.path.exists(cand) and node_ok(node_exe(), minimum) else None
+    return cand if os.path.exists(cand) and node_ok(node_exe(), minimum, version_cache) else None
 
 
 def child_env():
@@ -375,14 +375,19 @@ def _version_satisfies(current, requirement):
     return False
 
 
-def node_ok(path=None, minimum=None):
+def node_ok(path=None, minimum=None, version_cache=None):
     try:
         executable = path or shutil.which("node") or node_exe()
-        out = subprocess.run([executable, "--version"],
-                             capture_output=True, text=True, timeout=10)
-        if out.returncode == 0:
+        current = version_cache.get(executable) if version_cache is not None else None
+        if current is None:
+            out = subprocess.run([executable, "--version"],
+                                 capture_output=True, text=True, timeout=10)
+            if out.returncode != 0:
+                return False
             current = _version_tuple(out.stdout.strip())
-            return bool(current and _version_satisfies(current, minimum or ">=18"))
+            if current and version_cache is not None:
+                version_cache[executable] = current
+        return bool(current and _version_satisfies(current, minimum or ">=18"))
     except Exception:
         pass
     return False
@@ -757,24 +762,31 @@ def uninstall_agents(ids, purge=False):
 
 # ---------------------------------------------------------------- 在线安装
 
-def npm_install(pkg, minimum=None):
-    npm = npm_cmd(minimum)
+def npm_install(pkg, minimum=None, context=None):
+    context = context if context is not None else {}
+    versions = context.setdefault("node_versions", {})
+    npm = npm_cmd(minimum, versions)
     if not npm:
         got = ensure_node(minimum)
         if not got:
             log_err("需要 Node.js %s（无法自动部署，请检查网络）" % (minimum or ">=18"))
             return False
-        npm = npm_cmd(minimum)
+        versions.clear()
+        npm = npm_cmd(minimum, versions)
     if not npm:
         log_err("Node 已就绪但未找到匹配的 npm")
         return False
     ensure_npm_prefix()
     cmd = [npm, "install", "-g", pkg, "--prefix", NPM_PREFIX,
            "--no-audit", "--no-fund"]
-    if cn_mode():
+    if "cn" not in context:
+        context["cn"] = cn_mode()
+    if context["cn"]:
         cmd += ["--registry", NPM_MIRROR]
     log_info("$ %s" % " ".join(cmd))
-    r = subprocess.run(cmd, env=child_env())
+    if "env" not in context:
+        context["env"] = child_env()
+    r = subprocess.run(cmd, env=context["env"])
     return r.returncode == 0
 
 
@@ -782,6 +794,7 @@ def install_online(ids):
     agents = load_registry()
     by_id = {a["id"]: a for a in agents}
     ok_list, fail_list = [], []
+    npm_context = {}
     for aid in ids:
         a = by_id.get(aid)
         if not a:
@@ -808,7 +821,7 @@ def install_online(ids):
             if not ok:
                 log_err("专用流程失败：可检查 Git 是否安装、或配置代理后重试")
         elif method == "npm":
-            ok = npm_install(a["npm"], a.get("node"))
+            ok = npm_install(a["npm"], a.get("node"), npm_context)
         elif method == "script":
             ok = install_via_script(a)
         elif method == "pip":

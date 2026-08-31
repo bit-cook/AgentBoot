@@ -17,6 +17,19 @@ import menu  # noqa: E402
 
 
 class AgentLifecycleTests(unittest.TestCase):
+    def test_npm_batch_reuses_mirror_and_environment_detection(self):
+        context = {}
+        completed = subprocess.CompletedProcess([], 0)
+        with mock.patch.object(menu, "npm_cmd", return_value="npm"), \
+                mock.patch.object(menu, "ensure_npm_prefix"), \
+                mock.patch.object(menu, "cn_mode", return_value=False) as mirror, \
+                mock.patch.object(menu, "child_env", return_value={}) as child_env, \
+                mock.patch.object(menu.subprocess, "run", return_value=completed):
+            self.assertTrue(menu.npm_install("one", ">=18", context))
+            self.assertTrue(menu.npm_install("two", ">=20", context))
+        mirror.assert_called_once_with()
+        child_env.assert_called_once_with()
+
     def test_opencode_not_advertised_offline_until_postinstall_is_supported(self):
         registry = json.loads((ROOT / "agents/registry.json").read_text(encoding="utf-8"))
         opencode = next(agent for agent in registry["agents"] if agent["id"] == "opencode")

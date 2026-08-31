@@ -15,6 +15,14 @@ import menu  # noqa: E402
 
 
 class NodeVersionTests(unittest.TestCase):
+    def test_batch_cache_reuses_one_node_version_probe(self):
+        cache = {}
+        completed = subprocess.CompletedProcess([], 0, stdout="v22.23.2\n", stderr="")
+        with mock.patch.object(menu.subprocess, "run", return_value=completed) as run:
+            self.assertTrue(menu.node_ok("/managed/node", ">=18", cache))
+            self.assertTrue(menu.node_ok("/managed/node", ">=22", cache))
+        self.assertEqual(run.call_count, 1)
+
     def result(self, version, code=0):
         return subprocess.CompletedProcess([], code, stdout=version, stderr="")
 
