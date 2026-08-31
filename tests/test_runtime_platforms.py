@@ -44,7 +44,9 @@ class NodeVersionTests(unittest.TestCase):
                 mock.patch.object(menu, "npm_install", return_value=False) as install, \
                 mock.patch.object(menu, "ensure_path_registered"):
             menu.install_online(["openclaw"])
-        install.assert_called_once_with("openclaw", ">=22.22.0")
+        install.assert_called_once()
+        self.assertEqual(install.call_args.args[:2], ("openclaw", ">=22.22.0"))
+        self.assertIsInstance(install.call_args.args[2], dict)
 
     def test_portable_runtime_satisfies_strictest_registry_requirement(self):
         self.assertEqual(menu.NODE_VERSION, "v22.23.2")
