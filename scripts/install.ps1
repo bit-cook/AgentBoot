@@ -240,7 +240,7 @@ rem AgentBoot 控制台
 set "AB_INSTALL=%~dp0.."
 set "PYTHON=$pyCommand"
 if exist "%AB_INSTALL%\runtime\python\python.exe" set "PYTHON=%AB_INSTALL%\runtime\python\python.exe"
-"%PYTHON%" "%AB_INSTALL%\app\core\menu.py" %*
+"%PYTHON%" "%AB_INSTALL%\app\core\launch.py" menu %*
 "@
 
 $abLauncher = @"
@@ -249,7 +249,7 @@ rem AgentBoot 内置最小 Agent
 set "AB_INSTALL=%~dp0.."
 set "PYTHON=$pyCommand"
 if exist "%AB_INSTALL%\runtime\python\python.exe" set "PYTHON=%AB_INSTALL%\runtime\python\python.exe"
-"%PYTHON%" "%AB_INSTALL%\app\core\agent.py" %*
+"%PYTHON%" "%AB_INSTALL%\app\core\launch.py" agent %*
 "@
 Set-LauncherAtomic (Join-Path $BinDir 'agentboot.cmd') $agentbootLauncher
 Set-LauncherAtomic (Join-Path $BinDir 'ab.cmd') $abLauncher

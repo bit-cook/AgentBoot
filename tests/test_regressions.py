@@ -25,6 +25,13 @@ class HighImpactRegressionTests(unittest.TestCase):
         for relative in files:
             text = (ROOT / relative).read_text(encoding="utf-8-sig")
             self.assertNotRegex(text, r"agent\.py['\"]?\s+chat\s")
+            self.assertIn("launch.py", text, relative)
+
+    def test_cached_dispatcher_forwards_targets_and_arguments(self):
+        source = (ROOT / "core" / "launch.py").read_text(encoding="utf-8")
+        self.assertIn('sys.argv = [sys.argv[0]] + sys.argv[2:]', source)
+        self.assertIn('if target == "agent"', source)
+        self.assertIn('elif target == "menu"', source)
 
     def test_windows_platform_id_matches_payload_layout(self):
         with mock.patch.object(menu.platform, "system", return_value="Windows"), \

@@ -107,13 +107,13 @@ cat > "$agentboot_tmp" <<EOF
 #!/bin/sh
 # AgentBoot launcher
 PYTHON="\$(command -v python3 || command -v python)"
-exec "\$PYTHON" "\$HOME/.agentboot/app/core/menu.py" "\$@"
+exec "\$PYTHON" "\$HOME/.agentboot/app/core/launch.py" menu "\$@"
 EOF
 cat > "$ab_tmp" <<EOF
 #!/bin/sh
 # AgentBoot launcher
 PYTHON="\$(command -v python3 || command -v python)"
-exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" "\$@"
+exec "\$PYTHON" "\$HOME/.agentboot/app/core/launch.py" agent "\$@"
 EOF
 chmod +x "$agentboot_tmp" "$ab_tmp"
 mv -f "$agentboot_tmp" "${BIN_DIR}/agentboot"

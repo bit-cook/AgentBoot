@@ -57,6 +57,7 @@ class InstallerTransactionTests(unittest.TestCase):
             self.assertIn("Set-LauncherAtomic", text, relative)
             self.assertIn("Restore-AppAtomic", text, relative)
             self.assertIn("Complete-AppAtomic", text, relative)
+            self.assertIn("core\\launch.py", text, relative)
 
     def test_batch_bootstrap_propagates_installer_exit(self):
         text = (ROOT / "install.bat").read_text(encoding="utf-8")
