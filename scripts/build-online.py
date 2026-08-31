@@ -21,8 +21,13 @@ TOP_LEVEL = (
     ".gitattributes", ".gitignore", "CHANGELOG.md", "LICENSE", "VERSION", "README.md",
     "README.en.md", "install.bat", "install.sh", "安装指南.md",
 )
-DIRECTORIES = ("agents", "cloudflare", "core", "docs", "scripts", "tools")
+DIRECTORIES = ("agents", "core", "docs", "scripts", "tools")
 SKIP_PARTS = {"__pycache__", "node_modules", "payloads", "dist"}
+SKIP_FILES = {
+    "scripts/benchmark-performance.py",
+    "scripts/sync-web-assets.py",
+    "scripts/verify-live-release.py",
+}
 
 
 def package_files():
@@ -34,7 +39,8 @@ def package_files():
     for dirname in DIRECTORIES:
         for path in (ROOT / dirname).rglob("*"):
             rel = path.relative_to(ROOT)
-            if path.is_file() and not (set(rel.parts) & SKIP_PARTS) and path.suffix != ".pyc":
+            if path.is_file() and not (set(rel.parts) & SKIP_PARTS) and \
+                    rel.as_posix() not in SKIP_FILES and path.suffix != ".pyc":
                 files.append(path)
     return sorted(files, key=lambda path: path.relative_to(ROOT).as_posix())
 

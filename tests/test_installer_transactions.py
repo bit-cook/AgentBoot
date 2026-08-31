@@ -9,6 +9,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InstallerTransactionTests(unittest.TestCase):
+    def test_posix_online_installer_runs_one_visible_doctor_pass(self):
+        shell = (ROOT / "install.sh").read_text(encoding="utf-8")
+        self.assertEqual(shell.count('"${APP_DIR}/core/agent.py" doctor'), 1)
+
     def test_posix_installers_use_atomic_app_switch(self):
         for relative in ("install.sh", "scripts/install-offline.sh"):
             text = (ROOT / relative).read_text(encoding="utf-8")
@@ -40,6 +44,7 @@ class InstallerTransactionTests(unittest.TestCase):
         for relative in ("scripts/install-offline.sh", "scripts/install-offline.ps1"):
             text = (ROOT / relative).read_text(encoding="utf-8-sig")
             self.assertIn("VERSION", text, relative)
+            self.assertIn("launch.py", text, relative)
 
     def test_launchers_reject_links_and_write_atomically(self):
         for relative in ("install.sh", "scripts/install-offline.sh"):
@@ -53,6 +58,7 @@ class InstallerTransactionTests(unittest.TestCase):
             self.assertIn("Set-LauncherAtomic", text, relative)
             self.assertIn("Restore-AppAtomic", text, relative)
             self.assertIn("Complete-AppAtomic", text, relative)
+            self.assertIn("core\\launch.py", text, relative)
 
     def test_batch_bootstrap_propagates_installer_exit(self):
         text = (ROOT / "install.bat").read_text(encoding="utf-8")

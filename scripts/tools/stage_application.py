@@ -8,7 +8,7 @@ import sys
 
 FILES = (
     "VERSION", "LICENSE", "CHANGELOG.md", "README.md", "README.en.md", "install.sh", "install.bat", "安装指南.md",
-    "agents/registry.json", "core/agent.py", "core/i18n.py", "core/menu.py",
+    "agents/registry.json", "core/agent.py", "core/i18n.py", "core/launch.py", "core/menu.py",
     "docs/en/install-guide.md", "docs/zh/安装指南.md",
     "scripts/build-offline.ps1", "scripts/build-offline.sh", "scripts/build-online.py",
     "scripts/install-offline.ps1", "scripts/install-offline.sh", "scripts/install.ps1", "scripts/verify-live-release.py",

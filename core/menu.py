@@ -17,7 +17,6 @@ AgentBoot 控制台菜单（命令 agentboot）
   python menu.py mirror auto|off|cn|proxy http://127.0.0.1:7890
 """
 import json
-import hashlib
 from contextlib import contextmanager
 import os
 import re
@@ -26,10 +25,8 @@ import socket
 import subprocess
 import sys
 import platform
-import tempfile
 import time
 import urllib.parse
-import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import agent  # noqa: E402  复用配置与模型能力
@@ -324,15 +321,15 @@ def node_exe():
     return os.path.join(d, "node.exe") if not POSIX else os.path.join(d, "bin", "node")
 
 
-def npm_cmd(minimum=None):
+def npm_cmd(minimum=None, version_cache=None):
     """优先系统 npm，其次运行时自带 npm。"""
     n = shutil.which("npm")
     system_node = shutil.which("node")
-    if n and node_ok(system_node, minimum):
+    if n and node_ok(system_node, minimum, version_cache):
         return n
     d = runtime_node_dir()
     cand = os.path.join(d, "npm.cmd") if not POSIX else os.path.join(d, "bin", "npm")
-    return cand if os.path.exists(cand) and node_ok(node_exe(), minimum) else None
+    return cand if os.path.exists(cand) and node_ok(node_exe(), minimum, version_cache) else None
 
 
 def child_env():
@@ -376,14 +373,19 @@ def _version_satisfies(current, requirement):
     return False
 
 
-def node_ok(path=None, minimum=None):
+def node_ok(path=None, minimum=None, version_cache=None):
     try:
         executable = path or shutil.which("node") or node_exe()
-        out = subprocess.run([executable, "--version"],
-                             capture_output=True, text=True, timeout=10)
-        if out.returncode == 0:
+        current = version_cache.get(executable) if version_cache is not None else None
+        if current is None:
+            out = subprocess.run([executable, "--version"],
+                                 capture_output=True, text=True, timeout=10)
+            if out.returncode != 0:
+                return False
             current = _version_tuple(out.stdout.strip())
-            return bool(current and _version_satisfies(current, minimum or ">=18"))
+            if current and version_cache is not None:
+                version_cache[executable] = current
+        return bool(current and _version_satisfies(current, minimum or ">=18"))
     except Exception:
         pass
     return False
@@ -391,6 +393,8 @@ def node_ok(path=None, minimum=None):
 
 def ensure_node(minimum=None):
     """确保 Node 满足 Agent 最低版本；不足时部署便携运行时。"""
+    import hashlib
+    from urllib import request as urllib_request
     sysnode = shutil.which("node")
     if sysnode and node_ok(sysnode, minimum):
         return sysnode
@@ -421,8 +425,8 @@ def ensure_node(minimum=None):
     for u in urls:
         try:
             log_info("下载 Node 运行时：%s" % u)
-            req = urllib.request.Request(u, headers={"User-Agent": "AgentBoot/1.0"})
-            with urllib.request.urlopen(req, timeout=60) as r, open(archive, "wb") as f:
+            req = urllib_request.Request(u, headers={"User-Agent": "AgentBoot/1.0"})
+            with urllib_request.urlopen(req, timeout=60) as r, open(archive, "wb") as f:
                 while True:
                     chunk = r.read(1 << 20)
                     if not chunk:
@@ -437,8 +441,8 @@ def ensure_node(minimum=None):
     try:
         if not os.path.exists(sums_path):
             sums_url = "%s/%s/SHASUMS256.txt" % (NODE_MIRROR_GLOBAL, NODE_VERSION)
-            req = urllib.request.Request(sums_url, headers={"User-Agent": "AgentBoot/1.0"})
-            with urllib.request.urlopen(req, timeout=60) as response, open(sums_path, "wb") as output:
+            req = urllib_request.Request(sums_url, headers={"User-Agent": "AgentBoot/1.0"})
+            with urllib_request.urlopen(req, timeout=60) as response, open(sums_path, "wb") as output:
                 shutil.copyfileobj(response, output)
         expected = None
         with open(sums_path, "r", encoding="ascii") as sums:
@@ -757,24 +761,35 @@ def uninstall_agents(ids, purge=False):
 
 # ---------------------------------------------------------------- 在线安装
 
-def npm_install(pkg, minimum=None):
-    npm = npm_cmd(minimum)
+def npm_install(pkg, minimum=None, context=None):
+    packages = [pkg] if isinstance(pkg, str) else list(pkg)
+    if not packages:
+        return True
+    context = context if context is not None else {}
+    versions = context.setdefault("node_versions", {})
+    npm = npm_cmd(minimum, versions)
     if not npm:
         got = ensure_node(minimum)
         if not got:
             log_err("需要 Node.js %s（无法自动部署，请检查网络）" % (minimum or ">=18"))
             return False
-        npm = npm_cmd(minimum)
+        versions.clear()
+        npm = npm_cmd(minimum, versions)
     if not npm:
         log_err("Node 已就绪但未找到匹配的 npm")
         return False
     ensure_npm_prefix()
-    cmd = [npm, "install", "-g", pkg, "--prefix", NPM_PREFIX,
-           "--no-audit", "--no-fund"]
-    if cn_mode():
+    cmd = [npm, "install", "-g"] + packages + ["--prefix", NPM_PREFIX,
+           "--no-audit", "--no-fund", "--prefer-offline",
+           "--progress=false", "--loglevel=error"]
+    if "cn" not in context:
+        context["cn"] = cn_mode()
+    if context["cn"]:
         cmd += ["--registry", NPM_MIRROR]
     log_info("$ %s" % " ".join(cmd))
-    r = subprocess.run(cmd, env=child_env())
+    if "env" not in context:
+        context["env"] = child_env()
+    r = subprocess.run(cmd, env=context["env"])
     return r.returncode == 0
 
 
@@ -782,6 +797,7 @@ def install_online(ids):
     agents = load_registry()
     by_id = {a["id"]: a for a in agents}
     ok_list, fail_list = [], []
+    npm_context, ready = {}, []
     for aid in ids:
         a = by_id.get(aid)
         if not a:
@@ -800,6 +816,25 @@ def install_online(ids):
             log_err(t("menu.install_os_limit") % (a["name"], "/".join(os_limits), plat_id()))
             fail_list.append(aid)
             continue
+        ready.append(a)
+
+    npm_groups = {}
+    for a in ready:
+        if a.get("method", "npm") == "npm" and not a.get("special_install"):
+            npm_groups.setdefault(a.get("node") or ">=18", []).append(a)
+    batched = set()
+    for minimum, group in npm_groups.items():
+        if len(group) < 2:
+            continue
+        packages = [a["npm"] for a in group]
+        log_info("批量安装 %d 个 npm Agent（共用依赖解析与连接）" % len(group))
+        if npm_install(packages, minimum, npm_context):
+            batched.update(a["id"] for a in group)
+        else:
+            log_info("批量安装失败，回退逐个安装以定位问题")
+
+    for a in ready:
+        aid = a["id"]
         method = a.get("method", "npm")
         ok = False
         if a.get("special_install") == "hermes":
@@ -808,7 +843,7 @@ def install_online(ids):
             if not ok:
                 log_err("专用流程失败：可检查 Git 是否安装、或配置代理后重试")
         elif method == "npm":
-            ok = npm_install(a["npm"], a.get("node"))
+            ok = aid in batched or npm_install(a["npm"], a.get("node"), npm_context)
         elif method == "script":
             ok = install_via_script(a)
         elif method == "pip":
@@ -880,11 +915,13 @@ def install_via_script(a):
 
 
 def _download_script(url, suffix):
-    request = urllib.request.Request(url, headers={"User-Agent": "AgentBoot/1.0"})
+    import tempfile
+    from urllib import request as urllib_request
+    request = urllib_request.Request(url, headers={"User-Agent": "AgentBoot/1.0"})
     fd, path = tempfile.mkstemp(prefix="agentboot-script-", suffix=suffix)
     try:
         total = 0
-        with os.fdopen(fd, "wb") as output, urllib.request.urlopen(request, timeout=60) as response:
+        with os.fdopen(fd, "wb") as output, urllib_request.urlopen(request, timeout=60) as response:
             final_url = urllib.parse.urlsplit(response.geturl())
             if final_url.scheme.lower() != "https":
                 raise ValueError("安装脚本重定向到了非 HTTPS 地址")
@@ -1020,6 +1057,7 @@ def _download_mirror(urls, dest):
 
 def _seed_uv(pkg_root):
     """预置 uv 二进制到 <pkg>/.uv_bin 并写入 marker，绕过 postinstall 的 GitHub 直连下载。"""
+    import hashlib
     import tarfile
     import zipfile
     version, asset_info, sha = _hermes_uv_meta(pkg_root)
@@ -1098,7 +1136,8 @@ def install_hermes_special(a):
         return False
     ensure_npm_prefix()
     cmd = [npm, "install", "--ignore-scripts", "-g", a["npm"],
-           "--prefix", NPM_PREFIX, "--no-audit", "--no-fund"]
+           "--prefix", NPM_PREFIX, "--no-audit", "--no-fund", "--prefer-offline",
+           "--progress=false", "--loglevel=error"]
     if cn_mode():
         cmd += ["--registry", NPM_MIRROR]
     log_info("$ %s" % " ".join(cmd))
@@ -2044,8 +2083,10 @@ def menu_mirror():
 
 def resolve_lang():
     """语言解析：环境变量 AGENTBOOT_LANG 优先，其次配置文件，默认中文。"""
-    lang = os.environ.get("AGENTBOOT_LANG") or agent.load_config().get("lang") or "zh"
+    cfg = agent.load_config()
+    lang = os.environ.get("AGENTBOOT_LANG") or cfg.get("lang") or "zh"
     i18n.set_lang(lang)
+    return cfg
 
 
 def set_lang_persist(lang, cfg=None):
@@ -2079,9 +2120,8 @@ def banner():
     print(i18n.t("menu.tagline") + "\n")
 
 
-def main_menu():
-    resolve_lang()
-    cfg = agent.load_config()
+def main_menu(cfg=None):
+    cfg = cfg if isinstance(cfg, dict) else resolve_lang()
     agents = load_registry()
     while True:
         banner()
@@ -2132,11 +2172,11 @@ def main_menu():
 
 
 def main():
-    resolve_lang()
+    cfg = resolve_lang()
     agent._utf8_console()
     argv = sys.argv[1:]
     if not argv:
-        main_menu()
+        main_menu(cfg)
         return
     cmd = argv[0]
     if cmd == "lang":
@@ -2244,7 +2284,7 @@ def main():
     elif cmd in ("version", "--version"):
         print("AgentBoot 控制台 v%s" % VERSION)
     elif cmd == "menu":
-        main_menu()
+        main_menu(cfg)
     else:
         print(__doc__)
 

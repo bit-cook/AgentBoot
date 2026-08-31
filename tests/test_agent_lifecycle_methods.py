@@ -17,6 +17,37 @@ import menu  # noqa: E402
 
 
 class AgentLifecycleTests(unittest.TestCase):
+    def test_matching_node_requirements_share_one_npm_install(self):
+        agents = [
+            {"id": "one", "name": "One", "vendor": "T", "desc": "", "bin": "one",
+             "method": "npm", "npm": "pkg-one", "node": ">=18"},
+            {"id": "two", "name": "Two", "vendor": "T", "desc": "", "bin": "two",
+             "method": "npm", "npm": "pkg-two", "node": ">=18"},
+        ]
+        with mock.patch.object(menu, "load_registry", return_value=agents), \
+                mock.patch.object(menu, "npm_install", return_value=True) as install, \
+                mock.patch.object(menu, "find_bin", side_effect=lambda name: "/managed/" + name), \
+                mock.patch.object(menu, "wire_agnes", return_value=({}, [])), \
+                mock.patch.object(menu, "record_install"), \
+                mock.patch.object(menu, "ensure_path_registered"):
+            self.assertEqual(menu.install_online(["one", "two"]), [])
+        install.assert_called_once()
+        self.assertEqual(install.call_args.args[0], ["pkg-one", "pkg-two"])
+        self.assertEqual(install.call_args.args[1], ">=18")
+
+    def test_npm_batch_reuses_mirror_and_environment_detection(self):
+        context = {}
+        completed = subprocess.CompletedProcess([], 0)
+        with mock.patch.object(menu, "npm_cmd", return_value="npm"), \
+                mock.patch.object(menu, "ensure_npm_prefix"), \
+                mock.patch.object(menu, "cn_mode", return_value=False) as mirror, \
+                mock.patch.object(menu, "child_env", return_value={}) as child_env, \
+                mock.patch.object(menu.subprocess, "run", return_value=completed):
+            self.assertTrue(menu.npm_install("one", ">=18", context))
+            self.assertTrue(menu.npm_install("two", ">=20", context))
+        mirror.assert_called_once_with()
+        child_env.assert_called_once_with()
+
     def test_opencode_not_advertised_offline_until_postinstall_is_supported(self):
         registry = json.loads((ROOT / "agents/registry.json").read_text(encoding="utf-8"))
         opencode = next(agent for agent in registry["agents"] if agent["id"] == "opencode")

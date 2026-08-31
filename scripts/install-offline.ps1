@@ -133,7 +133,9 @@ foreach ($d in 'core', 'agents', 'tools', 'scripts') {
 foreach ($f in 'VERSION', 'README.md', '安装指南.md', 'LICENSE', 'CHANGELOG.md', 'install.sh', 'install.bat') {
     if (Test-Path (Join-Path $ScriptDir $f)) { Copy-Item (Join-Path $ScriptDir $f) $newApp -Force }
 }
-if (-not (Test-Path (Join-Path $newApp 'core\menu.py')) -or -not (Test-Path (Join-Path $newApp 'core\agent.py'))) {
+if (-not (Test-Path (Join-Path $newApp 'core\menu.py')) -or
+    -not (Test-Path (Join-Path $newApp 'core\agent.py')) -or
+    -not (Test-Path (Join-Path $newApp 'core\launch.py'))) {
     Remove-Item $newApp -Recurse -Force -ErrorAction SilentlyContinue; throw '离线包结构无效'
 }
 if (Test-Path $AppDir) { Move-Item $AppDir $oldApp }
@@ -184,7 +186,7 @@ rem AgentBoot 控制台
 set "AB_INSTALL=%~dp0.."
 set "PYTHON=$pyCommand"
 if exist "%AB_INSTALL%\runtime\python\python.exe" set "PYTHON=%AB_INSTALL%\runtime\python\python.exe"
-"%PYTHON%" "%AB_INSTALL%\app\core\menu.py" %*
+"%PYTHON%" "%AB_INSTALL%\app\core\launch.py" menu %*
 "@
 $abLauncher = @"
 @echo off
@@ -192,7 +194,7 @@ rem AgentBoot 内置最小 Agent
 set "AB_INSTALL=%~dp0.."
 set "PYTHON=$pyCommand"
 if exist "%AB_INSTALL%\runtime\python\python.exe" set "PYTHON=%AB_INSTALL%\runtime\python\python.exe"
-"%PYTHON%" "%AB_INSTALL%\app\core\agent.py" %*
+"%PYTHON%" "%AB_INSTALL%\app\core\launch.py" agent %*
 "@
 Set-LauncherAtomic (Join-Path $BinDir 'agentboot.cmd') $agentbootLauncher
 Set-LauncherAtomic (Join-Path $BinDir 'ab.cmd') $abLauncher

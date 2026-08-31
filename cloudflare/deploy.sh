@@ -4,6 +4,7 @@ set -eu
 
 cd "$(dirname "$0")"
 command -v npx >/dev/null 2>&1 || { echo "需要 Node.js/npm 提供 npx" >&2; exit 1; }
+python3 ../scripts/sync-web-assets.py --check
 echo "==> 使用 Wrangler 部署 Worker boot …"
 npx --yes wrangler deploy --config wrangler.jsonc
 echo "==> 验证主入口与镜像 …"

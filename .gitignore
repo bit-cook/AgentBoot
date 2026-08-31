@@ -11,3 +11,7 @@ __pycache__/
 node_modules/
 .DS_Store
 Thumbs.db
+
+# 本地性能实验输出（固定基线 performance-baseline.json 需要提交）
+performance-run.log
+performance-round-*.json

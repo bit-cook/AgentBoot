@@ -15,12 +15,23 @@ import menu  # noqa: E402
 
 
 class HighImpactRegressionTests(unittest.TestCase):
+    def test_model_request_uses_compact_json(self):
+        source = (ROOT / "core" / "agent.py").read_text(encoding="utf-8")
+        self.assertGreaterEqual(source.count('separators=(",", ":")'), 2)
+
     def test_installed_ab_wrappers_forward_subcommands(self):
         files = ("install.sh", "scripts/install-offline.sh", "scripts/install.ps1",
                  "scripts/install-offline.ps1")
         for relative in files:
             text = (ROOT / relative).read_text(encoding="utf-8-sig")
             self.assertNotRegex(text, r"agent\.py['\"]?\s+chat\s")
+            self.assertIn("launch.py", text, relative)
+
+    def test_cached_dispatcher_forwards_targets_and_arguments(self):
+        source = (ROOT / "core" / "launch.py").read_text(encoding="utf-8")
+        self.assertIn('sys.argv = [sys.argv[0]] + sys.argv[2:]', source)
+        self.assertIn('if target == "agent"', source)
+        self.assertIn('elif target == "menu"', source)
 
     def test_windows_platform_id_matches_payload_layout(self):
         with mock.patch.object(menu.platform, "system", return_value="Windows"), \
@@ -53,6 +64,8 @@ class HighImpactRegressionTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertIn("--prefix", command)
         self.assertEqual(command[command.index("--prefix") + 1], "/managed/agentboot/npm-prefix")
+        for option in ("--no-audit", "--no-fund", "--prefer-offline", "--progress=false", "--loglevel=error"):
+            self.assertIn(option, command)
 
     def test_ttfb_does_not_wait_for_remaining_response_body(self):
         class Response:

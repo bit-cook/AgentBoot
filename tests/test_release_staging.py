@@ -13,11 +13,18 @@ STAGER = ROOT / "scripts" / "tools" / "stage_application.py"
 
 
 class ReleaseStagingTests(unittest.TestCase):
+    def test_online_package_excludes_deploy_and_benchmark_sources(self):
+        source = (ROOT / "scripts" / "build-online.py").read_text(encoding="utf-8")
+        self.assertNotIn('"cloudflare", "core"', source)
+        self.assertIn('"scripts/benchmark-performance.py"', source)
+        self.assertIn('"scripts/sync-web-assets.py"', source)
+
     def test_explicit_stage_excludes_workspace_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:
             stage = Path(tmp) / "stage"
             subprocess.run([sys.executable, str(STAGER), str(ROOT), str(stage)], check=True)
             self.assertTrue((stage / "core" / "agent.py").is_file())
+            self.assertTrue((stage / "core" / "launch.py").is_file())
             for relative in ("tests", "pages", ".github", "results.tsv", "run.log", ".env"):
                 self.assertFalse((stage / relative).exists(), relative)
 

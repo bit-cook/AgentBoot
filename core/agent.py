@@ -27,7 +27,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     VERSION = open(os.path.join(APP_DIR, "VERSION"), "r", encoding="ascii").read().strip()
 except OSError:
-    VERSION = "1.1.0"
+    VERSION = "1.2.0"
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
 CONFIG_PATH = os.path.join(AB_HOME, "config.json")
 KB_DIR = os.path.join(APP_DIR, "tools", "linux-kb")
@@ -214,11 +214,21 @@ def _validate_model_transport(scheme, host, api_key):
 
 # 连接池：复用 TLS 连接，砍掉每轮对话的握手开销（极限性能核心）
 _POOL = {}
+_SSL_CONTEXTS = {}
+
+
+def _ssl_context():
+    import ssl
+    insecure = os.environ.get("AGENTBOOT_INSECURE") == "1"
+    context = _SSL_CONTEXTS.get(insecure)
+    if context is None:
+        context = ssl._create_unverified_context() if insecure else ssl.create_default_context()
+        _SSL_CONTEXTS[insecure] = context
+    return context
 
 
 def _connect(scheme, host, port, timeout=180):
     import http.client
-    import ssl
     from urllib.parse import urlsplit
     proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
     if not proxy_url:
@@ -236,9 +246,7 @@ def _connect(scheme, host, port, timeout=180):
     if conn is not None:
         return conn
     if scheme == "https":
-        ctx = ssl.create_default_context()
-        if os.environ.get("AGENTBOOT_INSECURE") == "1":
-            ctx = ssl._create_unverified_context()
+        ctx = _ssl_context()
         if proxy:
             conn = http.client.HTTPSConnection(proxy.hostname, proxy.port or (443 if proxy.scheme == "https" else 80),
                                                timeout=timeout, context=ctx)
@@ -295,7 +303,7 @@ def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature
     if p.get("api_key"):
         headers["Authorization"] = "Bearer " + p["api_key"]
 
-    payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    payload = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
     last_err = None
     for attempt in range(3):
@@ -455,7 +463,7 @@ def _ttfb(cfg, prompt="回复：1"):
     headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
     if p.get("api_key"):
         headers["Authorization"] = "Bearer " + p["api_key"]
-    payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    payload = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     t0 = time.perf_counter()
     try:
         conn = _connect(scheme, host, port)

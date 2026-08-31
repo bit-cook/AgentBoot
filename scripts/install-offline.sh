@@ -86,7 +86,7 @@ cp -R "${SCRIPT_DIR}/scripts"   "$NEW_APP/"
 for f in VERSION README.md 安装指南.md LICENSE CHANGELOG.md install.sh install.bat install-offline.sh install-offline.ps1; do
     [ -f "${SCRIPT_DIR}/$f" ] && cp -f "${SCRIPT_DIR}/$f" "$NEW_APP/" || true
 done
-if [ ! -f "$NEW_APP/core/menu.py" ] || [ ! -f "$NEW_APP/core/agent.py" ]; then
+if [ ! -f "$NEW_APP/core/menu.py" ] || [ ! -f "$NEW_APP/core/agent.py" ] || [ ! -f "$NEW_APP/core/launch.py" ]; then
     err "离线包结构无效，保留现有版本"; rm -rf "$NEW_APP"; exit 1
 fi
 [ -d "$APP_DIR" ] && mv "$APP_DIR" "$OLD_APP"
@@ -107,13 +107,13 @@ cat > "$agentboot_tmp" <<EOF
 #!/bin/sh
 # AgentBoot launcher
 PYTHON="\$(command -v python3 || command -v python)"
-exec "\$PYTHON" "\$HOME/.agentboot/app/core/menu.py" "\$@"
+exec "\$PYTHON" "\$HOME/.agentboot/app/core/launch.py" menu "\$@"
 EOF
 cat > "$ab_tmp" <<EOF
 #!/bin/sh
 # AgentBoot launcher
 PYTHON="\$(command -v python3 || command -v python)"
-exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" "\$@"
+exec "\$PYTHON" "\$HOME/.agentboot/app/core/launch.py" agent "\$@"
 EOF
 chmod +x "$agentboot_tmp" "$ab_tmp"
 mv -f "$agentboot_tmp" "${BIN_DIR}/agentboot"

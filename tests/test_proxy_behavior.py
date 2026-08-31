@@ -17,6 +17,14 @@ import menu  # noqa: E402
 
 
 class ProxyBehaviorTests(unittest.TestCase):
+    def test_ssl_context_is_reused_per_verification_mode(self):
+        agent._SSL_CONTEXTS.clear()
+        marker = object()
+        with mock.patch("ssl.create_default_context", return_value=marker) as create:
+            self.assertIs(agent._ssl_context(), marker)
+            self.assertIs(agent._ssl_context(), marker)
+        create.assert_called_once_with()
+
     def test_invalid_proxy_is_rejected(self):
         with mock.patch.object(menu, "load_env_json", return_value={}), \
                 mock.patch.object(menu, "save_env_json") as save:

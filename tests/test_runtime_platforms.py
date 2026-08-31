@@ -15,6 +15,14 @@ import menu  # noqa: E402
 
 
 class NodeVersionTests(unittest.TestCase):
+    def test_batch_cache_reuses_one_node_version_probe(self):
+        cache = {}
+        completed = subprocess.CompletedProcess([], 0, stdout="v22.23.2\n", stderr="")
+        with mock.patch.object(menu.subprocess, "run", return_value=completed) as run:
+            self.assertTrue(menu.node_ok("/managed/node", ">=18", cache))
+            self.assertTrue(menu.node_ok("/managed/node", ">=22", cache))
+        self.assertEqual(run.call_count, 1)
+
     def result(self, version, code=0):
         return subprocess.CompletedProcess([], code, stdout=version, stderr="")
 
@@ -36,7 +44,9 @@ class NodeVersionTests(unittest.TestCase):
                 mock.patch.object(menu, "npm_install", return_value=False) as install, \
                 mock.patch.object(menu, "ensure_path_registered"):
             menu.install_online(["openclaw"])
-        install.assert_called_once_with("openclaw", ">=22.22.0")
+        install.assert_called_once()
+        self.assertEqual(install.call_args.args[:2], ("openclaw", ">=22.22.0"))
+        self.assertIsInstance(install.call_args.args[2], dict)
 
     def test_portable_runtime_satisfies_strictest_registry_requirement(self):
         self.assertEqual(menu.NODE_VERSION, "v22.23.2")

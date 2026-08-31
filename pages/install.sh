@@ -9,7 +9,7 @@
 set -eu
 
 REPO="bit-cook/AgentBoot"
-TAG="v1.1.0"
+TAG="v1.2.0"
 TARBALL="agentboot-online-${TAG}.tar.gz"
 BOOT_BASE="https://boot.ide.pub"
 GH="https://github.com/${REPO}/releases/download/${TAG}"
@@ -156,7 +156,7 @@ OLD_APP="${AB_ROOT}/app.old.$$"
 rm -rf "$NEW_APP" "$OLD_APP"
 mkdir -p "$NEW_APP"
 cp -R "${SRC_DIR}/." "$NEW_APP/"
-if [ ! -f "$NEW_APP/core/menu.py" ] || [ ! -f "$NEW_APP/core/agent.py" ]; then
+if [ ! -f "$NEW_APP/core/menu.py" ] || [ ! -f "$NEW_APP/core/agent.py" ] || [ ! -f "$NEW_APP/core/launch.py" ]; then
     err "安装包结构无效，保留现有版本"
     rm -rf "$NEW_APP"
     exit 1
@@ -182,13 +182,13 @@ cat > "$agentboot_tmp" <<EOF
 #!/bin/sh
 # AgentBoot 控制台
 PYTHON="\$(command -v python3 || command -v python)"
-exec "\$PYTHON" "\$HOME/.agentboot/app/core/menu.py" "\$@"
+exec "\$PYTHON" "\$HOME/.agentboot/app/core/launch.py" menu "\$@"
 EOF
 cat > "$ab_tmp" <<EOF
 #!/bin/sh
 # AgentBoot 内置最小 Agent
 PYTHON="\$(command -v python3 || command -v python)"
-exec "\$PYTHON" "\$HOME/.agentboot/app/core/agent.py" "\$@"
+exec "\$PYTHON" "\$HOME/.agentboot/app/core/launch.py" agent "\$@"
 EOF
 chmod +x "$agentboot_tmp" "$ab_tmp"
 mv -f "$agentboot_tmp" "${BIN_DIR}/agentboot"
@@ -223,7 +223,6 @@ esac
 
 # ---------- 6. 体检 ----------
 step "环境体检"
-"$PY" "${APP_DIR}/core/agent.py" doctor >/dev/null 2>&1 || true
 "$PY" "${APP_DIR}/core/agent.py" doctor 2>/dev/null || true
 
 # ---------- 7. 完成 ----------

@@ -1,0 +1,16 @@
+{
+  "metrics": {
+    "startup_ms": 182.878,
+    "ab_version_ms": 119.849,
+    "menu_version_ms": 216.862,
+    "menu_ready_ms": 215.563,
+    "agent_run_ms": 167.357,
+    "install_ms": 218.45,
+    "homepage_gzip_bytes": 11026.0
+  },
+  "score": 100.0,
+  "sampling": {
+    "rounds": 3,
+    "runs_per_round": 15
+  }
+}

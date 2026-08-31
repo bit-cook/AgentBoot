@@ -3,6 +3,7 @@
 `cloudflare/worker.js` 为 `https://boot.ide.pub` 提供：
 
 - `/`、`/en`：中英文产品页；
+- `/assets/*`：与 Pages 共用的样式、交互与图标，按版本长期缓存；
 - `/install.sh`、`/install.ps1`：当前 Release 安装器；
 - `/rel/<asset>`：Release 资产代理，支持 `Range` / `If-Range`；
 - `/health`：实际探测当前版本安装器、在线包与 SHA-256 旁车。
@@ -30,9 +31,12 @@ sh deploy.sh
 `deploy.sh` 会执行：
 
 ```sh
+python3 ../scripts/sync-web-assets.py --check
 npx wrangler deploy --config wrangler.jsonc
 python3 ../scripts/verify-live-release.py
 ```
+
+网页以 `pages/` 为唯一源。修改主页、404、CSS、JavaScript 或图标后，先在仓库根目录运行 `python3 scripts/sync-web-assets.py`。CI 与部署脚本会用 `--check` 阻止 Worker 和 Pages 内容漂移。
 
 只有以下条件全部满足才算发布成功：
 

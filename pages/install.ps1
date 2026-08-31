@@ -9,7 +9,7 @@ $ProgressPreference = 'SilentlyContinue'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $Repo      = 'bit-cook/AgentBoot'
-$Tag       = 'v1.1.0'
+$Tag       = 'v1.2.0'
 $ZipName   = "agentboot-online-$Tag.zip"
 $BootBase  = 'https://boot.ide.pub'
 $GH        = "https://github.com/$Repo/releases/download/$Tag"
@@ -58,7 +58,8 @@ function Install-AppAtomic([string]$source, [string]$destination) {
         New-Item -ItemType Directory -Path $newApp -Force | Out-Null
         Copy-Item -Path (Join-Path $source '*') -Destination $newApp -Recurse -Force
         if (-not (Test-Path (Join-Path $newApp 'core\menu.py')) -or
-            -not (Test-Path (Join-Path $newApp 'core\agent.py'))) {
+            -not (Test-Path (Join-Path $newApp 'core\agent.py')) -or
+            -not (Test-Path (Join-Path $newApp 'core\launch.py'))) {
             throw '安装包结构无效'
         }
         if (Test-Path $destination) { Move-Item $destination $oldApp }
@@ -240,7 +241,7 @@ rem AgentBoot 控制台
 set "AB_INSTALL=%~dp0.."
 set "PYTHON=$pyCommand"
 if exist "%AB_INSTALL%\runtime\python\python.exe" set "PYTHON=%AB_INSTALL%\runtime\python\python.exe"
-"%PYTHON%" "%AB_INSTALL%\app\core\menu.py" %*
+"%PYTHON%" "%AB_INSTALL%\app\core\launch.py" menu %*
 "@
 
 $abLauncher = @"
@@ -249,7 +250,7 @@ rem AgentBoot 内置最小 Agent
 set "AB_INSTALL=%~dp0.."
 set "PYTHON=$pyCommand"
 if exist "%AB_INSTALL%\runtime\python\python.exe" set "PYTHON=%AB_INSTALL%\runtime\python\python.exe"
-"%PYTHON%" "%AB_INSTALL%\app\core\agent.py" %*
+"%PYTHON%" "%AB_INSTALL%\app\core\launch.py" agent %*
 "@
 Set-LauncherAtomic (Join-Path $BinDir 'agentboot.cmd') $agentbootLauncher
 Set-LauncherAtomic (Join-Path $BinDir 'ab.cmd') $abLauncher
