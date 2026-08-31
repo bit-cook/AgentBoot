@@ -6,7 +6,7 @@
 import { WEB_ASSETS } from "./web-assets.js";
 
 const REPO = "bit-cook/AgentBoot";
-const TAG = "v1.2.0";
+const TAG = "v1.3.0";
 const GH_REL = `https://github.com/${REPO}/releases/download/${TAG}`;
 const ASSET_CACHE = "public, max-age=31536000, immutable";
 const PAGE_CACHE = "public, max-age=300, stale-while-revalidate=3600";

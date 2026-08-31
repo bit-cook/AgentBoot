@@ -35,6 +35,15 @@ def check_npm(stage, agent, platform_id):
         return "missing npm bin entry for %s on %s" % (agent["id"], platform_id)
     if agent["id"] == "hermes" and not (root / "PACK_ROOT.txt").is_file():
         return "Hermes runtime was not completed on %s" % platform_id
+    if agent["id"] == "opencode":
+        binary = "opencode.exe" if platform_id.startswith("win-") else "opencode"
+        for package_name in (agent.get("offline_binary_packages") or {}).get(platform_id, []):
+            candidates = (
+                root / "node_modules" / "opencode-ai" / "node_modules" / package_name / "bin" / binary,
+                root / "node_modules" / package_name / "bin" / binary,
+            )
+            if not any(path.is_file() and path.stat().st_size > 10 * 1024 * 1024 for path in candidates):
+                return "missing OpenCode native package %s on %s" % (package_name, platform_id)
     return None
 
 
@@ -49,7 +58,7 @@ def main():
                    "darwin-x64": "darwin", "darwin-arm64": "darwin"}
     for platform_id in platforms:
         node_dir = stage / "payloads" / "node" / platform_id
-        if any(agents.get(aid, {}).get("method") == "npm" for aid in requested) and not node_dir.is_dir():
+        if any(agents.get(aid, {}).get("method") == "npm" and aid != "opencode" for aid in requested) and not node_dir.is_dir():
             errors.append("missing Node runtime: %s" % platform_id)
         for aid in requested:
             agent = agents.get(aid)

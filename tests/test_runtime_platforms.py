@@ -66,6 +66,11 @@ class NodeVersionTests(unittest.TestCase):
 
 
 class OfflineBuilderTests(unittest.TestCase):
+    def test_opencode_only_build_skips_node_runtime(self):
+        shell = (ROOT / "scripts" / "build-offline.sh").read_text(encoding="utf-8")
+        powershell = (ROOT / "scripts" / "build-offline.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn("a['id']!='opencode'", shell)
+        self.assertIn("$_.id -ne 'opencode'", powershell)
     def test_default_build_targets_native_platform_only(self):
         shell = (ROOT / "scripts/build-offline.sh").read_text(encoding="utf-8")
         powershell = (ROOT / "scripts/build-offline.ps1").read_text(encoding="utf-8-sig")

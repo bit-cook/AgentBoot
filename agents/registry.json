@@ -22,12 +22,30 @@
       "desc": "开源终端 AI 编码 Agent（TUI）",
       "bin": "opencode",
       "method": "npm",
-      "npm": "opencode-ai",
+      "npm": "opencode-ai@1.18.25",
       "node": ">=18",
-      "offline": false,
+      "offline": true,
       "npm_install_flags": ["--ignore-scripts"],
+      "offline_binary_packages": {
+        "linux-x64": ["opencode-linux-x64", "opencode-linux-x64-baseline"],
+        "linux-arm64": ["opencode-linux-arm64"],
+        "darwin-x64": ["opencode-darwin-x64", "opencode-darwin-x64-baseline"],
+        "darwin-arm64": ["opencode-darwin-arm64"],
+        "win-x64": ["opencode-windows-x64", "opencode-windows-x64-baseline"]
+      },
       "script": "https://opencode.ai/install",
-      "notes": ["已预置 Agnes 免费模型（~/.config/opencode/opencode.json），安装即用", "也可用官方脚本安装：curl -fsSL https://opencode.ai/install | bash"]
+      "notes": ["已预置 Agnes 免费模型（~/.config/opencode/opencode.json），安装即用", "离线包同时携带官方原生 binary 与 x64 baseline 兼容包"]
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "vendor": "Anysphere",
+      "desc": "Cursor 官方 AI 代码编辑器（用户级受管安装）",
+      "bin": "cursor",
+      "method": "cursor",
+      "special_install": "cursor",
+      "offline": false,
+      "notes": ["使用 Cursor 官方签名/固定版本资产，安装到 AgentBoot 私有用户目录", "不会接管或卸载系统中已有的外部 Cursor"]
     },
     {
       "id": "hermes",

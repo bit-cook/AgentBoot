@@ -116,10 +116,18 @@ if (Test-Path $Stage) {
 New-Item -ItemType Directory -Path $Stage -Force | Out-Null
 & python (Join-Path $Root 'scripts\tools\stage_application.py') $Root $Stage
 if ($LASTEXITCODE -ne 0) { throw '复制应用显式清单失败' }
+$registry = Get-Content (Join-Path $Root 'agents\registry.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$want = if ($Agents) { $Agents -split ',' } else {
+    @($registry.agents | Where-Object { $_.offline -and (-not $_.os -or $_.os -contains 'windows') } |
+      ForEach-Object { $_.id })
+}
+$needsNode = @($registry.agents | Where-Object {
+    $want -contains $_.id -and $_.method -eq 'npm' -and $_.id -ne 'opencode'
+}).Count -gt 0
 
 # ---------- 2. 下载各平台 Node 运行时 ----------
 New-Item -ItemType Directory -Path (Join-Path $Stage 'payloads\node') -Force | Out-Null
-foreach ($plat in $Platforms -split ',') {
+if ($needsNode) { foreach ($plat in $Platforms -split ',') {
     $m = $Map[$plat.Trim()]
     if (-not $m) { Write-Err "未知平台：$plat"; exit 1 }
     Write-Step "Node 运行时 [$plat] …"
@@ -142,14 +150,9 @@ foreach ($plat in $Platforms -split ',') {
     Move-Item $inner.FullName $dest
     Remove-Item $tmpEx -Recurse -Force
     Write-Ok "Node [$plat] 就绪"
-}
+} }
 
 # ---------- 3. 逐 Agent × 平台 安装离线载荷 ----------
-$registry = Get-Content (Join-Path $Root 'agents\registry.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$want = if ($Agents) { $Agents -split ',' } else {
-    @($registry.agents | Where-Object { $_.offline -and (-not $_.os -or $_.os -contains 'windows') } |
-      ForEach-Object { $_.id })
-}
 foreach ($a in $registry.agents) {
     if ($want -notcontains $a.id -or $a.method -ne 'npm') { continue }
     foreach ($plat in $Platforms -split ',') {

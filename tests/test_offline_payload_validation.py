@@ -3,6 +3,7 @@
 
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -15,6 +16,20 @@ ZIP_TREE = ROOT / "scripts" / "tools" / "zip_tree.py"
 
 
 class OfflinePayloadValidationTests(unittest.TestCase):
+    def test_opencode_placeholder_without_native_packages_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stage = Path(tmp)
+            shutil.copytree(ROOT / "agents", stage / "agents")
+            package = stage / "payloads/agents/opencode/linux-x64/node_modules/opencode-ai"
+            (package / "bin").mkdir(parents=True)
+            metadata = {"name": "opencode-ai", "bin": {"opencode": "bin/opencode.exe"}}
+            (package / "package.json").write_text(json.dumps(metadata), encoding="utf-8")
+            (package / "bin/opencode.exe").write_text("placeholder", encoding="utf-8")
+            result = subprocess.run([sys.executable, str(VALIDATOR), str(stage),
+                                     "linux-x64", "opencode"], capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("missing OpenCode native package", result.stderr)
+
     def test_missing_npm_payload_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             stage = Path(tmp)

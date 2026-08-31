@@ -6,13 +6,13 @@
   <meta name="theme-color" content="#fffdf5">
   <meta name="color-scheme" content="light">
   <title>AgentBoot · 一条命令，启动你的 AI Agent</title>
-  <meta name="description" content="一条命令按需安装 14 个主流 AI Agent。支持 Linux、macOS、Windows、安全卸载、可验证离线包与中国网络自适应。">
+  <meta name="description" content="一条命令按需安装 15 个主流 AI Agent。支持 Cursor、OpenCode 离线包、三平台安全卸载与中国网络自适应。">
   <link rel="canonical" href="https://osome.work/AgentBoot/">
   <link rel="alternate" hreflang="zh-CN" href="https://osome.work/AgentBoot/">
   <link rel="alternate" hreflang="en" href="https://osome.work/AgentBoot/en/">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/site.css?v=1.2.0">
-  <script src="assets/site.js?v=1.2.0" defer></script>
+  <link rel="stylesheet" href="assets/site.css?v=1.3.0">
+  <script src="assets/site.js?v=1.3.0" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到主要内容</a>
@@ -33,7 +33,7 @@
 
   <header class="hero shell" id="top">
     <div>
-      <p class="eyebrow">v1.2.0 · 免费开源 · 三平台可用</p>
+      <p class="eyebrow">v1.3.0 · 免费开源 · 三平台可用</p>
       <h1>一条命令，<br><span class="hero-highlight">Agent 就位</span></h1>
       <p class="hero-copy">把安装、模型、镜像、离线包和安全卸载收进一个清楚的菜单。你选择要用的 AI Agent，AgentBoot 负责把它可靠地装好。</p>
       <div class="hero-actions">
@@ -47,7 +47,7 @@
         </a>
       </div>
       <ul class="hero-proof" aria-label="支持范围">
-        <li>14 个 Agent 按需选择</li>
+        <li>15 个 Agent 按需选择</li>
         <li>Linux · macOS · Windows</li>
         <li>离线安装</li>
         <li>MIT License</li>
@@ -137,7 +137,7 @@
         </article>
 
         <ol class="feature-list">
-          <li class="feature-row"><span class="feature-index">01</span><div><h3>按需安装，不装全家桶</h3><p>14 个主流 Agent 自由选择：Claude Code、Codex、Qwen Code、OpenCode、MiMo、Cline、Pi、CoCo 等。</p></div></li>
+          <li class="feature-row"><span class="feature-index">01</span><div><h3>按需安装，不装全家桶</h3><p>15 个主流 Agent 自由选择：Cursor、Claude Code、Codex、Qwen Code、OpenCode、MiMo、Cline、Pi、CoCo 等。</p></div></li>
           <li class="feature-row"><span class="feature-index">02</span><div><h3>模型提供商统一管理</h3><p>Agnes 零配置可用，也支持命名管理任意 OpenAI 兼容接口、Ollama、LM Studio 与故障切换顺序。</p></div></li>
           <li class="feature-row"><span class="feature-index">03</span><div><h3>中国网络自动适配</h3><p>自动选择 npm、Node、PyPI 镜像，Worker、Pages、Release 三源容错，并提供一键代理配置。</p></div></li>
           <li class="feature-row"><span class="feature-index">04</span><div><h3>离线包经过真实验证</h3><p>发布包完成安装、启动、卸载冒烟；菜单 <code>[7]</code> 还能在目标平台按需构建自定义包。</p></div></li>
@@ -150,13 +150,13 @@
     <section class="section section-soft" id="agents">
       <div class="shell">
         <div class="section-heading">
-          <div><p class="kicker">你的工具箱</p><h2>14 个 Agent，一个入口</h2></div>
+          <div><p class="kicker">你的工具箱</p><h2>15 个 Agent，一个入口</h2></div>
           <p class="section-lede">在线安装按需选择；标记为离线可用的 Agent 可连同依赖与运行时一起打包。</p>
         </div>
 
         <div class="agent-panel">
           <div class="agent-panel-head">
-            <div class="agent-count"><strong>14</strong><span>个内置选项</span></div>
+            <div class="agent-count"><strong>15</strong><span>个内置选项</span></div>
             <span class="agent-legend">绿点表示支持离线安装</span>
           </div>
           <div class="table-scroll" role="region" aria-label="支持的 Agent，可横向滚动" tabindex="0">
@@ -164,7 +164,7 @@
               <thead><tr><th>#</th><th>Agent</th><th>命令</th><th>厂商</th><th>离线</th></tr></thead>
               <tbody>
                 <tr><td>01</td><td class="agent-name">CoCo Agent</td><td><code>coco</code></td><td>BitCook</td><td><span class="status status-ready">Linux/macOS</span></td></tr>
-                <tr><td>02</td><td class="agent-name">OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td><span class="status">仅在线</span></td></tr>
+                <tr><td>02</td><td class="agent-name">OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td><span class="status status-ready">支持</span></td></tr>
                 <tr><td>03</td><td class="agent-name">Hermes Agent</td><td><code>hermes</code></td><td>Hermes</td><td><span class="status status-ready">需 Git</span></td></tr>
                 <tr><td>04</td><td class="agent-name">Cline CLI</td><td><code>cline</code></td><td>Cline</td><td><span class="status status-ready">支持</span></td></tr>
                 <tr><td>05</td><td class="agent-name">CodeBuddy CLI</td><td><code>codebuddy</code></td><td>Tencent</td><td><span class="status status-ready">支持</span></td></tr>
@@ -177,6 +177,7 @@
                 <tr><td>12</td><td class="agent-name">Gemini CLI</td><td><code>gemini</code></td><td>Google</td><td><span class="status status-ready">支持</span></td></tr>
                 <tr><td>13</td><td class="agent-name">iFlow CLI</td><td><code>iflow</code></td><td>iFlow 心流</td><td><span class="status status-ready">支持</span></td></tr>
                 <tr><td>14</td><td class="agent-name">Aider</td><td><code>aider</code></td><td>Aider AI</td><td><span class="status">仅在线</span></td></tr>
+                <tr><td>15</td><td class="agent-name">Cursor</td><td><code>cursor</code></td><td>Anysphere</td><td><span class="status">仅在线</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -190,7 +191,7 @@
         <article class="detail-block rich-text">
           <p class="kicker">没有网络，也能安装</p>
           <h3>可验证离线包，把完整运行环境一起带走</h3>
-          <p>v1.2.0 首批提供 Linux x64 与 Windows x64 Codex 精简包，CI 实际执行安装、版本启动与卸载。</p>
+          <p>v1.3.0 提供 Codex 与 OpenCode 精简包；CI 在 Linux、Windows、Intel macOS 与 Apple Silicon 上实际验证安装、版本启动与卸载。</p>
           <ul>
             <li><strong>已验证精简包：</strong>从 Releases 下载后直接带到目标机。</li>
             <li><strong>自建离线包：</strong>用菜单 <code>[7]</code> 或 <code>build-offline</code> 在目标平台按需构建。</li>

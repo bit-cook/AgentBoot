@@ -6,13 +6,13 @@
   <meta name="theme-color" content="#fffdf5">
   <meta name="color-scheme" content="light">
   <title>AgentBoot · Launch your AI agents with one command</title>
-  <meta name="description" content="Install 14 mainstream AI agents on demand with one command. Linux, macOS, Windows, safe uninstall, verified offline packs, and China-network adaptation.">
+  <meta name="description" content="Install 15 mainstream AI agents on demand, including Cursor and verified OpenCode offline packs, with safe cross-platform uninstall.">
   <link rel="canonical" href="https://osome.work/AgentBoot/en/">
   <link rel="alternate" hreflang="zh-CN" href="https://osome.work/AgentBoot/">
   <link rel="alternate" hreflang="en" href="https://osome.work/AgentBoot/en/">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="../assets/site.css?v=1.2.0">
-  <script src="../assets/site.js?v=1.2.0" defer></script>
+  <link rel="stylesheet" href="../assets/site.css?v=1.3.0">
+  <script src="../assets/site.js?v=1.3.0" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -33,7 +33,7 @@
 
   <header class="hero shell" id="top">
     <div>
-      <p class="eyebrow">v1.2.0 · Free and open source · Three platforms</p>
+      <p class="eyebrow">v1.3.0 · Free and open source · Three platforms</p>
       <h1>One command.<br><span class="hero-highlight">Agents ready.</span></h1>
       <p class="hero-copy">Bring installation, models, mirrors, offline packs, and safe uninstall into one clear menu. You choose the AI agents you need; AgentBoot installs them reliably.</p>
       <div class="hero-actions">
@@ -47,7 +47,7 @@
         </a>
       </div>
       <ul class="hero-proof" aria-label="Support overview">
-        <li>Choose from 14 agents</li>
+        <li>Choose from 15 agents</li>
         <li>Linux · macOS · Windows</li>
         <li>Offline installation</li>
         <li>MIT License</li>
@@ -137,7 +137,7 @@
         </article>
 
         <ol class="feature-list">
-          <li class="feature-row"><span class="feature-index">01</span><div><h3>Install on demand, not as a bundle</h3><p>Choose from 14 mainstream agents, including Claude Code, Codex, Qwen Code, OpenCode, MiMo, Cline, Pi, and CoCo.</p></div></li>
+          <li class="feature-row"><span class="feature-index">01</span><div><h3>Install on demand, not as a bundle</h3><p>Choose from 15 mainstream agents, including Cursor, Claude Code, Codex, Qwen Code, OpenCode, MiMo, Cline, Pi, and CoCo.</p></div></li>
           <li class="feature-row"><span class="feature-index">02</span><div><h3>Manage model providers in one place</h3><p>Agnes works with zero configuration. You can also name and manage any OpenAI-compatible endpoint, Ollama, or LM Studio, and set a failover order.</p></div></li>
           <li class="feature-row"><span class="feature-index">03</span><div><h3>Automatically adapt to networks in China</h3><p>AgentBoot selects npm, Node, and PyPI mirrors automatically, fails over across Worker, Pages, and Release sources, and configures a proxy in one step.</p></div></li>
           <li class="feature-row"><span class="feature-index">04</span><div><h3>Offline packs are tested end to end</h3><p>Release packs pass install, launch, and uninstall smoke tests; menu <code>[7]</code> can also build a custom pack on demand on the target platform.</p></div></li>
@@ -150,13 +150,13 @@
     <section class="section section-soft" id="agents">
       <div class="shell">
         <div class="section-heading">
-          <div><p class="kicker">Your toolbox</p><h2>14 agents. One front door.</h2></div>
+          <div><p class="kicker">Your toolbox</p><h2>15 agents. One front door.</h2></div>
           <p class="section-lede">Choose agents as needed for online installation. Agents marked as offline-ready can be packaged with their dependencies and runtimes.</p>
         </div>
 
         <div class="agent-panel">
           <div class="agent-panel-head">
-            <div class="agent-count"><strong>14</strong><span>built-in choices</span></div>
+            <div class="agent-count"><strong>15</strong><span>built-in choices</span></div>
             <span class="agent-legend">A green dot indicates support for offline installation</span>
           </div>
           <div class="table-scroll" role="region" aria-label="Supported agents, horizontally scrollable" tabindex="0">
@@ -164,7 +164,7 @@
               <thead><tr><th>#</th><th>Agent</th><th>Command</th><th>Vendor</th><th>Offline</th></tr></thead>
               <tbody>
                 <tr><td>01</td><td class="agent-name">CoCo Agent</td><td><code>coco</code></td><td>BitCook</td><td><span class="status status-ready">Linux/macOS</span></td></tr>
-                <tr><td>02</td><td class="agent-name">OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td><span class="status">Online only</span></td></tr>
+                <tr><td>02</td><td class="agent-name">OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td><span class="status status-ready">Ready</span></td></tr>
                 <tr><td>03</td><td class="agent-name">Hermes Agent</td><td><code>hermes</code></td><td>Hermes</td><td><span class="status status-ready">Requires Git</span></td></tr>
                 <tr><td>04</td><td class="agent-name">Cline CLI</td><td><code>cline</code></td><td>Cline</td><td><span class="status status-ready">Supported</span></td></tr>
                 <tr><td>05</td><td class="agent-name">CodeBuddy CLI</td><td><code>codebuddy</code></td><td>Tencent</td><td><span class="status status-ready">Supported</span></td></tr>
@@ -177,6 +177,7 @@
                 <tr><td>12</td><td class="agent-name">Gemini CLI</td><td><code>gemini</code></td><td>Google</td><td><span class="status status-ready">Supported</span></td></tr>
                 <tr><td>13</td><td class="agent-name">iFlow CLI</td><td><code>iflow</code></td><td>iFlow</td><td><span class="status status-ready">Supported</span></td></tr>
                 <tr><td>14</td><td class="agent-name">Aider</td><td><code>aider</code></td><td>Aider AI</td><td><span class="status">Online only</span></td></tr>
+                <tr><td>15</td><td class="agent-name">Cursor</td><td><code>cursor</code></td><td>Anysphere</td><td><span class="status">Online only</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -190,7 +191,7 @@
         <article class="detail-block rich-text">
           <p class="kicker">Install without internet access</p>
           <h3>Verified offline packs bring the complete runtime with you</h3>
-          <p>v1.2.0 initially provides slim Codex packs for Linux x64 and Windows x64. CI installs each pack, runs its version command, and uninstalls it.</p>
+          <p>v1.3.0 provides slim Codex and OpenCode packs. CI verifies install, version launch, and uninstall on Linux, Windows, Intel macOS, and Apple Silicon.</p>
           <ul>
             <li><strong>Verified slim packs:</strong> download from Releases and carry them to the target machine.</li>
             <li><strong>Custom offline packs:</strong> use menu <code>[7]</code> or <code>build-offline</code> on the target platform.</li>

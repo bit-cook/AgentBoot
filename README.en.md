@@ -5,7 +5,7 @@
 **Minimal, fast, ready-to-run AI Agent launcher**
 
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)](#one-command-install)
-[![Agents](https://img.shields.io/badge/Agents-14_indigo)](#supported-agents)
+[![Agents](https://img.shields.io/badge/Agents-15_indigo)](#supported-agents)
 [![Model](https://img.shields.io/badge/Default_model-Agnes_free-orange)](#models)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
@@ -48,22 +48,22 @@ Two commands after install:
 
 | | |
 |---|---|
-| 📦 **Choose what to install** | 14 mainstream agents, multi-select in the menu |
+| 📦 **Choose what to install** | 15 mainstream agents, multi-select in the menu |
 | 🛟 **Built-in fallback agent** | `ab`: zero third-party dependencies, Agnes by default, offline Linux knowledge base, session persistence |
 | 🧠 **Model provider manager** | Named custom providers, Ollama/LM Studio presets, failover order, connectivity test |
 | 🇨🇳 **China network adaptive** | npmmirror / Node mirrors / Tsinghua PyPI, Worker/Pages/Release fallback, proxy support |
-| 📴 **Verified offline packages** | Releases provide Codex slim packs tested through install/run/uninstall; menu `[7]` builds other Agents on their target platform |
+| 📴 **Verified offline packages** | Releases provide Codex and OpenCode slim packs tested through install/run/uninstall; menu `[7]` builds other Agents on their target platform |
 | ➕ **Custom agents** | Add anything beyond the registry (npm / pip / script), stored in your home dir |
 | 🧹 **Safe uninstall** | Menu `[9]` or `agentboot uninstall <id>`; removes owned program files and preserves user data by default |
 | 🔐 **Verified install** | Enforced SHA-256, atomic app switching, rollback; custom scripts require HTTPS and avoid shell interpolation |
 | ⚡ **Measured performance** | TLS connection reuse, pre-indexed KB, and an on-device `/bench` for current network/model conditions |
 
-## Supported agents (14)
+## Supported agents (15)
 
 | # | Agent | Command | Vendor | Offline |
 |---|---|---|---|---|
 | 1 | CoCo Agent | `coco` | BitCook | Linux/macOS |
-| 2 | OpenCode | `opencode` | opencode.ai | online only (postinstall not yet offline-verified) |
+| 2 | OpenCode | `opencode` | opencode.ai | ✓ (pinned native binary; x64 baseline fallback) |
 | 3 | Hermes Agent | `hermes` | Hermes | ✓ (needs Git) |
 | 4 | Cline CLI | `cline` | Cline | ✓ |
 | 5 | CodeBuddy CLI | `codebuddy` | Tencent | ✓ |
@@ -76,6 +76,7 @@ Two commands after install:
 | 12 | Gemini CLI | `gemini` | Google | ✓ |
 | 13 | iFlow CLI | `iflow` | iFlow | ✓ |
 | 14 | Aider | `aider` | Aider AI | online only (pip) |
+| 15 | Cursor | `cursor` | Anysphere | online only (official signed desktop app in an AgentBoot-owned user directory) |
 
 Package names verified on the npm registry. `✓` = offline payload bundled.
 
@@ -98,7 +99,7 @@ ab model                            # provider manager
 
 ## Offline packages
 
-Download a platform-and-Agent-specific verified pack from [Releases](https://github.com/bit-cook/AgentBoot/releases). v1.2.0 initially publishes Linux x64 and Windows x64 Codex packs only after CI installs them, runs `codex --version`, and uninstalls them. Build other Agents on their target platform with menu `[7]` or:
+Download a platform-and-Agent-specific verified pack from [Releases](https://github.com/bit-cook/AgentBoot/releases). v1.3.0 verifies OpenCode install, `--version`, and uninstall on Linux, Windows, Intel macOS, and Apple Silicon before uploading packs. Build other Agents on their target platform with menu `[7]` or:
 
 ```bash
 python core/menu.py build-offline win-x64 claude-code,pi

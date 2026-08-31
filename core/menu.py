@@ -41,6 +41,7 @@ RUNTIME_DIR = os.path.join(AB_HOME, "runtime")
 AGENTS_DIR = os.path.join(AB_HOME, "agents")
 NPM_PREFIX = os.path.join(AB_HOME, "npm-prefix")
 ENV_JSON = os.path.join(AB_HOME, "env.json")
+APPS_DIR = os.path.join(AB_HOME, "apps")
 
 NODE_VERSION = "v22.23.2"
 NPM_MIRROR = "https://registry.npmmirror.com"
@@ -53,6 +54,21 @@ CUSTOM_AGENTS = os.path.join(AB_HOME, "custom-agents.json")
 INSTALL_STATE = os.path.join(AB_HOME, "installed-agents.json")
 
 POSIX = os.name != "nt"
+
+CURSOR_VERSION = "3.18"
+CURSOR_DOWNLOADS = {
+    "linux-x64": "https://api2.cursor.sh/updates/download/golden/linux-x64/cursor/3.18",
+    "linux-arm64": "https://api2.cursor.sh/updates/download/golden/linux-arm64/cursor/3.18",
+    "darwin-x64": "https://api2.cursor.sh/updates/download/golden/darwin-x64/cursor/3.18",
+    "darwin-arm64": "https://api2.cursor.sh/updates/download/golden/darwin-arm64/cursor/3.18",
+    "win-x64": "https://api2.cursor.sh/updates/download/golden/win32-x64-user/cursor/3.18",
+    "win-arm64": "https://api2.cursor.sh/updates/download/golden/win32-arm64-user/cursor/3.18",
+}
+CURSOR_MAX_BYTES = 600 * 1024 * 1024
+CURSOR_SHA256 = {
+    "linux-x64": "44f3760fbb63d082bafa6562001ca66e9be803274c4c7642215e20de92490664",
+    "linux-arm64": "ec03879fca957065623d2274b39cd814d3209692cb4864f25859284cfb1302ec",
+}
 
 
 # ---------------------------------------------------------------- 基础工具
@@ -504,7 +520,7 @@ def prefix_bin_dirs():
 
 def find_bin(name):
     cands = [name + (".cmd" if not POSIX else "")] if not POSIX else [name]
-    for d in prefix_bin_dirs():
+    for d in [os.path.join(AB_HOME, "bin")] + prefix_bin_dirs():
         for c in cands:
             p = os.path.join(d, c)
             if os.path.exists(p):
@@ -554,6 +570,16 @@ def detect_install(a):
         if os.path.exists(coco_shim):
             return {"status": "legacy", "managed": True, "source": "online",
                     "entry": {"executable": coco_shim}}
+    if a["id"] == "cursor" and os.path.isdir(_cursor_root()):
+        try:
+            with open(_cursor_marker(), "r", encoding="utf-8") as source:
+                marker = json.load(source)
+            if marker.get("managed_by") == "AgentBoot":
+                return {"status": "legacy", "managed": True, "source": "online",
+                        "entry": {"method": "cursor", "executable": os.path.join(
+                            AB_HOME, "bin", "cursor" + ("" if POSIX else ".cmd"))}}
+        except (OSError, ValueError, TypeError):
+            pass
     if found:
         return {"status": "external", "managed": False, "source": None,
                 "entry": {}, "executable": found}
@@ -676,6 +702,11 @@ def uninstall_one(a, purge=False):
         try:
             _remove_coco(purge)
             _remove_coco_external_launchers(entry)
+        except OSError as e:
+            return False, str(e)
+    elif method == "cursor":
+        try:
+            _remove_cursor_install()
         except OSError as e:
             return False, str(e)
     elif source == "offline":
@@ -842,6 +873,8 @@ def install_online(ids):
             ok = install_hermes_special(a)
             if not ok:
                 log_err("专用流程失败：可检查 Git 是否安装、或配置代理后重试")
+        elif a.get("special_install") == "cursor":
+            ok = install_cursor(a)
         elif method == "npm":
             ok = aid in batched or npm_install(a["npm"], a.get("node"), npm_context)
         elif method == "script":
@@ -946,6 +979,254 @@ def _download_script(url, suffix):
         except OSError:
             pass
         raise
+
+
+def _download_cursor_asset(url, suffix):
+    """Download one pinned official Cursor asset and return path/final-url/SHA-256."""
+    import hashlib
+    import tempfile
+    from urllib import request as urllib_request
+    request = urllib_request.Request(url, headers={"User-Agent": "AgentBoot/%s" % VERSION})
+    fd, path = tempfile.mkstemp(prefix="agentboot-cursor-", suffix=suffix)
+    try:
+        total = 0
+        digest = hashlib.sha256()
+        with os.fdopen(fd, "wb") as output, urllib_request.urlopen(request, timeout=180) as response:
+            final = urllib.parse.urlsplit(response.geturl())
+            if final.scheme != "https" or final.hostname not in ("api2.cursor.sh", "downloads.cursor.com"):
+                raise ValueError("Cursor 下载重定向到了非官方地址")
+            length = int(response.headers.get("Content-Length") or 0)
+            if length and length > CURSOR_MAX_BYTES:
+                raise ValueError("Cursor 安装包超过大小限制")
+            for chunk in iter(lambda: response.read(1 << 20), b""):
+                total += len(chunk)
+                if total > CURSOR_MAX_BYTES:
+                    raise ValueError("Cursor 安装包超过大小限制")
+                digest.update(chunk)
+                output.write(chunk)
+        if total < 1024 * 1024:
+            raise ValueError("Cursor 安装包异常过小")
+        return path, response.geturl(), digest.hexdigest()
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        raise
+
+
+def _cursor_root():
+    return os.path.join(APPS_DIR, "cursor")
+
+
+def _cursor_marker(root=None):
+    return os.path.join(root or _cursor_root(), "agentboot-managed.json")
+
+
+def _write_cursor_marker(root, final_url, digest):
+    marker = {"managed_by": "AgentBoot", "version": CURSOR_VERSION,
+              "source": final_url, "sha256": digest}
+    with open(_cursor_marker(root), "w", encoding="utf-8", newline="\n") as output:
+        json.dump(marker, output, ensure_ascii=False, indent=2)
+        output.write("\n")
+
+
+def _write_cursor_shim(executable, app_bundle=None):
+    os.makedirs(os.path.join(AB_HOME, "bin"), exist_ok=True)
+    if POSIX:
+        path = os.path.join(AB_HOME, "bin", "cursor")
+        if app_bundle:
+            cli = os.path.join(app_bundle, "Contents", "Resources", "app", "bin", "cursor")
+            body = ('if [ -x "%s" ]; then exec "%s" "$@"; fi\n'
+                    'exec open "%s" --args "$@"\n') % (cli, cli, app_bundle)
+        else:
+            body = 'exec "%s" "$@"\n' % executable
+        with open(path, "w", encoding="utf-8", newline="\n") as output:
+            output.write("#!/bin/sh\n# AgentBoot Cursor launcher\n" + body)
+        os.chmod(path, 0o755)
+    else:
+        path = os.path.join(AB_HOME, "bin", "cursor.cmd")
+        with open(path, "w", encoding="utf-8-sig", newline="") as output:
+            output.write('@echo off\r\nrem AgentBoot Cursor launcher\r\nstart "" "%s" %%*\r\n' % executable)
+    return path
+
+
+def _cursor_candidate():
+    root = _cursor_root()
+    return root + ".new.%s" % os.getpid()
+
+
+def _commit_cursor_candidate(candidate):
+    root = _cursor_root()
+    backup = root + ".old.%s" % os.getpid()
+    shutil.rmtree(backup, ignore_errors=True)
+    if os.path.isdir(root):
+        os.replace(root, backup)
+    try:
+        os.replace(candidate, root)
+        shutil.rmtree(backup, ignore_errors=True)
+    except Exception:
+        if os.path.isdir(backup):
+            os.replace(backup, root)
+        raise
+    return root
+
+
+def _powershell_executable():
+    return shutil.which("powershell.exe") or shutil.which("pwsh.exe") or \
+           shutil.which("pwsh") or shutil.which("powershell")
+
+
+def _verify_cursor_windows_signature(path, shell=None):
+    shell = shell or _powershell_executable()
+    if not shell:
+        return False
+    result = subprocess.run(
+        [shell, "-NoProfile", "-NonInteractive", "-Command",
+         "$s=Get-AuthenticodeSignature -LiteralPath $args[0]; "
+         "if($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'Anysphere'){exit 1}", path],
+        timeout=60)
+    return result.returncode == 0
+
+
+def install_cursor(a):
+    """Install pinned official Cursor into an AgentBoot-owned per-user directory."""
+    pid = plat_id()
+    url = CURSOR_DOWNLOADS.get(pid)
+    if not url:
+        log_err("Cursor 暂不支持当前平台：%s" % pid)
+        return False
+    suffix = ".AppImage" if pid.startswith("linux") else (".dmg" if pid.startswith("darwin") else ".exe")
+    path = None
+    candidate = _cursor_candidate()
+    root = _cursor_root()
+    if os.path.islink(APPS_DIR):
+        log_err("Cursor 应用根目录是符号链接，拒绝安装")
+        return False
+    if os.path.exists(root):
+        if os.path.islink(root) or not _inside(os.path.realpath(root), os.path.realpath(APPS_DIR)):
+            log_err("Cursor 私有目录位于 AgentBoot 应用根目录之外，拒绝覆盖")
+            return False
+        try:
+            with open(_cursor_marker(root), "r", encoding="utf-8") as source:
+                marker = json.load(source)
+        except (OSError, ValueError, TypeError):
+            log_err("Cursor 私有目录缺少 AgentBoot 归属标记，拒绝覆盖")
+            return False
+        if marker.get("managed_by") != "AgentBoot":
+            log_err("Cursor 私有目录归属标记无效，拒绝覆盖")
+            return False
+    shutil.rmtree(candidate, ignore_errors=True)
+    try:
+        log_info("下载 Cursor 官方版本 %s：%s" % (CURSOR_VERSION, url))
+        path, final_url, digest = _download_cursor_asset(url, suffix)
+        os.makedirs(candidate, mode=0o700, exist_ok=True)
+        if pid.startswith("linux"):
+            if digest != CURSOR_SHA256.get(pid):
+                raise ValueError("Cursor AppImage SHA-256 校验失败")
+            executable = os.path.join(candidate, "Cursor.AppImage")
+            shutil.move(path, executable)
+            path = None
+            os.chmod(executable, 0o755)
+            with open(executable, "rb") as source:
+                if source.read(4) != b"\x7fELF":
+                    raise ValueError("Cursor AppImage 不是有效 ELF 文件")
+            check = subprocess.run([executable, "--appimage-version"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20)
+            if check.returncode != 0:
+                raise ValueError("Cursor AppImage 自检失败")
+            _write_cursor_marker(candidate, final_url, digest)
+            _write_cursor_shim(os.path.join(root, "Cursor.AppImage"))
+            _commit_cursor_candidate(candidate)
+        elif pid.startswith("darwin"):
+            mount = candidate + ".mount"
+            os.makedirs(mount, exist_ok=True)
+            try:
+                subprocess.run(["hdiutil", "attach", "-readonly", "-nobrowse", "-mountpoint", mount, path],
+                               check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+                app = os.path.join(mount, "Cursor.app")
+                if not os.path.isdir(app):
+                    raise ValueError("Cursor DMG 中缺少 Cursor.app")
+                subprocess.run(["codesign", "--verify", "--deep", "--strict", app], check=True,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+                subprocess.run(["spctl", "--assess", "--type", "execute", app], check=True,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+                installed = os.path.join(candidate, "Cursor.app")
+                subprocess.run(["ditto", app, installed], check=True, timeout=180)
+                subprocess.run(["codesign", "--verify", "--deep", "--strict", installed], check=True,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+                subprocess.run(["spctl", "--assess", "--type", "execute", installed], check=True,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+            finally:
+                subprocess.run(["hdiutil", "detach", mount], stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL, timeout=30)
+                shutil.rmtree(mount, ignore_errors=True)
+            _write_cursor_marker(candidate, final_url, digest)
+            _write_cursor_shim(None, os.path.join(root, "Cursor.app"))
+            _commit_cursor_candidate(candidate)
+        else:
+            shell = _powershell_executable()
+            if not shell:
+                raise ValueError("缺少 PowerShell，无法验证 Cursor Authenticode 签名")
+            if not _verify_cursor_windows_signature(path, shell):
+                raise ValueError("Cursor Windows 安装器签名验证失败")
+            shutil.rmtree(candidate, ignore_errors=True)
+            command = [path, "/VERYSILENT", "/NORESTART", "/MERGETASKS=!runcode", "/DIR=%s" % candidate]
+            if subprocess.run(command, timeout=300).returncode != 0:
+                raise ValueError("Cursor Windows 安装器执行失败")
+            executable = os.path.join(candidate, "Cursor.exe")
+            if not os.path.isfile(executable):
+                raise ValueError("Cursor Windows 安装目录缺少 Cursor.exe")
+            if not _verify_cursor_windows_signature(executable, shell):
+                raise ValueError("Cursor.exe 签名验证失败")
+            _write_cursor_marker(candidate, final_url, digest)
+            _write_cursor_shim(os.path.join(root, "Cursor.exe"))
+            _commit_cursor_candidate(candidate)
+        return True
+    except Exception as error:
+        log_err("Cursor 安装失败：%s" % error)
+        shutil.rmtree(candidate, ignore_errors=True)
+        if not os.path.exists(root):
+            shim = os.path.join(AB_HOME, "bin", "cursor" + ("" if POSIX else ".cmd"))
+            try:
+                with open(shim, "r", encoding="utf-8", errors="ignore") as source:
+                    owned = "AgentBoot Cursor launcher" in source.read(256)
+                if owned:
+                    os.remove(shim)
+            except OSError:
+                pass
+        return False
+    finally:
+        if path:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+
+def _remove_cursor_install():
+    root = _cursor_root()
+    if not os.path.exists(root):
+        return
+    if not _inside(root, APPS_DIR) or os.path.islink(root):
+        raise OSError("拒绝删除 AgentBoot 应用目录之外的 Cursor")
+    try:
+        with open(_cursor_marker(root), "r", encoding="utf-8") as source:
+            marker = json.load(source)
+    except (OSError, ValueError, TypeError):
+        raise OSError("Cursor 缺少 AgentBoot 归属标记，拒绝自动删除")
+    if marker.get("managed_by") != "AgentBoot":
+        raise OSError("Cursor 归属标记无效，拒绝自动删除")
+    if os.name == "nt":
+        uninstallers = [name for name in os.listdir(root) if re.match(r"unins\d*\.exe$", name, re.I)]
+        if uninstallers:
+            subprocess.run([os.path.join(root, uninstallers[0]), "/VERYSILENT", "/NORESTART"], timeout=180)
+    if os.path.exists(root):
+        shutil.rmtree(root)
 
 
 def install_via_pip(a):
@@ -1377,7 +1658,7 @@ def offline_install(ids, payload_dir=None):
 
     agents = {a["id"]: a for a in load_registry()}
     selected_npm = [agents[aid] for aid in ids
-                    if aid in agents and agents[aid].get("method") == "npm"]
+                    if aid in agents and agents[aid].get("method") == "npm" and aid != "opencode"]
     # Bundled Node is the reproducible default and every selected Agent is checked individually below.
     strictest_node = ">=18"
 
@@ -1445,7 +1726,7 @@ def offline_install(ids, payload_dir=None):
             log_err(t("menu.offline_no_payload") % (a["name"], pid))
             fail_list.append(aid)
             continue
-        if not offline_node or not node_ok(offline_node, a.get("node")):
+        if aid != "opencode" and (not offline_node or not node_ok(offline_node, a.get("node"))):
             log_err(t("menu.offline_no_node") % a["name"])
             fail_list.append(aid)
             continue
@@ -1480,8 +1761,18 @@ def offline_install(ids, payload_dir=None):
                 if os.path.isdir(backup): os.replace(backup, dst)
                 fail_list.append(aid)
                 continue
+        entry_override = None
+        if aid == "opencode":
+            entry_override = select_opencode_binary(a, dst, pid)
+            if not entry_override:
+                log_err("OpenCode 离线载荷没有可运行的官方平台 binary")
+                shutil.rmtree(dst, ignore_errors=True)
+                if os.path.isdir(backup): os.replace(backup, dst)
+                fail_list.append(aid)
+                continue
         env_extra, args_prefix = wire_agnes(a)
-        shim = write_shim(a, env_extra, args_prefix, node_path=offline_node)
+        shim = write_shim(a, env_extra, args_prefix, node_path=offline_node,
+                          entry_override=entry_override)
         if shim:
             shutil.rmtree(backup, ignore_errors=True)
             record_install(a, "offline", os.path.join(
@@ -1547,6 +1838,33 @@ def offline_npm_entry(a):
         return None
 
 
+def opencode_binary_candidates(a, root, platform_id):
+    """Return pinned official OpenCode native binaries bundled for one target."""
+    result = []
+    binary = "opencode.exe" if platform_id.startswith("win-") else "opencode"
+    for package in (a.get("offline_binary_packages") or {}).get(platform_id, []):
+        for base in (os.path.join(root, "node_modules", "opencode-ai", "node_modules"),
+                     os.path.join(root, "node_modules")):
+            path = os.path.join(base, package, "bin", binary)
+            if os.path.isfile(path) and os.path.getsize(path) > 10 * 1024 * 1024:
+                result.append(path)
+                break
+    return result
+
+
+def select_opencode_binary(a, root, platform_id):
+    """Select regular/AVX2 or baseline binary by executing the official version probe."""
+    for candidate in opencode_binary_candidates(a, root, platform_id):
+        try:
+            result = subprocess.run([candidate, "--version"], stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL, timeout=20)
+            if result.returncode == 0:
+                return candidate
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+    return None
+
+
 def _npm_entry_kind(entry):
     extension = os.path.splitext(entry)[1].lower()
     if extension in (".js", ".mjs", ".cjs"):
@@ -1563,7 +1881,7 @@ def _npm_entry_kind(entry):
     return "direct"
 
 
-def write_shim(a, env_extra=None, args_prefix=None, node_path=None):
+def write_shim(a, env_extra=None, args_prefix=None, node_path=None, entry_override=None):
     """为离线安装的 Agent 生成启动 shim。"""
     aid, bin_ = a["id"], a["bin"]
     env_extra = env_extra or {}
@@ -1584,7 +1902,7 @@ def write_shim(a, env_extra=None, args_prefix=None, node_path=None):
                 nd = runtime_node_dir()
                 if os.path.isdir(nd):
                     lines.append('[ -x "%s/bin/node" ] && export PATH="%s/bin:$PATH"' % (nd, nd))
-                entry = offline_npm_entry(a)
+                entry = entry_override or offline_npm_entry(a)
                 if not entry:
                     raise ValueError("未找到 %s 的真实 npm bin 入口" % aid)
                 pre = " ".join('"%s"' % x for x in args_prefix)
@@ -1609,7 +1927,7 @@ def write_shim(a, env_extra=None, args_prefix=None, node_path=None):
             else:
                 lines = ["rem AgentBoot shim (Agnes preset)"]
                 lines += _agnes_env_cmd_lines(env_extra)
-                entry = offline_npm_entry(a)
+                entry = entry_override or offline_npm_entry(a)
                 if not entry:
                     raise ValueError("未找到 %s 的真实 npm bin 入口" % aid)
                 pre = " ".join(args_prefix)

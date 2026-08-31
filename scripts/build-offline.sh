@@ -94,9 +94,29 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE"
 python3 "$ROOT/scripts/tools/stage_application.py" "$ROOT" "$STAGE"
 
+if [ -n "$AGENTS_ENV" ]; then
+    WANT="$(echo "$AGENTS_ENV" | tr ',' ' ')"
+else
+    WANT="$(python3 - "$ROOT/agents/registry.json" "$HOST_PLAT" <<'PYEOF'
+import json,sys
+platform_id=sys.argv[2]
+os_id={'win-x64':'windows','linux-x64':'linux','linux-arm64':'linux','darwin-x64':'darwin','darwin-arm64':'darwin'}[platform_id]
+agents=json.load(open(sys.argv[1]))['agents']
+print(' '.join(a['id'] for a in agents if a.get('offline') and (not a.get('os') or os_id in a['os'])))
+PYEOF
+)"
+fi
+NEEDS_NODE="$(python3 - "$ROOT/agents/registry.json" "$WANT" <<'PYEOF'
+import json,sys
+wanted=set(sys.argv[2].split())
+agents=json.load(open(sys.argv[1]))['agents']
+print('1' if any(a['id'] in wanted and a.get('method')=='npm' and a['id']!='opencode' for a in agents) else '0')
+PYEOF
+)"
+
 # ---------- 2. 各平台 Node 运行时 ----------
 mkdir -p "$STAGE/payloads/node"
-for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
+if [ "$NEEDS_NODE" = 1 ]; then for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
     step "Node 运行时 [$PLAT] …"
     case "$PLAT" in
         win-x64)      NF="node-$NODE_VERSION-win-x64.zip";      INNER="node-$NODE_VERSION-win-x64" ;;
@@ -123,20 +143,9 @@ for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
     chmod +x "$STAGE/payloads/node/$PLAT/bin/"* 2>/dev/null || true
     ok "Node [$PLAT] 就绪"
 done
+fi
 
 # ---------- 3. Agent 载荷（npm --os/--cpu 跨平台拉取） ----------
-if [ -n "$AGENTS_ENV" ]; then
-    WANT="$(echo "$AGENTS_ENV" | tr ',' ' ')"
-else
-    WANT="$(python3 - "$ROOT/agents/registry.json" "$HOST_PLAT" <<'PYEOF'
-import json,sys
-platform_id=sys.argv[2]
-os_id={'win-x64':'windows','linux-x64':'linux','linux-arm64':'linux','darwin-x64':'darwin','darwin-arm64':'darwin'}[platform_id]
-agents=json.load(open(sys.argv[1]))['agents']
-print(' '.join(a['id'] for a in agents if a.get('offline') and (not a.get('os') or os_id in a['os'])))
-PYEOF
-)"
-fi
 step "Agent 载荷：$WANT"
 for AID in $WANT; do
     PKG="$(python3 - "$ROOT/agents/registry.json" "$AID" <<'PYEOF'

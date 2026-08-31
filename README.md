@@ -5,7 +5,7 @@
 **极简 · 极速 · 开箱即用的 AI Agent 启动器**
 
 [![平台](https://img.shields.io/badge/平台-Linux%20%7C%20macOS%20%7C%20Windows-blue)](#一键在线安装)
-[![Agent](https://img.shields.io/badge/自选_Agent-14_个-indigo)](#支持的-agent)
+[![Agent](https://img.shields.io/badge/自选_Agent-15_个-indigo)](#支持的-agent)
 [![模型](https://img.shields.io/badge/默认模型-Agnes_免费-orange)](#模型开箱即用--完全自定义)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
@@ -47,23 +47,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 
 | | |
 |---|---|
-| 📦 **菜单自选安装** | 14 个主流 Agent 按需勾选（见下表），支持命令行指定 |
+| 📦 **菜单自选安装** | 15 个主流 Agent 按需勾选（见下表），支持命令行指定 |
 | 🛟 **内置保底 Agent** | `ab` 零第三方依赖 Python 核心：Agnes 开箱即用、离线 Linux 知识库、工具调用、会话持久化 |
 | 🧠 **提供商管理器** | Agnes 预设 + 自定义提供商命名管理 + Ollama/LM Studio 本地模型 + 故障切换顺序 |
 | 🇨🇳 **中国网络自适应** | npmmirror / Node 镜像 / 清华 PyPI 自动切换；Worker / Pages / Release 三源容错；代理一键配置 |
-| 📴 **可验证离线包** | Release 提供经安装/启动/卸载冒烟的 Codex 精简包；菜单 `[7]` 可按目标平台自建其他 Agent 包 |
+| 📴 **可验证离线包** | Release 提供经安装/启动/卸载冒烟的 Codex 与 OpenCode 精简包；菜单 `[7]` 可按目标平台自建其他 Agent 包 |
 | ➕ **自定义 Agent** | 菜单向导或 `add-agent` 添加注册表之外的任意 Agent（npm / pip / 脚本），用户目录保存、升级不丢 |
 | 🧹 **安全卸载** | 菜单 `[9]` 或 `agentboot uninstall <id>`；精确清理程序，默认保留配置、认证与会话 |
 | 🔐 **可验证安装** | 在线包强制 SHA-256 校验、原子切换与失败回滚；自定义脚本仅 HTTPS 且无 shell 拼接 |
 | ⚡ **极致性能** | TLS 连接复用、知识库预建索引（热查询 <1ms）、上下文自动瘦身、流式中断保护、`/bench` 基准 |
 | 🪟 **三平台一致体验** | 同一套菜单、命令与文档；Windows 长路径与商店存根等细节已处理 |
 
-## 支持的 Agent（14 个）
+## 支持的 Agent（15 个）
 
 | # | Agent | 命令 | 厂商 | 离线 | 备注 |
 |---|---|---|---|---|---|
 | 1 | CoCo Agent | `coco` | BitCook | Linux/macOS | 官方脚本安装 |
-| 2 | OpenCode | `opencode` | opencode.ai | 仅在线 | postinstall 尚未纳入离线验证 |
+| 2 | OpenCode | `opencode` | opencode.ai | ✓ | 固定官方 native binary；x64 含 baseline 兼容包 |
 | 3 | Hermes Agent | `hermes` | Hermes | ✓ | 需 Git；国内自动镜像 |
 | 4 | Cline CLI | `cline` | Cline | ✓ | |
 | 5 | CodeBuddy CLI | `codebuddy` | Tencent | ✓ | |
@@ -76,6 +76,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | 12 | Gemini CLI | `gemini` | Google | ✓ | |
 | 13 | iFlow CLI | `iflow` | iFlow 心流 | ✓ | |
 | 14 | Aider | `aider` | Aider AI | 仅在线 | pip 生态 |
+| 15 | Cursor | `cursor` | Anysphere | 仅在线 | 官方签名桌面应用；AgentBoot 私有用户级安装 |
 
 包名均已逐一在 npm registry 核实；`✓` = 离线包内置完整依赖与运行时。
 
@@ -99,7 +100,7 @@ ab bench                              # 性能基准
 
 ## 离线安装与瘦身定制
 
-到 [Releases](https://github.com/bit-cook/AgentBoot/releases) 下载带平台与 Agent 名称的已验证精简包，拷到目标机解压后运行包内 `install-offline.ps1` / `sh install-offline.sh`。v1.2.0 首批发布 Linux x64 / Windows x64 的 Codex 包，发布流水线会实际执行安装、`codex --version` 和卸载后才上传。
+到 [Releases](https://github.com/bit-cook/AgentBoot/releases) 下载带平台与 Agent 名称的已验证精简包，拷到目标机解压后运行包内 `install-offline.ps1` / `sh install-offline.sh`。v1.3.0 发布流水线会在 Linux、Windows、Intel macOS 与 Apple Silicon 上实际验证 OpenCode 安装、`--version` 和卸载后才上传。
 
 其他 Agent 使用菜单 `[7]` 或 `build-offline win-x64 claude-code,pi` 在目标平台按需构建。Hermes 含平台相关 Python venv，必须在对应平台构建；Aider 暂不支持离线。
 

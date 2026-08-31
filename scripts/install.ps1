@@ -9,7 +9,7 @@ $ProgressPreference = 'SilentlyContinue'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $Repo      = 'bit-cook/AgentBoot'
-$Tag       = 'v1.2.0'
+$Tag       = 'v1.3.0'
 $ZipName   = "agentboot-online-$Tag.zip"
 $BootBase  = 'https://boot.ide.pub'
 $GH        = "https://github.com/$Repo/releases/download/$Tag"

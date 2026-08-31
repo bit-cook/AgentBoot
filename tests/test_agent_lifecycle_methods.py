@@ -48,10 +48,30 @@ class AgentLifecycleTests(unittest.TestCase):
         mirror.assert_called_once_with()
         child_env.assert_called_once_with()
 
-    def test_opencode_not_advertised_offline_until_postinstall_is_supported(self):
+    def test_opencode_offline_requires_native_regular_and_baseline_packages(self):
         registry = json.loads((ROOT / "agents/registry.json").read_text(encoding="utf-8"))
         opencode = next(agent for agent in registry["agents"] if agent["id"] == "opencode")
-        self.assertFalse(opencode["offline"])
+        self.assertTrue(opencode["offline"])
+        self.assertEqual(opencode["npm"], "opencode-ai@1.18.25")
+        self.assertEqual(opencode["offline_binary_packages"]["linux-x64"],
+                         ["opencode-linux-x64", "opencode-linux-x64-baseline"])
+
+    def test_opencode_selects_first_native_binary_that_runs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            regular = root / "node_modules/opencode-ai/node_modules/opencode-linux-x64/bin/opencode"
+            baseline = root / "node_modules/opencode-ai/node_modules/opencode-linux-x64-baseline/bin/opencode"
+            for path in (regular, baseline):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"x" * (10 * 1024 * 1024 + 1))
+            agent = {"offline_binary_packages": {"linux-x64":
+                     ["opencode-linux-x64", "opencode-linux-x64-baseline"]}}
+            failed = subprocess.CompletedProcess([], 1)
+            passed = subprocess.CompletedProcess([], 0)
+            with mock.patch.object(menu.subprocess, "run", side_effect=[failed, passed]) as run:
+                selected = menu.select_opencode_binary(agent, str(root), "linux-x64")
+            self.assertEqual(selected, str(baseline))
+            self.assertEqual(run.call_count, 2)
 
     def test_aider_uses_private_venv_lifecycle(self):
         registry = json.loads((ROOT / "agents/registry.json").read_text(encoding="utf-8"))

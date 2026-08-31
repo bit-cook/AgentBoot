@@ -1,5 +1,14 @@
 # 更新日志
 
+## v1.3.0 (2026-08-31)
+
+- 新增 Cursor 官方跨平台用户级安装：Linux AppImage 固定 SHA-256，Windows Authenticode，macOS codesign + notarization 校验。
+- Cursor 安装在 AgentBoot 私有应用目录，具备原子升级、归属 marker、安全卸载与外部安装保护。
+- OpenCode 固定 `opencode-ai@1.18.25`，离线包携带官方平台 native binary；x64 同时提供 regular 与 baseline 兼容版本。
+- OpenCode 目标机根据 `--version` 实测选择可运行 binary，不执行联网 postinstall，卸载保留模型配置。
+- OpenCode-only 离线包不再捆绑不需要的 Node 运行时，降低体积。
+- 新增 Linux、Windows、Intel macOS、Apple Silicon 的 OpenCode 离线生命周期与 Cursor 官方安装 CI 门禁。
+
 ## v1.2.0 (2026-08-31)
 
 - 全面重构中英文主页：亮色乐观视觉、桌面/手机自适应、可访问性、品牌 404 与单一 canonical。
