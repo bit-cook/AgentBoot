@@ -1325,7 +1325,6 @@ def repl(cfg, resume=False):
 
 
 def doctor(cfg):
-    import socket
     print("AgentBoot 环境体检 v%s" % VERSION)
     print("-" * 46)
     print("Python   : %s.%s.%s %s" % (*sys.version_info[:3], sys.executable))
