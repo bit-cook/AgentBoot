@@ -17,7 +17,6 @@ AgentBoot 控制台菜单（命令 agentboot）
   python menu.py mirror auto|off|cn|proxy http://127.0.0.1:7890
 """
 import json
-import hashlib
 from contextlib import contextmanager
 import os
 import re
@@ -26,7 +25,6 @@ import socket
 import subprocess
 import sys
 import platform
-import tempfile
 import time
 import urllib.parse
 
@@ -395,6 +393,7 @@ def node_ok(path=None, minimum=None, version_cache=None):
 
 def ensure_node(minimum=None):
     """确保 Node 满足 Agent 最低版本；不足时部署便携运行时。"""
+    import hashlib
     from urllib import request as urllib_request
     sysnode = shutil.which("node")
     if sysnode and node_ok(sysnode, minimum):
@@ -893,6 +892,7 @@ def install_via_script(a):
 
 
 def _download_script(url, suffix):
+    import tempfile
     from urllib import request as urllib_request
     request = urllib_request.Request(url, headers={"User-Agent": "AgentBoot/1.0"})
     fd, path = tempfile.mkstemp(prefix="agentboot-script-", suffix=suffix)
@@ -1034,6 +1034,7 @@ def _download_mirror(urls, dest):
 
 def _seed_uv(pkg_root):
     """预置 uv 二进制到 <pkg>/.uv_bin 并写入 marker，绕过 postinstall 的 GitHub 直连下载。"""
+    import hashlib
     import tarfile
     import zipfile
     version, asset_info, sha = _hermes_uv_meta(pkg_root)
