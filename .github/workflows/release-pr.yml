@@ -1,0 +1,26 @@
+name: release-pr
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Validate Python imports
+        run: |
+          python3 -m py_compile core/*.py scripts/*.py scripts/tools/*.py tests/*.py
+      - name: Run test suite
+        run: python3 -m unittest discover -s tests
+      - name: Validate web bundle
+        run: |
+          python3 scripts/sync-web-assets.py --check
+          node --check cloudflare/worker.js
+          node --check cloudflare/web-assets.js
+</content>
