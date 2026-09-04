@@ -23,4 +23,4 @@ jobs:
           python3 scripts/sync-web-assets.py --check
           node --check cloudflare/worker.js
           node --check cloudflare/web-assets.js
-</content>
+
