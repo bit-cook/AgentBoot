@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   quality:
-    runs-on: ${{ vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: 'ubuntu-latest'
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -55,7 +55,7 @@ jobs:
 
   deploy:
     needs: quality
-    runs-on: ${{ vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: 'ubuntu-latest'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

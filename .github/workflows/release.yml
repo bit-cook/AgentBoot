@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   validate:
-    runs-on: ${{ vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: 'ubuntu-latest'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -26,7 +26,7 @@ jobs:
           node --check cloudflare/worker.js
 
   online:
-    runs-on: ${{ vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: 'ubuntu-latest'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -47,7 +47,7 @@ jobs:
             pages/VERSION
 
   offline-linux:
-    runs-on: ${{ vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: 'ubuntu-latest'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -125,7 +125,7 @@ jobs:
           test ! -e "$root/home/.agentboot/agents/codex"
 
   extended-linux:
-    runs-on: ${{ vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: 'ubuntu-latest'
     env:
       TMPDIR: ${{ runner.temp }}
     steps:
@@ -262,7 +262,7 @@ jobs:
   publish:
     needs: [validate, online, offline-linux, offline-windows, macos-smoke, extended-linux, extended-windows, extended-macos-x64, extended-macos-arm64]
     if: github.ref_type == 'tag'
-    runs-on: ${{ vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: 'ubuntu-latest'
     environment: release-production
     permissions:
       contents: write
