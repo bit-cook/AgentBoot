@@ -11,8 +11,11 @@ ROOT = Path(__file__).resolve().parents[1]
 class ReleaseWorkflowTests(unittest.TestCase):
     def test_release_supports_prerelease_dry_run_and_tag_only_publish(self):
         text = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        # release.yml is intentionally tag-and-dispatch only; pull_request
+        # was removed to fix the zero-job stale head_branch failure.
         self.assertIn("workflow_dispatch:", text)
-        self.assertIn("pull_request:", text)
+        self.assertNotIn("pull_request:", text)
+        self.assertIn("tags:", text)
         self.assertIn("if: github.ref_type == 'tag'", text)
         self.assertIn("Smoke install, execute, and uninstall", text)
         self.assertIn("--prerelease", text)
@@ -38,7 +41,8 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("install-offline.ps1\" -Agents codex", text)
         self.assertIn("runs-on: macos-15-intel", text)
         self.assertIn("PLATFORMS=darwin-x64", text)
-        self.assertIn("vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest'", text)
+        # runs-on uses literal 'ubuntu-latest' (no vars.* override)
+        self.assertNotIn("vars.AGENTBOOT_LINUX_RUNNER", text)
 
     def test_live_verifier_covers_primary_and_mirror(self):
         text = (ROOT / "scripts/verify-live-release.py").read_text(encoding="utf-8")
@@ -59,7 +63,8 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", text)
         self.assertIn("actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e", text)
         self.assertIn("scripts/sync-web-assets.py --check", text)
-        self.assertIn("vars.AGENTBOOT_LINUX_RUNNER || 'ubuntu-latest'", text)
+        # runs-on uses literal 'ubuntu-latest' (no vars.* override)
+        self.assertNotIn("vars.AGENTBOOT_LINUX_RUNNER", text)
 
     def test_worker_health_checks_assets_and_proxy_forwards_ranges(self):
         text = (ROOT / "cloudflare/worker.js").read_text(encoding="utf-8")
