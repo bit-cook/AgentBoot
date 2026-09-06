@@ -21,9 +21,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
+  pages: read
 
 concurrency:
   group: github-pages
@@ -56,25 +55,25 @@ jobs:
   deploy:
     needs: quality
     runs-on: 'ubuntu-latest'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - name: Configure Pages
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - name: Build online packages
         run: |
           cp install.sh pages/install.sh
           cp scripts/install.ps1 pages/install.ps1
           python3 scripts/build-online.py
-      - name: Upload site artifact
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
-        with:
-          path: pages
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+      - name: Publish to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages --depth 1
+          git worktree add ../gh-pages origin/gh-pages
+          find ../gh-pages -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -r pages/. ../gh-pages/
+          cd ../gh-pages
+          git add -A
+          git diff --cached --quiet || git commit -m "pages: deploy ${GITHUB_SHA}"
+          git push origin HEAD:gh-pages
