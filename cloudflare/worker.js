@@ -53,7 +53,7 @@ export default {
     }
     if (path === "/") return webResponse(request, "/index.html", PAGE_CACHE);
     if (path === "/en") return webResponse(request, "/en/index.html", PAGE_CACHE);
-    if (path === "/assets/site.css" || path === "/assets/site.js" || path === "/assets/favicon.svg") {
+    if (path.startsWith("/assets/") && WEB_ASSETS[path]) {
       return webResponse(request, path, ASSET_CACHE);
     }
     return webResponse(request, "/404.html", "no-store", 404);
@@ -87,7 +87,14 @@ function webResponse(request, route, cacheControl, status = 200) {
   if (request.headers.get("If-None-Match") === asset.etag) {
     return new Response(null, { status: 304, headers: webHeaders(asset, cacheControl) });
   }
-  return new Response(request.method === "HEAD" ? null : asset.body, {
+  let body = asset.body;
+  if (asset.b64) {
+    const bin = atob(body);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    body = bytes;
+  }
+  return new Response(request.method === "HEAD" ? null : body, {
     status,
     headers: webHeaders(asset, cacheControl),
   });
