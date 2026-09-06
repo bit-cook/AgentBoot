@@ -24,8 +24,8 @@ export default {
       await Promise.all(required.map(async (name) => {
         try {
           const response = await fetch(`${GH_REL}/${name}`, {
-            method: "HEAD", headers: { "User-Agent": "AgentBoot-Worker/1.2" },
-            cf: { cacheEverything: false },
+            headers: { "User-Agent": "AgentBoot-Worker/1.2", "Range": "bytes=0-0" },
+            cf: { cacheEverything: false, cacheTtl: 0 },
           });
           assets[name] = response.status;
         } catch (_) { assets[name] = 0; }
