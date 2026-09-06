@@ -1,5 +1,8 @@
 <div align="center">
 
+<img src="pages/assets/banner-en.svg" alt="AgentBoot — One command. Agent ready." width="880">
+
+
 # AgentBoot
 
 **Minimal, fast, ready-to-run AI Agent launcher**

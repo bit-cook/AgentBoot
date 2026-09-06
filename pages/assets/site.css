@@ -121,30 +121,7 @@ a:hover {
   height: 34px;
   place-items: center;
   overflow: hidden;
-  border: 2px solid var(--ink-950);
-  border-radius: 11px;
-  background: var(--sun);
-}
-
-.brand-mark::before,
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--ink-950);
-  transform-origin: left center;
-}
-
-.brand-mark::before {
-  width: 12px;
-  translate: -1px -3px;
-  rotate: 38deg;
-}
-
-.brand-mark::after {
-  width: 10px;
-  translate: 2px 5px;
+  background: url("logo-mark.svg") center / contain no-repeat;
 }
 
 .nav-links {

@@ -1,5 +1,8 @@
 <div align="center">
 
+<img src="pages/assets/banner-zh.svg" alt="AgentBoot — 一条命令，Agent 就位" width="880">
+
+
 # AgentBoot
 
 **极简 · 极速 · 开箱即用的 AI Agent 启动器**
