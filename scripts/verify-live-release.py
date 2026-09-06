@@ -24,7 +24,7 @@ def fetch(url, headers=None, expected_status=200):
         return response.read(), response.headers
 
 
-def verify_origin(origin):
+def verify_worker_origin(origin):
     shell = fetch(origin + "/install.sh")[0].decode("utf-8")
     ps1 = fetch(origin + "/install.ps1")[0].decode("utf-8-sig")
     if 'TAG="%s"' % TAG not in shell or "$Tag       = '%s'" % TAG not in ps1:
@@ -38,20 +38,25 @@ def verify_origin(origin):
         actual = hashlib.sha256(asset).hexdigest()
         if actual != expected:
             raise RuntimeError("%s checksum mismatch via %s" % (filename, origin))
-    if "boot.ide.pub" in origin:
-        range_body, range_headers = fetch(
-            origin + "/rel/agentboot-online-%s.tar.gz" % TAG,
-            headers={"Range": "bytes=0-99"}, expected_status=206)
-        if len(range_body) != 100 or not range_headers.get("Content-Range", "").startswith("bytes 0-99/"):
-            raise RuntimeError("Worker Range forwarding is not ready")
+    range_body, range_headers = fetch(
+        origin + "/rel/agentboot-online-%s.tar.gz" % TAG,
+        headers={"Range": "bytes=0-99"}, expected_status=206)
+    if len(range_body) != 100 or not range_headers.get("Content-Range", "").startswith("bytes 0-99/"):
+        raise RuntimeError("Worker Range forwarding is not ready")
+
+
+def verify_homepage_alias(origin):
+    body = fetch(origin)[0].decode("utf-8")
+    if "/AgentBoot/" not in body:
+        raise RuntimeError("%s is not linked to the AgentBoot project homepage" % origin)
 
 
 def main():
     health = json.loads(fetch("https://boot.ide.pub/health")[0])
     if health.get("tag") != TAG or not health.get("ok"):
         raise RuntimeError("Worker health is not ready for %r: %r" % (TAG, health))
-    verify_origin("https://boot.ide.pub")
-    verify_origin("https://bit-cook.github.io/AgentBoot")
+    verify_worker_origin("https://boot.ide.pub")
+    verify_homepage_alias("https://bit-cook.github.io/AgentBoot")
     print("live release verified:", TAG)
 
 
