@@ -21,5 +21,14 @@
       </div>
     </section>
   </main>
+<script>
+  (function () {
+    var segs = location.pathname.split("/");
+    if (segs.length > 2 && segs.slice(2).some(function (s) { return s !== s.toLowerCase(); })) {
+      var tail = segs.slice(2).map(function (s) { return s.toLowerCase(); }).join("/");
+      location.replace("/" + segs[1] + "/" + tail + location.search + location.hash);
+    }
+  })();
+</script>
 </body>
 </html>

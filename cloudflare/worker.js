@@ -51,6 +51,11 @@ export default {
         : `https://codeload.github.com/${REPO}/tar.gz/refs/heads/main`;
       return proxy(target, ext === "zip" ? "application/zip" : "application/x-gzip", 300);
     }
+    if (/^\/(agentboot|AgentBoot)(\/|$)/.test(path)) {
+      const sub = path.replace(/^\/(agentboot|AgentBoot)/, "");
+      const target = sub === "/en" || sub.startsWith("/en/") ? "/en" : "/";
+      return Response.redirect(new URL(target, request.url).toString(), 301);
+    }
     if (path === "/") return webResponse(request, "/index.html", PAGE_CACHE);
     if (path === "/en") return webResponse(request, "/en/index.html", PAGE_CACHE);
     if (path.startsWith("/assets/") && WEB_ASSETS[path]) {
