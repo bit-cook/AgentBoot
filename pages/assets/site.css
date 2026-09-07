@@ -121,7 +121,7 @@ a:hover {
   height: 34px;
   place-items: center;
   overflow: hidden;
-  background: url("logo-mark.svg") center / contain no-repeat;
+  background: url("logo-mark.svg?v=1.3.0") center / contain no-repeat;
 }
 
 .nav-links {
