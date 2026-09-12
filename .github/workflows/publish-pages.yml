@@ -8,8 +8,10 @@ permissions:
   pages: write
   id-token: write
 
+# 与 deploy-pages.yml 同一组并发键，避免两个发布通道同时写 Pages。
 concurrency:
-  group: pages
+  group: github-pages
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -18,6 +20,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # upload-pages-artifact 的归档步骤经 bash 调用 GNU tar；Windows
+      # self-hosted runner 需显式把 Git 的 usr/bin 注入后续步骤 PATH。
+      - name: Ensure GNU tar on PATH (Windows self-hosted)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Add-Content -Path $env:GITHUB_PATH -Value 'C:\Program Files\Git\usr\bin'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: gh-pages

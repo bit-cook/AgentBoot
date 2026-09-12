@@ -1,3 +1,5 @@
+# 发布流水线：仅由 tag 推送与手动派发触发（main 分支推送走 deploy-pages.yml）。
+# 触发器刻意收紧：重建本文件会刷新 GitHub 对它的注册，避免遗留的幽灵运行条目。
 name: release
 
 on:
