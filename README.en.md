@@ -8,7 +8,7 @@
 **Minimal, fast, ready-to-run AI Agent launcher**
 
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)](#one-command-install)
-[![Agents](https://img.shields.io/badge/Agents-15_indigo)](#supported-agents)
+[![Agents](https://img.shields.io/badge/Agents-16_indigo)](#supported-agents)
 [![Model](https://img.shields.io/badge/Default_model-Agnes_free-orange)](#models)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
@@ -51,7 +51,7 @@ Two commands after install:
 
 | | |
 |---|---|
-| 📦 **Choose what to install** | 15 mainstream agents, multi-select in the menu |
+| 📦 **Choose what to install** | 16 mainstream agents, multi-select in the menu |
 | 🛟 **Built-in fallback agent** | `ab`: zero third-party dependencies, Agnes by default, offline Linux knowledge base, session persistence |
 | 🧠 **Model provider manager** | Named custom providers, Ollama/LM Studio presets, failover order, connectivity test |
 | 🇨🇳 **China network adaptive** | npmmirror / Node mirrors / Tsinghua PyPI, Worker/Pages/Release fallback, proxy support |
@@ -61,7 +61,7 @@ Two commands after install:
 | 🔐 **Verified install** | Enforced SHA-256, atomic app switching, rollback; custom scripts require HTTPS and avoid shell interpolation |
 | ⚡ **Measured performance** | TLS connection reuse, pre-indexed KB, and an on-device `/bench` for current network/model conditions |
 
-## Supported agents (15)
+## Supported agents (16)
 
 | # | Agent | Command | Vendor | Offline |
 |---|---|---|---|---|
@@ -80,6 +80,7 @@ Two commands after install:
 | 13 | iFlow CLI | `iflow` | iFlow | ✓ |
 | 14 | Aider | `aider` | Aider AI | online only (pip) |
 | 15 | Cursor | `cursor` | Anysphere | online only (official signed desktop app in an AgentBoot-owned user directory) |
+| 16 | FreeBuff | `freebuff` | FreeBuff | online only (free ad-supported coding agent; npm launcher fetches its binary on first run) |
 
 Package names verified on the npm registry. `✓` = offline payload bundled.
 

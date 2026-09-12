@@ -78,6 +78,14 @@ class AgentLifecycleTests(unittest.TestCase):
         aider = next(agent for agent in registry["agents"] if agent["id"] == "aider")
         self.assertEqual((aider["method"], aider["pip"]), ("venv", "aider-chat"))
 
+    def test_freebuff_uses_npm_launcher_lifecycle(self):
+        registry = json.loads((ROOT / "agents/registry.json").read_text(encoding="utf-8"))
+        freebuff = next(agent for agent in registry["agents"] if agent["id"] == "freebuff")
+        self.assertEqual((freebuff["method"], freebuff["npm"], freebuff["bin"]),
+                         ("npm", "freebuff", "freebuff"))
+        self.assertFalse(freebuff["offline"])
+        self.assertTrue(menu._version_satisfies(menu._version_tuple("22.23.2"), freebuff["node"]))
+
     def test_aider_install_dispatches_private_venv(self):
         agent = {"id": "aider", "name": "Aider", "vendor": "Aider", "bin": "aider",
                  "method": "venv", "pip": "aider-chat"}

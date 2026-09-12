@@ -26,7 +26,9 @@ class CursorLifecycleTests(unittest.TestCase):
         self.patches = [
             mock.patch.object(menu, "AB_HOME", str(self.ab_home)),
             mock.patch.object(menu, "APPS_DIR", str(self.apps)),
-            mock.patch.dict(os.environ, {"HOME": str(self.home)}, clear=False),
+            # Windows 的 expanduser 优先读 USERPROFILE，两个都指向临时目录才隔离。
+            mock.patch.dict(os.environ, {"HOME": str(self.home),
+                                         "USERPROFILE": str(self.home)}, clear=False),
         ]
         for patch in self.patches:
             patch.start()
@@ -36,12 +38,19 @@ class CursorLifecycleTests(unittest.TestCase):
             patch.stop()
         self.tmp.cleanup()
 
+    def _symlink_or_skip(self, link, target, target_is_directory=False):
+        try:
+            link.symlink_to(target, target_is_directory=target_is_directory)
+        except OSError:
+            self.skipTest("symbolic link privilege unavailable on this platform")
+
     def test_registry_uses_cursor_special_installer(self):
         registry = json.loads((ROOT / "agents" / "registry.json").read_text(encoding="utf-8"))
         cursor = next(agent for agent in registry["agents"] if agent["id"] == "cursor")
         self.assertEqual((cursor["method"], cursor["special_install"]), ("cursor", "cursor"))
         self.assertFalse(cursor["offline"])
 
+    @unittest.skipUnless(os.name == "posix", "Linux AppImage 安装布局（POSIX shim 无 .cmd 后缀）")
     def test_linux_cursor_install_and_remove_stay_inside_agentboot(self):
         download = self.home / "Cursor.AppImage"
         download.write_bytes(b"\x7fELF" + b"x" * 128)
@@ -80,7 +89,7 @@ class CursorLifecycleTests(unittest.TestCase):
         target = self.home / "outside"
         target.mkdir()
         self.apps.mkdir(parents=True)
-        (self.apps / "cursor").symlink_to(target, target_is_directory=True)
+        self._symlink_or_skip(self.apps / "cursor", target, target_is_directory=True)
         with mock.patch.object(menu, "plat_id", return_value="linux-x64"), \
                 mock.patch.object(menu, "_download_cursor_asset") as download:
             self.assertFalse(menu.install_cursor({"id": "cursor"}))

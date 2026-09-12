@@ -8,7 +8,7 @@
 **极简 · 极速 · 开箱即用的 AI Agent 启动器**
 
 [![平台](https://img.shields.io/badge/平台-Linux%20%7C%20macOS%20%7C%20Windows-blue)](#一键在线安装)
-[![Agent](https://img.shields.io/badge/自选_Agent-15_个-indigo)](#支持的-agent)
+[![Agent](https://img.shields.io/badge/自选_Agent-16_个-indigo)](#支持的-agent)
 [![模型](https://img.shields.io/badge/默认模型-Agnes_免费-orange)](#模型开箱即用--完全自定义)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
@@ -50,7 +50,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 
 | | |
 |---|---|
-| 📦 **菜单自选安装** | 15 个主流 Agent 按需勾选（见下表），支持命令行指定 |
+| 📦 **菜单自选安装** | 16 个主流 Agent 按需勾选（见下表），支持命令行指定 |
 | 🛟 **内置保底 Agent** | `ab` 零第三方依赖 Python 核心：Agnes 开箱即用、离线 Linux 知识库、工具调用、会话持久化 |
 | 🧠 **提供商管理器** | Agnes 预设 + 自定义提供商命名管理 + Ollama/LM Studio 本地模型 + 故障切换顺序 |
 | 🇨🇳 **中国网络自适应** | npmmirror / Node 镜像 / 清华 PyPI 自动切换；Worker / Pages / Release 三源容错；代理一键配置 |
@@ -61,7 +61,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | ⚡ **极致性能** | TLS 连接复用、知识库预建索引（热查询 <1ms）、上下文自动瘦身、流式中断保护、`/bench` 基准 |
 | 🪟 **三平台一致体验** | 同一套菜单、命令与文档；Windows 长路径与商店存根等细节已处理 |
 
-## 支持的 Agent（15 个）
+## 支持的 Agent（16 个）
 
 | # | Agent | 命令 | 厂商 | 离线 | 备注 |
 |---|---|---|---|---|---|
@@ -80,6 +80,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | 13 | iFlow CLI | `iflow` | iFlow 心流 | ✓ | |
 | 14 | Aider | `aider` | Aider AI | 仅在线 | pip 生态 |
 | 15 | Cursor | `cursor` | Anysphere | 仅在线 | 官方签名桌面应用；AgentBoot 私有用户级安装 |
+| 16 | FreeBuff | `freebuff` | FreeBuff | 仅在线 | 免费编码 Agent（广告支持）；npm 启动器首启联网取二进制 |
 
 包名均已逐一在 npm registry 核实；`✓` = 离线包内置完整依赖与运行时。
 

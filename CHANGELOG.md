@@ -1,5 +1,12 @@
 # 更新日志
 
+## 未发布（Unreleased）
+
+- 新增 FreeBuff（`freebuff`，freebuff.com）为第 16 个内置 Agent：免费、广告支持、无需 API Key；npm 轻量启动器，首次运行联网获取平台原生二进制，暂仅在线安装。
+- 文档、双语主页与 Agent 数量口径同步更新为 16；文档一致性测试同步锁定注册表与页面行数。
+- 修复 `deploy-pages` 工作流一致性测试的过时断言（工作流已改为 gh-pages 发布，测试同步校验 SHA 钉版 checkout 与凭据丢弃）。
+- 修复测试套件在 Windows 上的两类密封性问题：`expanduser` 优先读 `USERPROFILE` 导致 CoCo/Cursor 测试写真实主目录；离线安装成功用例未 patch `AGENTS_DIR` 导致载荷落进真实 `~/.agentboot`。POSIX 专属测试在 Windows 明确跳过，套件跨平台全绿。
+
 ## v1.3.0 (2026-08-31)
 
 - 新增 Cursor 官方跨平台用户级安装：Linux AppImage 固定 SHA-256，Windows Authenticode，macOS codesign + notarization 校验。

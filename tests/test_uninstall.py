@@ -23,6 +23,14 @@ import i18n  # noqa: E402
 import menu  # noqa: E402
 
 
+def symlink_or_skip(link, target, target_is_directory=False):
+    """Create a symlink, or skip the test where the OS denies the privilege."""
+    try:
+        link.symlink_to(target, target_is_directory=target_is_directory)
+    except OSError:
+        raise unittest.SkipTest("symbolic link privilege unavailable on this platform")
+
+
 class UninstallAcceptanceTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -37,7 +45,9 @@ class UninstallAcceptanceTests(unittest.TestCase):
             mock.patch.object(menu, "AGENTS_DIR", str(self.agents_dir)),
             mock.patch.object(menu, "NPM_PREFIX", str(self.npm_prefix)),
             mock.patch.object(menu, "INSTALL_STATE", str(self.state_path)),
-            mock.patch.dict(os.environ, {"HOME": str(self.home)}, clear=False),
+            # Windows 的 expanduser 优先读 USERPROFILE，两个都指向临时目录才隔离。
+            mock.patch.dict(os.environ, {"HOME": str(self.home),
+                                         "USERPROFILE": str(self.home)}, clear=False),
         ]
         for patch in self.patches:
             patch.start()
@@ -186,7 +196,7 @@ class UninstallAcceptanceTests(unittest.TestCase):
         program = target / "bin"
         program.mkdir()
         (program / "coco").write_text("keep", encoding="utf-8")
-        (self.home / ".coco").symlink_to(target, target_is_directory=True)
+        symlink_or_skip(self.home / ".coco", target, target_is_directory=True)
         with self.assertRaisesRegex(OSError, "符号链接"):
             menu._remove_coco(False)
         self.assertTrue((program / "coco").exists())
@@ -199,7 +209,7 @@ class UninstallAcceptanceTests(unittest.TestCase):
         external_dir = self.home / ".local" / "bin"
         external_dir.mkdir(parents=True)
         for name in ("coco", "web", "coweb"):
-            (external_dir / name).symlink_to(target)
+            symlink_or_skip(external_dir / name, target)
         entry = {"executable": str(external_dir / "coco")}
         menu._remove_coco_external_launchers(entry)
         self.assertFalse(any((external_dir / name).exists() for name in ("coco", "web", "coweb")))

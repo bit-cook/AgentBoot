@@ -48,12 +48,13 @@ class DocumentationConsistencyTests(unittest.TestCase):
 
     def test_pages_match_registry_agent_count_and_offline_claims(self):
         registry = json.loads((ROOT / "agents/registry.json").read_text(encoding="utf-8"))
-        self.assertEqual(len(registry["agents"]), 15)
+        self.assertEqual(len(registry["agents"]), 16)
         for relative in ("pages/index.html", "pages/en/index.html"):
             page = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertEqual(page.count('<tr><td>'), 15, relative)
+            self.assertEqual(page.count('<tr><td>'), 16, relative)
             self.assertIn("Cursor", page, relative)
             self.assertIn("OpenCode", page, relative)
+            self.assertIn("FreeBuff", page, relative)
 
     def test_worker_web_bundle_is_generated_and_cacheable(self):
         worker = (ROOT / "cloudflare/worker.js").read_text(encoding="utf-8")

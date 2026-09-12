@@ -5,7 +5,7 @@ AgentBoot 控制台菜单（命令 agentboot）
 ================================
 中文交互菜单：
   * 环境体检
-  * 在线安装 Agent（菜单多选：Claude Code / Codex / Qwen Code / OpenCode / CodeBuddy / MiMo / Cline / Gemini CLI / iFlow ...）
+  * 在线安装 Agent（菜单多选：Claude Code / Codex / Qwen Code / OpenCode / CodeBuddy / MiMo / Cline / Gemini CLI / iFlow / FreeBuff ...）
   * 离线安装 Agent（从离线包 payloads/ 直接落盘，无需 npm）
   * 模型配置（Agnes 免费预设 / 自定义 OpenAI 兼容 / 本地 Ollama、LM Studio）
   * 镜像与代理设置（中国网络环境自适应：npmmirror 等）

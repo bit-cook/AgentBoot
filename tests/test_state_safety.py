@@ -32,6 +32,7 @@ class StateSafetyTests(unittest.TestCase):
         for patch in reversed(self.patches): patch.stop()
         self.tmp.cleanup()
 
+    @unittest.skipUnless(os.name == "posix", "POSIX 权限位语义（Windows 上 ACL 不可用 stat 断言）")
     def test_sensitive_files_and_home_are_private(self):
         agent.save_config(agent.default_config())
         agent.save_session([{"role": "user", "content": "secret"}])

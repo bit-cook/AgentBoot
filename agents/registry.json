@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated": "2026-08-30",
+  "updated": "2026-09-11",
   "agents": [
     {
       "id": "coco",
@@ -192,6 +192,18 @@
       "node": null,
       "offline": false,
       "notes": ["安装到 AgentBoot 私有 venv，不污染系统 Python", "需要 Python 3.10+；暂不支持离线"]
+    },
+    {
+      "id": "freebuff",
+      "name": "FreeBuff",
+      "vendor": "FreeBuff",
+      "desc": "广告支持的免费 AI 编码 Agent（freebuff.com，无需 API Key / 信用卡）",
+      "bin": "freebuff",
+      "method": "npm",
+      "npm": "freebuff",
+      "node": ">=16",
+      "offline": false,
+      "notes": ["官网：https://freebuff.com；免费使用（文本广告支持）", "npm 包为轻量启动器，首次运行会联网下载平台原生二进制；暂不支持离线"]
     }
   ]
 }

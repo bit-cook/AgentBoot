@@ -60,8 +60,11 @@ class ReleaseWorkflowTests(unittest.TestCase):
     def test_pages_workflow_pins_actions_and_drops_checkout_credentials(self):
         text = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
         self.assertNotIn("actions/checkout@v4", text)
+        self.assertIn("actions/checkout@11d5960a326750d5838078e36cf38b85af677262", text)
+        # The quality job only reads the repo, so it drops checkout credentials;
+        # the deploy job keeps the default token because it pushes the gh-pages worktree.
         self.assertIn("persist-credentials: false", text)
-        self.assertIn("actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e", text)
+        self.assertIn("contents: write", text)
         self.assertIn("scripts/sync-web-assets.py --check", text)
         # runs-on uses literal 'ubuntu-latest' (no vars.* override)
         self.assertNotIn("vars.AGENTBOOT_LINUX_RUNNER", text)

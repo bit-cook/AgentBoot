@@ -58,6 +58,8 @@ class InstallTrackingTests(unittest.TestCase):
             source.mkdir(parents=True)
             with mock.patch.object(menu, "load_registry", return_value=[agent]), \
                     mock.patch.object(menu, "find_payload_dir", return_value=str(payload)), \
+                    mock.patch.object(menu, "AGENTS_DIR", str(Path(tmp) / "agents")), \
+                    mock.patch.object(menu, "AB_HOME", str(tmp)), \
                     mock.patch.object(menu.shutil, "which", return_value="node"), \
                     mock.patch.object(menu, "node_ok", return_value=True), \
                     mock.patch.object(menu, "wire_agnes", return_value=({}, [])), \
@@ -126,6 +128,7 @@ class InstallTrackingTests(unittest.TestCase):
         self.assertEqual(menu._npm_entry_kind("tool.cmd"), "cmd")
         self.assertEqual(menu._npm_entry_kind("tool.js"), "node")
 
+    @unittest.skipUnless(os.name == "posix", "PATH block 写入 ~/.bashrc 仅在 POSIX 真实执行")
     def test_posix_path_block_uses_npm_bin_and_upgrades_existing_block(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
