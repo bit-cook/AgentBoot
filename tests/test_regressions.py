@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -43,12 +44,15 @@ class HighImpactRegressionTests(unittest.TestCase):
         for path in Path(agent.KB_DIR).glob("*.md"):
             expected += sum(1 for line in path.read_text(encoding="utf-8").splitlines()
                             if line.startswith("## "))
-        original = agent._KB_CACHE
-        try:
-            agent._KB_CACHE = None
-            sections = agent._kb_sections()
-        finally:
-            agent._KB_CACHE = original
+        with tempfile.TemporaryDirectory() as tmp:
+            original = agent._KB_CACHE
+            try:
+                agent._KB_CACHE = None
+                with mock.patch.object(agent, "AB_HOME", tmp), \
+                        mock.patch.object(agent, "KB_DIR", agent._KB_SHIPPED_DIR):
+                    sections = agent._kb_sections()
+            finally:
+                agent._KB_CACHE = original
         self.assertGreaterEqual(expected, 60)
         self.assertEqual(len(sections), expected)
 

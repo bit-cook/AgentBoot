@@ -10,14 +10,10 @@ AgentBoot 内置最小 Agent（命令 ab）
   * 内置离线 Linux 知识库：可查阅 Linux 用法、操作系统、修复常见问题
   * 工具：run_cmd / read_file / write_file / edit_file / list_dir / linux_help / http_get
 """
-import json
-import ipaddress
 import os
 import re
 import shlex
-import socket
 import sys
-import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -42,6 +38,13 @@ def _utf8_console():
         except Exception:
             pass
     if os.name == "nt":
+        # SetConsoleMode 仅对真实控制台有意义；管道/重定向场景跳过 ctypes
+        # 导入（约 200ms），一次性命令（ab linux / ab run）显著提速。
+        try:
+            if not sys.stdout.isatty():
+                return
+        except Exception:
+            return
         try:
             import ctypes
             kernel32 = ctypes.windll.kernel32
@@ -56,6 +59,26 @@ def ensure_home():
         os.chmod(AB_HOME, 0o700)
     except OSError:
         pass
+
+
+def probe_hosts(hosts, timeout=2.0):
+    """并发 TCP 探测多个主机；返回 {host: bool}。总耗时≈单次探测而非累加。"""
+    import socket
+    from concurrent.futures import ThreadPoolExecutor
+
+    def probe(host):
+        try:
+            socket.create_connection((host, 443), timeout=timeout).close()
+            return True
+        except Exception:
+            return False
+
+    hosts = list(dict.fromkeys(hosts))
+    if not hosts:
+        return {}
+    workers = min(8, len(hosts))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return dict(zip(hosts, pool.map(probe, hosts)))
 
 
 # Agnes 为官方预设的永久免费模型，开箱即用；其余为常见本地模型示例。
@@ -93,6 +116,7 @@ def default_config():
 
 
 def load_config():
+    import json
     ensure_home()
     if not os.path.exists(CONFIG_PATH):
         cfg = default_config()
@@ -129,6 +153,8 @@ def save_config(cfg):
 
 
 def _atomic_private_json(path, data):
+    import json
+    import tempfile
     directory = os.path.dirname(path) or "."
     os.makedirs(directory, mode=0o700, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=os.path.basename(path) + ".", suffix=".tmp", dir=directory)
@@ -196,6 +222,7 @@ def _split_base(base_url):
 
 
 def _is_literal_loopback(host):
+    import ipaddress
     if str(host or "").lower() == "localhost":
         return True
     try:
@@ -229,6 +256,7 @@ def _ssl_context():
 
 def _connect(scheme, host, port, timeout=180):
     import http.client
+    import json
     from urllib.parse import urlsplit
     proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
     if not proxy_url:
@@ -284,6 +312,7 @@ class StreamInterrupted(ApiError):
 
 def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature=0.7):
     """调用 OpenAI 兼容接口（连接复用 + 自动重试）。返回 (content, tool_calls)。"""
+    import json
     p = get_provider(cfg)
     scheme, host, port, path = _split_base(p.get("base_url", ""))
     if not host:
@@ -317,11 +346,18 @@ def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature
                     msg = json.loads(data).get("error", {}).get("message") or data
                 except Exception:
                     msg = data
-                if resp.status >= 500:
-                    _drop_pool(scheme, host, port)   # 服务端异常：弃用连接后重试
+                if resp.status >= 500 or resp.status == 429:
+                    # 服务端异常或限流：弃用连接后重试；尊重 Retry-After（上限 10s）
+                    _drop_pool(scheme, host, port)
                     last_err = ApiError("HTTP %s：%s" % (resp.status, msg[:400]))
                     if attempt < 2:
-                        time.sleep(1 + attempt)
+                        delay = 1 + attempt
+                        retry_after = resp.getheader("Retry-After")
+                        try:
+                            delay = min(max(float(retry_after), 1.0), 10.0)
+                        except (TypeError, ValueError):
+                            pass
+                        time.sleep(delay)
                         continue
                     raise last_err
                 raise ApiError("HTTP %s：%s" % (resp.status, msg[:400]))
@@ -349,6 +385,7 @@ def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature
 
 
 def _read_stream(resp, stream_cb, conn, scheme, host, port):
+    import json
     content_parts = []
     tool_calls = {}
     terminal = False
@@ -456,6 +493,7 @@ def chat_auto(cfg, messages, stream_cb=None, **kw):
 
 def _ttfb(cfg, prompt="回复：1"):
     """测量首包延迟（毫秒）：从发起到收到第一个 SSE 数据行（HTTP 层，不依赖正文）。"""
+    import json
     p = get_provider(cfg)
     scheme, host, port, path = _split_base(p.get("base_url", ""))
     body = {"model": p.get("model"), "messages": [{"role": "user", "content": prompt}],
@@ -519,6 +557,7 @@ def save_session(history):
 
 
 def load_session():
+    import json
     try:
         with open(SESSION_FILE, "r", encoding="utf-8") as f:
             return json.load(f).get("history") or []
@@ -561,33 +600,93 @@ def test_provider(cfg, name=None):
 # ---------------------------------------------------------------- 离线 Linux 知识库
 
 _KB_CACHE = None
+_KB_SHIPPED_DIR = os.path.join(APP_DIR, "tools", "linux-kb")
+
+
+def _kb_manifest():
+    """知识库指纹：文件名 + 大小 + mtime_ns；任一变化即判定索引失效。"""
+    manifest = []
+    if os.path.isdir(KB_DIR):
+        for fn in sorted(os.listdir(KB_DIR)):
+            if not fn.endswith(".md"):
+                continue
+            try:
+                stat = os.stat(os.path.join(KB_DIR, fn))
+            except OSError:
+                continue
+            manifest.append([fn, stat.st_size, stat.st_mtime_ns])
+    return manifest
+
+
+def _kb_load_cache(manifest):
+    """读取上次的持久化索引；指纹不匹配或不可读时返回 None。"""
+    import marshal
+    try:
+        path = os.path.join(AB_HOME, "kb-index.cache")
+        with open(path, "rb") as f:
+            payload = marshal.load(f)
+        if isinstance(payload, tuple) and len(payload) == 2 \
+                and payload[0] == manifest and isinstance(payload[1], list):
+            return payload[1]
+    except Exception:
+        pass
+    return None
+
+
+def _kb_save_cache(manifest, sections):
+    """原子写入索引缓存；仅对随包分发的内置知识库落盘，避免测试/自定义目录污染用户目录。"""
+    import marshal
+    import tempfile
+    if KB_DIR != _KB_SHIPPED_DIR:
+        return
+    try:
+        os.makedirs(AB_HOME, mode=0o700, exist_ok=True)
+        path = os.path.join(AB_HOME, "kb-index.cache")
+        fd, tmp = tempfile.mkstemp(prefix="kb-index.", suffix=".tmp", dir=AB_HOME)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                marshal.dump((manifest, sections), f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+    except Exception:
+        pass
+
+
+def _kb_build(manifest):
+    sections = []
+    for fn, _size, _mtime in manifest:
+        try:
+            with open(os.path.join(KB_DIR, fn), "r", encoding="utf-8") as f:
+                text = f.read()
+        except Exception:
+            continue
+        parts = re.split(r"(?m)^##\s+", text)
+        for part in parts[1:]:
+            lines = part.splitlines()
+            title = lines[0].strip() if lines else fn
+            body = "\n".join(lines[1:]).strip()
+            tl, bl = title.lower(), (title + "\n" + body).lower()
+            sections.append({"file": fn, "title": title, "body": body,
+                             "title_l": tl, "body_l": bl})
+    return sections
 
 
 def _kb_sections():
     global _KB_CACHE
     if _KB_CACHE is not None:
         return _KB_CACHE
-    sections = []
-    if os.path.isdir(KB_DIR):
-        for fn in sorted(os.listdir(KB_DIR)):
-            if not fn.endswith(".md"):
-                continue
-            path = os.path.join(KB_DIR, fn)
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    text = f.read()
-            except Exception:
-                continue
-            parts = re.split(r"(?m)^##\s+", text)
-            for part in parts[1:]:
-                lines = part.splitlines()
-                title = lines[0].strip() if lines else fn
-                body = "\n".join(lines[1:]).strip()
-                tl, bl = title.lower(), (title + "\n" + body).lower()
-                sections.append({"file": fn, "title": title, "body": body,
-                                 "title_l": tl, "body_l": bl})
-    _KB_CACHE = sections
-    return sections
+    manifest = _kb_manifest()
+    _KB_CACHE = _kb_load_cache(manifest)
+    if _KB_CACHE is None:
+        _KB_CACHE = _kb_build(manifest)
+        _kb_save_cache(manifest, _KB_CACHE)
+    return _KB_CACHE
 
 
 def linux_help(query):
@@ -618,7 +717,6 @@ def linux_help(query):
         if score:
             scored.append((score, sec))
     if not scored:
-        scored.sort(key=lambda x: -x[0])
         return "知识库中没有直接匹配「%s」的内容。\n可用主题：%s" % (
             q, "、".join(sorted({s['file'].replace('.md', '') for s in _kb_sections()})))
     scored.sort(key=lambda x: -x[0])
@@ -766,6 +864,7 @@ def run_safe_cmd(cmd, timeout=60):
 
 def run_cmd(cmd, timeout=60):
     import subprocess   # 惰性导入：保持启动极速
+    import tempfile
     timeout = min(max(int(timeout or 60), 5), 300)
     shell = ["cmd", "/c", cmd] if os.name == "nt" else ["/bin/sh", "-c", cmd]
     out_file = tempfile.TemporaryFile(mode="w+b")
@@ -909,7 +1008,7 @@ def search_files(pattern, path=".", regex=False, max_results=40):
             if len(out) >= max_results:
                 break
             fp = os.path.join(base, fn)
-            if rx and rx.search(fn):
+            if (rx.search(fn) if rx else low in fn.lower()):
                 out.append("[文件名] " + fp)
                 continue
             try:
@@ -931,6 +1030,8 @@ def search_files(pattern, path=".", regex=False, max_results=40):
 
 
 def _validate_public_http_url(url):
+    import ipaddress
+    import socket
     from urllib.parse import urlsplit
     parsed = urlsplit(url or "")
     if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
@@ -1106,6 +1207,7 @@ def platform_info():
 
 def agent_loop(cfg, user_text, history=None, stream=True):
     """执行一轮完整任务，返回 (最终回复, 新历史)。"""
+    import json
     history = history or []
     msgs = [{"role": "system", "content": system_prompt()}]
     msgs += history[-12:]
@@ -1339,19 +1441,16 @@ def doctor(cfg):
     print("模型连通 : %s %s" % ("✓" if ok else "✗", msg if not ok else ""))
     n_kb = len(_kb_sections())
     print("Linux知识库: %s（%d 个主题段落）" % ("✓" if n_kb else "✗ 缺失 tools/linux-kb", n_kb))
-    for tool, host in (("node", None), ("npm", None), ("git", None)):
+    for tool in ("node", "npm", "git"):
         import shutil
         path = shutil.which(tool)
         print("%-8s : %s" % (tool, path or "未安装（可由菜单安装/自动下载运行时）"))
+    probes = probe_hosts(("registry.npmmirror.com", "api.github.com", "apihub.agnes-ai.com"))
     for name, host in (("npm镜像(registry.npmmirror.com)", "registry.npmmirror.com"),
                        ("GitHub(api.github.com)", "api.github.com"),
                        ("模型(apihub.agnes-ai.com)", "apihub.agnes-ai.com")):
-        try:
-            import socket
-            socket.create_connection((host, 443), timeout=2).close()
-            print("网络     : ✓ %s" % name)
-        except Exception:
-            print("网络     : ✗ %s 不可达" % name)
+        print("网络     : %s %s" % ("✓" if probes.get(host) else "✗", name if probes.get(host)
+                                    else "%s 不可达" % name))
     print("-" * 46)
     print("启动 Agent：ab   ·   打开控制台菜单：agentboot")
 
@@ -1360,24 +1459,28 @@ def doctor(cfg):
 
 def main():
     _utf8_console()
-    cfg = load_config()
-    i18n.set_lang(os.environ.get("AGENTBOOT_LANG") or cfg.get("lang") or "zh")
     argv = sys.argv[1:]
     cmd = argv[0] if argv else "chat"
     args = argv[1:]
-    if cmd == "lang":
-        want = args[0] if args else "zh"
-        cfg["lang"] = "en" if want.lower().startswith("en") else "zh"
-        save_config(cfg)
-        i18n.set_lang(cfg["lang"])
-        print("Language: %s" % ("English" if cfg["lang"] == "en" else "中文（默认）"))
-        return
+    # 零配置命令优先：不加载模型配置，不触发 json/文件 IO，让一次性用法最快
     if cmd in ("help", "--help", "-h"):
         print(__doc__)
         print("用法: ab [chat|run <任务>|model|doctor|linux <关键词>|version]")
         return
     if cmd in ("version", "--version", "-v"):
         print("AgentBoot Agent v%s" % VERSION)
+        return
+    if cmd == "linux":
+        print(linux_help(" ".join(args)))
+        return
+    cfg = load_config()
+    i18n.set_lang(os.environ.get("AGENTBOOT_LANG") or cfg.get("lang") or "zh")
+    if cmd == "lang":
+        want = args[0] if args else "zh"
+        cfg["lang"] = "en" if want.lower().startswith("en") else "zh"
+        save_config(cfg)
+        i18n.set_lang(cfg["lang"])
+        print("Language: %s" % ("English" if cfg["lang"] == "en" else "中文（默认）"))
         return
     if cmd == "doctor":
         doctor(cfg)
@@ -1389,9 +1492,6 @@ def main():
             choose_model(cfg)
         else:
             print("请在交互终端运行：ab model")
-        return
-    if cmd == "linux":
-        print(linux_help(" ".join(args)))
         return
     if cmd == "run":
         if not args:

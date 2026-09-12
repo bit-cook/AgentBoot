@@ -70,7 +70,8 @@ class NetworkBoundaryTests(unittest.TestCase):
 
     def test_public_url_validation_rejects_private_dns_resolution(self):
         private = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.8", 0))]
-        with mock.patch.object(agent.socket, "getaddrinfo", return_value=private), \
+        # agent.py 对 socket 采用函数内惰性导入，patch 真实 socket 模块即可命中
+        with mock.patch("socket.getaddrinfo", return_value=private), \
                 self.assertRaisesRegex(ValueError, "非公网"):
             agent._validate_public_http_url("https://internal.example/path")
 

@@ -88,7 +88,7 @@ def elapsed_ms(command: list[str], env: dict[str, str], stdin: bytes | None = No
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=True,
-        timeout=15,
+        timeout=60,
     )
     return (time.perf_counter() - start) * 1000.0
 
@@ -102,6 +102,26 @@ def median_command(command, env, runs, stdin=None) -> float:
 def fake_toolchain(root: Path) -> Path:
     binary = root / "fake-bin"
     binary.mkdir()
+    if os.name == "nt":
+        node = binary / "node.cmd"
+        node.write_text("@echo off\necho v22.23.2\n", encoding="ascii")
+        npm = binary / "npm.cmd"
+        npm.write_text(
+            "@echo off\r\n"
+            "set \"prefix=\"\r\n"
+            ":loop\r\n"
+            "if \"%~1\"==\"\" goto end\r\n"
+            "if /i \"%~1\"==\"--prefix\" set \"prefix=%~2\"\r\n"
+            "shift\r\n"
+            "goto loop\r\n"
+            ":end\r\n"
+            "if \"%prefix%\"==\"\" exit /b 2\r\n"
+            "> \"%prefix%\\codex.cmd\" echo @echo off\r\n"
+            ">> \"%prefix%\\codex.cmd\" echo exit /b 0\r\n"
+            "exit /b 0\r\n",
+            encoding="ascii",
+        )
+        return binary
     node = binary / "node"
     npm = binary / "npm"
     node.write_text("#!/bin/sh\nprintf 'v22.23.2\\n'\n", encoding="utf-8")

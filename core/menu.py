@@ -21,12 +21,10 @@ from contextlib import contextmanager
 import os
 import re
 import shutil
-import socket
 import subprocess
 import sys
 import platform
 import time
-import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import agent  # noqa: E402  复用配置与模型能力
@@ -95,6 +93,7 @@ def plat_id():
 
 
 def can_tcp(host, port=443, timeout=2.0):
+    import socket
     try:
         socket.create_connection((host, port), timeout=timeout).close()
         return True
@@ -917,8 +916,9 @@ def install_online(ids):
 
 
 def install_via_script(a):
+    from urllib.parse import urlsplit
     url = a.get("script")
-    parsed = urllib.parse.urlsplit(url or "")
+    parsed = urlsplit(url or "")
     if parsed.scheme.lower() != "https" or not parsed.netloc:
         log_err("安装脚本必须使用有效的 HTTPS URL")
         return False
@@ -950,12 +950,13 @@ def install_via_script(a):
 def _download_script(url, suffix):
     import tempfile
     from urllib import request as urllib_request
+    from urllib.parse import urlsplit
     request = urllib_request.Request(url, headers={"User-Agent": "AgentBoot/1.0"})
     fd, path = tempfile.mkstemp(prefix="agentboot-script-", suffix=suffix)
     try:
         total = 0
         with os.fdopen(fd, "wb") as output, urllib_request.urlopen(request, timeout=60) as response:
-            final_url = urllib.parse.urlsplit(response.geturl())
+            final_url = urlsplit(response.geturl())
             if final_url.scheme.lower() != "https":
                 raise ValueError("安装脚本重定向到了非 HTTPS 地址")
             while True:
@@ -986,13 +987,14 @@ def _download_cursor_asset(url, suffix):
     import hashlib
     import tempfile
     from urllib import request as urllib_request
+    from urllib.parse import urlsplit
     request = urllib_request.Request(url, headers={"User-Agent": "AgentBoot/%s" % VERSION})
     fd, path = tempfile.mkstemp(prefix="agentboot-cursor-", suffix=suffix)
     try:
         total = 0
         digest = hashlib.sha256()
         with os.fdopen(fd, "wb") as output, urllib_request.urlopen(request, timeout=180) as response:
-            final = urllib.parse.urlsplit(response.geturl())
+            final = urlsplit(response.geturl())
             if final.scheme != "https" or final.hostname not in ("api2.cursor.sh", "downloads.cursor.com"):
                 raise ValueError("Cursor 下载重定向到了非官方地址")
             length = int(response.headers.get("Content-Length") or 0)
@@ -2026,9 +2028,10 @@ def set_npm_registry(url):
 
 
 def set_proxy(url=None):
+    from urllib.parse import urlsplit
     data = load_env_json()
     if url:
-        parsed = urllib.parse.urlsplit(url)
+        parsed = urlsplit(url)
         if parsed.scheme not in ("http", "https") or not parsed.hostname:
             log_err("代理地址必须是有效的 http:// 或 https:// URL")
             return False
@@ -2075,8 +2078,9 @@ def mirror_status():
     cn = cn_mode()
     print(t("menu.mirror_net") % (t("menu.mirror_cn") if cn else t("menu.mirror_global")))
     print(t("menu.mirror_npm") % npm_current_registry())
-    print(t("menu.mirror_npm_mirror") % ("✓" if can_tcp("registry.npmmirror.com") else "✗"))
-    print(t("menu.mirror_npmjs") % ("✓" if can_tcp("registry.npmjs.org", 443, 1.5) else "✗"))
+    probes = agent.probe_hosts(("registry.npmmirror.com", "registry.npmjs.org"), timeout=1.5)
+    print(t("menu.mirror_npm_mirror") % ("✓" if probes.get("registry.npmmirror.com") else "✗"))
+    print(t("menu.mirror_npmjs") % ("✓" if probes.get("registry.npmjs.org") else "✗"))
     env = load_env_json()
     print(t("menu.mirror_proxy") % (env.get("proxy") or os.environ.get("HTTPS_PROXY") or "-"))
     print(t("menu.mirror_switch") % (os.environ.get("AGENTBOOT_MIRROR") or "auto"))
@@ -2490,9 +2494,12 @@ def main_menu(cfg=None):
 
 
 def main():
-    cfg = resolve_lang()
     agent._utf8_console()
     argv = sys.argv[1:]
+    if argv and argv[0] in ("version", "--version"):
+        print("AgentBoot 控制台 v%s" % VERSION)
+        return
+    cfg = resolve_lang()
     if not argv:
         main_menu(cfg)
         return
@@ -2599,8 +2606,6 @@ def main():
                 raise SystemExit(1)
         else:
             build_offline_wizard()
-    elif cmd in ("version", "--version"):
-        print("AgentBoot 控制台 v%s" % VERSION)
     elif cmd == "menu":
         main_menu(cfg)
     else:
