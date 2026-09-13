@@ -1,5 +1,13 @@
 # 更新日志
 
+## v1.4.3 (2026-09-14)
+
+- 深度完善：镜像模式（auto / cn / off）持久化到 `~/.agentboot/env.json`——`agentboot mirror cn|off` 重启后依然生效，不再只对当前会话有效；菜单「镜像代理」新增模式切换子项；环境变量 `AGENTBOOT_MIRROR` 仍可临时覆盖。
+- 极限优化：`env.json` 读取按 mtime 缓存——`cn_mode / gh_mirrors / npm_registry` 等高频调用不再反复读盘；返回值改为拷贝，杜绝调用方误改写回缓存。
+- 安装体验：npm 安装期间每 15 秒显示一次已耗时（`--progress=false` 全程静默时不再像卡死），结束后自动清除。
+- 环境体检（`ab doctor`）新增本机硬件摘要行（系统 / 核数 / 内存），完整配置仍用 `ab sys`。
+- 站点镜像（gh-pages）404 页资源路径改写为自包含（`/AgentBoot/assets/`），`ide.pub` 失效后镜像站样式不再丢失。
+
 ## v1.4.2 (2026-09-13)
 
 - 内置 Agent（ab）新增机器配置查询：`sys_info` 工具报告主机名 / 操作系统与版本 / CPU 型号与核数 / 内存总量与可用 / 各磁盘容量 / Python 与 AgentBoot 版本，Windows（注册表 + GlobalMemoryStatusEx）/ Linux（/proc）/ macOS（sysctl）全平台标准库实现，离线零依赖；对话里问「这台机器什么配置」直接可答，另提供 `ab sys` 一键命令与交互内 `/sys` 命令。

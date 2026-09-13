@@ -167,6 +167,10 @@ ZH = {
     "menu.mirror_npm_auto": "自动选路（按网络环境）",
     "menu.mirror_gh_auto": "自动探测（国内加速 / 全球直连）",
     "menu.mirror_gh_off": "直连（关闭加速）",
+    "menu.mirror_pick_mode": "镜像模式（自动 / 中国网络 / 全球直连）",
+    "menu.mirror_mode_auto": "自动探测（推荐）",
+    "menu.mirror_mode_cn": "固定为中国网络（始终用镜像与加速）",
+    "menu.mirror_mode_off": "固定为全球直连（不用镜像）",
 }
 
 EN = {
@@ -329,6 +333,10 @@ EN = {
     "menu.mirror_npm_auto": "Auto (per network)",
     "menu.mirror_gh_auto": "Auto probe (CN accelerators / direct elsewhere)",
     "menu.mirror_gh_off": "Direct (no accelerator)",
+    "menu.mirror_pick_mode": "Mirror mode (auto / China / global direct)",
+    "menu.mirror_mode_auto": "Auto probe (recommended)",
+    "menu.mirror_mode_cn": "Always China mode (mirrors & accelerators on)",
+    "menu.mirror_mode_off": "Always global direct (no mirrors)",
 }
 
 

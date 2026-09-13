@@ -24,7 +24,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     VERSION = open(os.path.join(APP_DIR, "VERSION"), "r", encoding="ascii").read().strip()
 except OSError:
-    VERSION = "1.4.2"
+    VERSION = "1.4.3"
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
 CONFIG_PATH = os.path.join(AB_HOME, "config.json")
 KB_DIR = os.path.join(APP_DIR, "tools", "linux-kb")
@@ -1776,6 +1776,10 @@ def doctor(cfg):
     print("AgentBoot 环境体检 v%s" % VERSION)
     print("-" * 46)
     print("Python   : %s.%s.%s %s" % (*sys.version_info[:3], sys.executable))
+    total_mem, _avail = _mem_bytes()
+    print("本机     : %s · %s 核 · 内存 %s" % (
+        platform_info(), os.cpu_count() or "?",
+        _fmt_bytes(total_mem) if total_mem else "未知（可用 ab sys 查看完整配置）"))
     p = get_provider(cfg)
     print("模型源   : %s（%s @ %s）" % (p["name"], p.get("model"), p.get("base_url")))
     ok, msg = test_provider(cfg)

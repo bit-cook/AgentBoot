@@ -18,12 +18,14 @@ AgentBoot 控制台菜单（命令 agentboot）
 """
 import json
 from contextlib import contextmanager
+
 import os
 import re
 import shutil
 import subprocess
 import sys
 import platform
+import threading
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -136,9 +138,80 @@ def find_python():
     return None
 
 
-def cn_mode():
-    """中国网络环境判定：环境变量优先，其次探测 npm 官方源连通性。"""
+_ENV_JSON_CACHE = {"data": None, "mtime": None}
+
+
+def load_env_json():
+    """读取 env.json（按 mtime 缓存；cn_mode 等高频调用不再反复读盘）。返回浅拷贝。"""
+    try:
+        mtime = os.path.getmtime(ENV_JSON)
+    except OSError:
+        mtime = None
+    cached = _ENV_JSON_CACHE["data"]
+    if cached is None or _ENV_JSON_CACHE["mtime"] != mtime:
+        try:
+            with open(ENV_JSON, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            cached = data if isinstance(data, dict) else {}
+        except Exception:
+            cached = {}
+        _ENV_JSON_CACHE["data"] = cached
+        _ENV_JSON_CACHE["mtime"] = mtime
+    data = dict(cached)
+    proxy = data.get("proxy")
+    if proxy:
+        os.environ["HTTP_PROXY"] = proxy
+        os.environ["HTTPS_PROXY"] = proxy
+    return data
+
+
+def save_env_json(data):
+    agent._atomic_private_json(ENV_JSON, data)
+    _ENV_JSON_CACHE["data"] = dict(data)
+    try:
+        _ENV_JSON_CACHE["mtime"] = os.path.getmtime(ENV_JSON)
+    except OSError:
+        _ENV_JSON_CACHE["mtime"] = None
+
+
+def _mirror_mode_pref():
+    """镜像模式偏好：环境变量 > env.json 持久化选择 > 空（自动探测）。"""
     forced = os.environ.get("AGENTBOOT_MIRROR", "").strip().lower()
+    if forced:
+        return forced
+    return (load_env_json().get("mirror_mode") or "").strip().lower()
+
+
+def set_mirror_mode(mode):
+    """持久化镜像模式（auto/cn/off），并同步当前进程环境。"""
+    mode = (mode or "auto").strip().lower()
+    if mode in ("cn", "on", "1", "true"):
+        mode = "cn"
+    elif mode in ("off", "global", "0", "false"):
+        mode = "off"
+    elif mode in ("auto", ""):
+        mode = "auto"
+    else:
+        log_err("镜像模式必须是 auto / cn / off")
+        return
+    data = load_env_json()
+    if mode == "auto":
+        data.pop("mirror_mode", None)
+    else:
+        data["mirror_mode"] = mode
+    save_env_json(data)
+    os.environ.pop("AGENTBOOT_MIRROR", None)
+    if mode == "cn":
+        log_ok("镜像模式已固定为中国网络（npm 用 %s，GitHub 加速启用）" % NPM_MIRROR)
+    elif mode == "off":
+        log_ok("镜像模式已固定为全球直连")
+    else:
+        log_ok("镜像模式已恢复自动探测")
+
+
+def cn_mode():
+    """中国网络环境判定：环境变量/env.json 持久化优先，其次探测 npm 官方源连通性。"""
+    forced = _mirror_mode_pref()
     if forced in ("cn", "on", "1", "true"):
         return True
     if forced in ("off", "global", "0", "false"):
@@ -212,23 +285,6 @@ def set_gh_proxy(value="auto"):
         return
     save_env_json(data)
     os.environ.pop("AGENTBOOT_GH_PROXY", None)
-
-
-def load_env_json():
-    try:
-        with open(ENV_JSON, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        proxy = data.get("proxy") if isinstance(data, dict) else None
-        if proxy:
-            os.environ["HTTP_PROXY"] = proxy
-            os.environ["HTTPS_PROXY"] = proxy
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
-
-
-def save_env_json(data):
-    agent._atomic_private_json(ENV_JSON, data)
 
 
 def load_registry():
@@ -937,7 +993,8 @@ def _run_npm_process(cmd, env):
     """执行 npm 命令：整体超时保护 + 超时清理整棵进程树。
 
     网络抖动时 npm 可能长时间无响应；不设超时会让安装菜单无限挂起。
-    返回 (returncode, 输出尾部)；超时返回 (None, "")。"""
+    交互终端下每 15s 显示一次已耗时（npm --progress=false 全程静默，
+    没有任何反馈会让用户以为卡死）。返回 (returncode, 输出尾部)；超时返回 (None, "")。"""
     import tempfile
     out_file = tempfile.TemporaryFile(mode="w+b")
     err_file = tempfile.TemporaryFile(mode="w+b")
@@ -948,9 +1005,30 @@ def _run_npm_process(cmd, env):
         else:
             kwargs["start_new_session"] = True
         process = subprocess.Popen(cmd, env=env, **kwargs)
+
+        ticker_stop = threading.Event()
+        interactive = False
+        try:
+            interactive = sys.stdin.isatty() and sys.stdout.isatty()
+        except Exception:
+            pass
+
+        def _tick():
+            start = time.time()
+            while not ticker_stop.wait(15):
+                try:
+                    sys.stdout.write("\r· npm 运行中… %d秒   " % int(time.time() - start))
+                    sys.stdout.flush()
+                except Exception:
+                    return
+
+        if interactive:
+            threading.Thread(target=_tick, daemon=True).start()
+
         try:
             code = process.wait(timeout=NPM_INSTALL_TIMEOUT)
         except subprocess.TimeoutExpired:
+            ticker_stop.set()
             if not POSIX:
                 subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -966,6 +1044,14 @@ def _run_npm_process(cmd, env):
                         pass
             log_err("npm 执行超时（超过 %d 分钟），已终止进程树" % (NPM_INSTALL_TIMEOUT // 60))
             return None, ""
+        finally:
+            ticker_stop.set()
+        if interactive:
+            try:
+                sys.stdout.write("\r" + " " * 30 + "\r")
+                sys.stdout.flush()
+            except Exception:
+                pass
 
         def tail(stream):
             stream.flush()
@@ -2644,8 +2730,9 @@ def menu_mirror():
         mirror_status()
         print(" [1] " + t("menu.mirror_pick_npm"))
         print(" [2] " + t("menu.mirror_pick_gh"))
-        print(" [3] " + t("menu.mirror_proxy_set"))
-        print(" [4] " + t("menu.mirror_proxy_clear"))
+        print(" [3] " + t("menu.mirror_pick_mode"))
+        print(" [4] " + t("menu.mirror_proxy_set"))
+        print(" [5] " + t("menu.mirror_proxy_clear"))
         print(" [0] " + t("menu.pick_back"))
         c = input(t("menu.pick")).strip()
         if c == "1":
@@ -2677,10 +2764,23 @@ def menu_mirror():
             elif raw.isdigit() and 1 <= int(raw) <= len(GH_PROXIES):
                 set_gh_proxy(GH_PROXIES[int(raw) - 1][1])
         elif c == "3":
+            current = _mirror_mode_pref() or "auto"
+            print("\n" + t("menu.mirror_pick_mode"))
+            print("  [a] " + t("menu.mirror_mode_auto") + (t("menu.current_mark") if current == "auto" else ""))
+            print("  [c] " + t("menu.mirror_mode_cn") + (t("menu.current_mark") if current == "cn" else ""))
+            print("  [d] " + t("menu.mirror_mode_off") + (t("menu.current_mark") if current == "off" else ""))
+            raw = input(t("menu.pick")).strip().lower()
+            if raw == "a":
+                set_mirror_mode("auto")
+            elif raw == "c":
+                set_mirror_mode("cn")
+            elif raw == "d":
+                set_mirror_mode("off")
+        elif c == "4":
             url = input(t("menu.proxy_addr")).strip()
             if url:
                 set_proxy(url)
-        elif c == "4":
+        elif c == "5":
             set_proxy(None)
         else:
             return
@@ -2828,13 +2928,13 @@ def main():
     elif cmd == "mirror":
         arg = argv[1] if len(argv) > 1 else "auto"
         if arg == "auto":
-            os.environ.pop("AGENTBOOT_MIRROR", None)
+            set_mirror_mode("auto")
             mirror_status()
         elif arg == "cn":
-            os.environ["AGENTBOOT_MIRROR"] = "cn"
+            set_mirror_mode("cn")
             set_npm_registry(npm_registry(True))
         elif arg == "off":
-            os.environ["AGENTBOOT_MIRROR"] = "off"
+            set_mirror_mode("off")
             mirror_status()
         elif arg == "npm":
             set_npm_mirror(argv[2] if len(argv) > 2 else None)
