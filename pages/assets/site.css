@@ -652,7 +652,8 @@ h2 {
   font-family: var(--mono);
   font-size: 13px;
   line-height: 1.75;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   scrollbar-color: #557266 var(--code);
 }
 
@@ -664,7 +665,7 @@ h2 {
 
 .steps {
   display: grid;
-  margin: 48px 0 0;
+  margin-block-start: 48px;
   padding: 0;
   counter-reset: step;
   grid-template-columns: repeat(3, minmax(0, 1fr));
