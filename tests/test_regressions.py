@@ -58,18 +58,23 @@ class HighImpactRegressionTests(unittest.TestCase):
 
     def test_npm_install_is_scoped_to_agentboot_prefix(self):
         completed = mock.Mock(returncode=0)
+        completed.wait.return_value = 0
+        completed.pid = 4242
         with mock.patch.object(menu, "npm_cmd", return_value="npm"), \
                 mock.patch.object(menu.shutil, "which", return_value="npm"), \
                 mock.patch.object(menu, "cn_mode", return_value=False), \
                 mock.patch.object(menu, "NPM_PREFIX", "/managed/agentboot/npm-prefix"), \
                 mock.patch.object(menu.os, "makedirs"), \
-                mock.patch.object(menu.subprocess, "run", return_value=completed) as run:
+                mock.patch.object(menu.subprocess, "Popen", return_value=completed) as run:
             self.assertTrue(menu.npm_install("@openai/codex@0.90.0"))
         command = run.call_args.args[0]
         self.assertIn("--prefix", command)
         self.assertEqual(command[command.index("--prefix") + 1], "/managed/agentboot/npm-prefix")
         for option in ("--no-audit", "--no-fund", "--prefer-offline", "--progress=false", "--loglevel=error"):
             self.assertIn(option, command)
+        for flag in ("--fetch-timeout=120000", "--fetch-retries=4"):
+            self.assertIn(flag, command)
+        self.assertEqual(run.call_count, 1)  # 成功时不重试
 
     def test_ttfb_does_not_wait_for_remaining_response_body(self):
         class Response:

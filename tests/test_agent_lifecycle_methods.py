@@ -37,12 +37,14 @@ class AgentLifecycleTests(unittest.TestCase):
 
     def test_npm_batch_reuses_mirror_and_environment_detection(self):
         context = {}
-        completed = subprocess.CompletedProcess([], 0)
+        process = mock.Mock()
+        process.wait.return_value = 0
+        process.pid = 4242
         with mock.patch.object(menu, "npm_cmd", return_value="npm"), \
                 mock.patch.object(menu, "ensure_npm_prefix"), \
                 mock.patch.object(menu, "cn_mode", return_value=False) as mirror, \
                 mock.patch.object(menu, "child_env", return_value={}) as child_env, \
-                mock.patch.object(menu.subprocess, "run", return_value=completed):
+                mock.patch.object(menu.subprocess, "Popen", return_value=process):
             self.assertTrue(menu.npm_install("one", ">=18", context))
             self.assertTrue(menu.npm_install("two", ">=20", context))
         mirror.assert_called_once_with()

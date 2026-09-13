@@ -791,6 +791,56 @@ def uninstall_agents(ids, purge=False):
 
 # ---------------------------------------------------------------- 在线安装
 
+NPM_INSTALL_TIMEOUT = 900   # 单次 npm 安装整体超时（秒）
+NPM_FETCH_FLAGS = ["--fetch-timeout=120000", "--fetch-retries=4",
+                   "--fetch-retry-mintimeout=10000", "--fetch-retry-maxtimeout=60000"]
+
+
+def _run_npm_process(cmd, env):
+    """执行 npm 命令：整体超时保护 + 超时清理整棵进程树。
+
+    网络抖动时 npm 可能长时间无响应；不设超时会让安装菜单无限挂起。
+    返回 (returncode, 输出尾部)；超时返回 (None, "")。"""
+    import tempfile
+    out_file = tempfile.TemporaryFile(mode="w+b")
+    err_file = tempfile.TemporaryFile(mode="w+b")
+    try:
+        kwargs = {"stdout": out_file, "stderr": err_file}
+        if not POSIX:
+            kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        else:
+            kwargs["start_new_session"] = True
+        process = subprocess.Popen(cmd, env=env, **kwargs)
+        try:
+            code = process.wait(timeout=NPM_INSTALL_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            if not POSIX:
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                import signal
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    process.wait(timeout=10)
+                except Exception:
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    except OSError:
+                        pass
+            log_err("npm 执行超时（超过 %d 分钟），已终止进程树" % (NPM_INSTALL_TIMEOUT // 60))
+            return None, ""
+
+        def tail(stream):
+            stream.flush()
+            size = stream.tell()
+            stream.seek(max(0, size - 4000))
+            return stream.read().decode("utf-8", "replace").strip()
+        return code, (tail(err_file) or tail(out_file))
+    finally:
+        out_file.close()
+        err_file.close()
+
+
 def npm_install(pkg, minimum=None, context=None):
     packages = [pkg] if isinstance(pkg, str) else list(pkg)
     if not packages:
@@ -811,7 +861,7 @@ def npm_install(pkg, minimum=None, context=None):
     ensure_npm_prefix()
     cmd = [npm, "install", "-g"] + packages + ["--prefix", NPM_PREFIX,
            "--no-audit", "--no-fund", "--prefer-offline",
-           "--progress=false", "--loglevel=error"]
+           "--progress=false", "--loglevel=error"] + NPM_FETCH_FLAGS
     if "cn" not in context:
         context["cn"] = cn_mode()
     if context["cn"]:
@@ -819,8 +869,16 @@ def npm_install(pkg, minimum=None, context=None):
     log_info("$ %s" % " ".join(cmd))
     if "env" not in context:
         context["env"] = child_env()
-    r = subprocess.run(cmd, env=context["env"])
-    return r.returncode == 0
+    for attempt in (1, 2):
+        code, output = _run_npm_process(cmd, context["env"])
+        if code == 0:
+            return True
+        if output:
+            print(output[-1500:])
+        if attempt == 1:
+            log_err("npm 安装失败（退出码 %s），自动重试一次 …"
+                    % ("超时" if code is None else code))
+    return False
 
 
 def install_online(ids):

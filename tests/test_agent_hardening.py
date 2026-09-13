@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import subprocess
 import sys
 import tempfile
 import threading
@@ -16,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "core"))
 
 import agent  # noqa: E402
+import menu  # noqa: E402
 
 
 class ProbeHostsTests(unittest.TestCase):
@@ -213,6 +215,63 @@ class LinuxHelpTests(unittest.TestCase):
                 result = agent.linux_help("完全无关的查询词组xyz")
         self.assertIn("可用主题", result)
         self.assertIn("topic", result)
+
+
+class NpmInstallTimeoutTests(unittest.TestCase):
+    """npm_install 的整体超时与自动重试。"""
+
+    class FakeProcess:
+        def __init__(self, behavior):
+            self._behavior = behavior
+            self.pid = 4242
+            self.wait_calls = 0
+
+        def wait(self, timeout=None):
+            self.wait_calls += 1
+            return self._behavior()
+
+    def setUp(self):
+        menu.NPM_INSTALL_TIMEOUT = 900
+
+    def tearDown(self):
+        menu.NPM_INSTALL_TIMEOUT = 900
+
+    def test_timeout_kills_tree_and_retries_then_succeeds(self):
+        behaviors = iter([
+            lambda: (_ for _ in ()).throw(subprocess.TimeoutExpired(cmd="npm", timeout=900)),
+            lambda: 0,
+        ])
+        processes = []
+
+        def fake_popen(cmd, env=None, **kwargs):
+            proc = self.FakeProcess(next(behaviors))
+            processes.append(proc)
+            return proc
+
+        killed = []
+        with mock.patch.object(menu.subprocess, "Popen", side_effect=fake_popen), \
+                mock.patch.object(menu.subprocess, "run",
+                                  side_effect=lambda cmd, **kw: killed.append(cmd) or mock.Mock()) as run, \
+                mock.patch.object(menu, "npm_cmd", return_value="npm"), \
+                mock.patch.object(menu.shutil, "which", return_value="npm"), \
+                mock.patch.object(menu, "cn_mode", return_value=False), \
+                mock.patch.object(menu, "child_env", return_value={}) as child_env, \
+                mock.patch.object(menu.os, "makedirs"):
+            self.assertTrue(menu.npm_install("@earendil-works/pi-coding-agent"))
+        self.assertEqual(len(processes), 2)  # 超时后重试一次
+        self.assertTrue(killed)  # 进程树被清理
+        self.assertEqual(child_env.call_count, 1)  # 环境探测在重试间复用
+
+    def test_persistent_failure_retries_once_then_fails(self):
+        proc = self.FakeProcess(lambda: 1)
+        with mock.patch.object(menu.subprocess, "Popen", return_value=proc), \
+                mock.patch.object(menu, "npm_cmd", return_value="npm"), \
+                mock.patch.object(menu.shutil, "which", return_value="npm"), \
+                mock.patch.object(menu, "cn_mode", return_value=False), \
+                mock.patch.object(menu, "child_env", return_value={}), \
+                mock.patch.object(menu.os, "makedirs"):
+            self.assertFalse(menu.npm_install("@earendil-works/pi-coding-agent"))
+        self.assertEqual(proc.wait_calls, 2)  # 恰好重试一次
 
 
 if __name__ == "__main__":

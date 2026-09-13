@@ -28,7 +28,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("AGENTS=opencode", text)
         self.assertIn("python3 core/menu.py install cursor", text)
         self.assertIn("$smokeHome", text)
-        self.assertIn("娴嬭瘯-home", text)
+        self.assertIn("测试-home", text)
         self.assertNotIn("$home =", text)
         self.assertIn("contents: read", text)
         self.assertIn("contents: write", text)
