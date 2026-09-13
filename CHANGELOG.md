@@ -15,6 +15,8 @@
 - 修复 `deploy-pages` 工作流一致性测试的过时断言（工作流已改为 gh-pages 发布，测试同步校验 SHA 钉版 checkout 与凭据丢弃）。
 - 修复测试套件在 Windows 上的两类密封性问题：`expanduser` 优先读 `USERPROFILE` 导致 CoCo/Cursor 测试写真实主目录；离线安装成功用例未 patch `AGENTS_DIR` 导致载荷落进真实 `~/.agentboot`。POSIX 专属测试在 Windows 明确跳过，套件跨平台全绿。
 - 新增 `publish-pages` 应急工作流（仅手动派发，self-hosted runner 可用），并在 Windows 场景下注入 Git usr/bin 以修复 upload-pages-artifact 的 tar 依赖。
+- 主页与文档新增 GitHub Pages 冗余一键脚本（`bit-cook.github.io/AgentBoot/install.sh` / `install.ps1`）：`ide.pub` 域名不可用或过期时的备用入口，与主入口同源发布。
+- 备用源路径大小写均可：站点部署时自动生成 `/agentboot/` 小写别名目录（与 `/AgentBoot/` 内容一致，标记 noindex），小写输入不再 404。
 
 ## v1.3.0 (2026-08-31)
 

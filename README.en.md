@@ -38,6 +38,18 @@ curl -fsSL https://boot.ide.pub/install.sh | sh
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"
 ```
 
+**Fallback source (GitHub Pages, when ide.pub is unavailable)**
+
+```bash
+curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh
+```
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://bit-cook.github.io/AgentBoot/install.ps1'))"
+```
+
+> The fallback source is published from the same tree as the primary entry (both `/AgentBoot/` and `/agentboot/` spellings work); the installer falls back across Worker → Pages → Release download sources, so any single domain going away still completes the install.
+
 Two commands after install:
 
 | Command | Purpose |

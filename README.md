@@ -37,6 +37,18 @@ curl -fsSL https://boot.ide.pub/install.sh | sh
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"
 ```
 
+**冗余源（GitHub Pages，ide.pub 不可用时）**
+
+```bash
+curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh
+```
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://bit-cook.github.io/AgentBoot/install.ps1'))"
+```
+
+> 冗余源与主入口同源发布（路径大小写均可：`/AgentBoot/` 与 `/agentboot/` 等价）；安装脚本内置 Worker → Pages → Release 三源下载兜底，任一域名失效都能完成安装。
+
 装完得到两个命令：
 
 | 命令 | 作用 |

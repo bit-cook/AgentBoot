@@ -21,7 +21,18 @@ curl -fsSL https://boot.ide.pub/install.sh | sh
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"
 ```
 
-**Fallback entries** — the installer uses project-controlled origins only: `boot.ide.pub` → GitHub Pages → GitHub Releases, with same-origin SHA-256 enforcement.
+**Fallback entry (GitHub Pages)** — when `ide.pub` is unavailable or its domain expires; both `/AgentBoot/` and `/agentboot/` spellings work (case-insensitive alias):
+
+```bash
+# Linux / macOS (both /AgentBoot/ and /agentboot/ spellings work)
+curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh
+```
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://bit-cook.github.io/AgentBoot/install.ps1'))"
+```
+
+The installer itself uses project-controlled origins only: `boot.ide.pub` → GitHub Pages → GitHub Releases, with same-origin SHA-256 enforcement.
 
 **After install**
 
