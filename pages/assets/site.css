@@ -563,6 +563,13 @@ h2 {
   gap: 16px;
 }
 
+.mirror-note {
+  margin: 14px 0 0;
+  color: var(--ink-600);
+  font-size: 13.5px;
+  line-height: 1.8;
+}
+
 .command-card {
   overflow: hidden;
   border: 1px solid var(--ink-950);
