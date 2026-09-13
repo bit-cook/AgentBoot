@@ -1,5 +1,13 @@
 # 更新日志
 
+## v1.4.2 (2026-09-13)
+
+- 内置 Agent（ab）新增机器配置查询：`sys_info` 工具报告主机名 / 操作系统与版本 / CPU 型号与核数 / 内存总量与可用 / 各磁盘容量 / Python 与 AgentBoot 版本，Windows（注册表 + GlobalMemoryStatusEx）/ Linux（/proc）/ macOS（sysctl）全平台标准库实现，离线零依赖；对话里问「这台机器什么配置」直接可答，另提供 `ab sys` 一键命令与交互内 `/sys` 命令。
+- 镜像多源化：npm 源支持 npmmirror（阿里）/ 腾讯云 / 华为云 / 官方源切换，npm 安装命令自动使用所选源；Node 运行时下载新增华为云、腾讯云二进制镜像（含 SHASUMS256 校验文件，官方源始终兜底）。
+- GitHub 加速可切换：gh-proxy.com / ghfast.top / ghproxy.net 三源自动探测选路（可达优先、其余兜底），支持固定指定加速源或关闭直连；脚本安装、uv 预置下载、hermes git 重写、uv-python 安装镜像全部接入统一选路。
+- 镜像选择持久化到 `~/.agentboot/env.json`：控制台菜单「镜像代理」新增 npm 源切换与 GitHub 加速切换子菜单（带连通性探测与当前项标记）；CLI 新增 `agentboot mirror npm [源URL]` 与 `agentboot mirror gh [auto|off|前缀URL]`。
+- CoCo 官方安装脚本 GitHub 加速源清单同步补全（ghproxy.net）。
+
 ## v1.4.1 (2026-09-13)
 
 - 内置 Agent（ab）实时显示思考过程：支持 `reasoning_content` 独立通道与正文内联 `<think>…</think>` 标记（含跨分块截断），思考文本暗色渲染、与正文区分；个别把答案全放思考通道的模型按正文兜底，不再误报空响应。

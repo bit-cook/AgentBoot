@@ -42,11 +42,28 @@ ENV_JSON = os.path.join(AB_HOME, "env.json")
 APPS_DIR = os.path.join(AB_HOME, "apps")
 
 NODE_VERSION = "v22.23.2"
-NPM_MIRROR = "https://registry.npmmirror.com"
 NPM_OFFICIAL = "https://registry.npmjs.org"
-NODE_MIRROR_CN = "https://registry.npmmirror.com/-/binary/node"
+# 国内 npm registry 镜像（镜像菜单可切换；默认首选 npmmirror，其余自动兜底）
+NPM_MIRRORS = (
+    ("npmmirror（阿里）", "https://registry.npmmirror.com"),
+    ("腾讯云", "https://mirrors.cloud.tencent.com/npm/"),
+    ("华为云", "https://mirrors.huaweicloud.com/repository/npm/"),
+)
+NPM_MIRROR = NPM_MIRRORS[0][1]           # 兼容旧引用：默认国内镜像
+NODE_MIRRORS = (                          # Node 二进制分发镜像（含 SHASUMS256.txt）
+    ("npmmirror（阿里）", "https://registry.npmmirror.com/-/binary/node"),
+    ("华为云", "https://mirrors.huaweicloud.com/nodejs"),
+    ("腾讯云", "https://mirrors.cloud.tencent.com/nodejs-release"),
+)
+NODE_MIRROR_CN = NODE_MIRRORS[0][1]      # 兼容旧引用
 NODE_MIRROR_GLOBAL = "https://nodejs.org/dist"
 PIP_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
+# GitHub 加速前缀（拼接在 https://github.com/... 原地址之前；镜像菜单可切换/关闭）
+GH_PROXIES = (
+    ("gh-proxy.com", "https://gh-proxy.com/"),
+    ("ghfast.top", "https://ghfast.top/"),
+    ("ghproxy.net", "https://ghproxy.net/"),
+)
 
 CUSTOM_AGENTS = os.path.join(AB_HOME, "custom-agents.json")
 INSTALL_STATE = os.path.join(AB_HOME, "installed-agents.json")
@@ -127,6 +144,74 @@ def cn_mode():
     if forced in ("off", "global", "0", "false"):
         return False
     return not can_tcp("registry.npmjs.org", 443, 1.5)
+
+
+def npm_registry(cn=None):
+    """安装使用的 npm 源：用户固定选择（env.json）优先，其次按网络自动选路。"""
+    chosen = (load_env_json().get("npm_registry") or "").strip()
+    if chosen:
+        return chosen
+    if cn is None:
+        cn = cn_mode()
+    return NPM_MIRROR if cn else NPM_OFFICIAL
+
+
+def set_npm_mirror(url=None):
+    """固定/恢复 npm 源选择，并同步 npm config。None=恢复自动选路。"""
+    data = load_env_json()
+    if not url or url.rstrip("/") == NPM_OFFICIAL.rstrip("/"):
+        data.pop("npm_registry", None)
+        save_env_json(data)
+        log_ok("npm 源已恢复自动选路（国内 %s · 全球 %s）" % (NPM_MIRROR, NPM_OFFICIAL))
+        if npm_cmd():
+            set_npm_registry(NPM_OFFICIAL)
+        return
+    data["npm_registry"] = url
+    save_env_json(data)
+    log_ok("npm 源已固定为 %s" % url)
+    if npm_cmd():
+        set_npm_registry(url)
+
+
+def gh_mirrors():
+    """GitHub 加速前缀列表：用户固定选择优先；auto 时（国内）探测排序；off/全球直连返回 []。"""
+    from urllib.parse import urlsplit
+    chosen = (os.environ.get("AGENTBOOT_GH_PROXY", "").strip()
+              or (load_env_json().get("gh_proxy") or "").strip())
+    prefixes = [p for _, p in GH_PROXIES]
+    if chosen.lower() in ("off", "direct", "none", "0"):
+        return []
+    if chosen:
+        first = chosen if chosen.endswith("/") else chosen + "/"
+        return [first] + [p for p in prefixes if p != first]
+    if not cn_mode():
+        return []
+    probes = agent.probe_hosts(tuple(urlsplit(p).hostname for p in prefixes), timeout=1.5)
+    alive = [p for p in prefixes if probes.get(urlsplit(p).hostname)]
+    dead = [p for p in prefixes if not probes.get(urlsplit(p).hostname)]
+    return alive + dead   # 探测全部失败时仍按原序尝试，避免误杀可用源
+
+
+def set_gh_proxy(value="auto"):
+    """固定 GitHub 加速选择：auto（恢复自动）/ off（直连）/ 具体加速前缀 URL。"""
+    data = load_env_json()
+    v = (value or "auto").strip()
+    if v.lower() in ("auto", ""):
+        data.pop("gh_proxy", None)
+        log_ok("GitHub 加速已恢复自动选路（国内探测 %d 个加速源，全球直连）" % len(GH_PROXIES))
+    elif v.lower() in ("off", "direct", "none"):
+        data["gh_proxy"] = "off"
+        log_ok("GitHub 加速已关闭（始终直连）")
+    elif v.startswith("http://") or v.startswith("https://"):
+        if not v.endswith("/"):
+            v += "/"
+        data["gh_proxy"] = v
+        log_ok("GitHub 加速已固定为 %s（其余加速源自动兜底）" % v)
+    else:
+        log_err("加速源必须是 http(s) 前缀 URL，或 auto / off")
+        return
+    save_env_json(data)
+    os.environ.pop("AGENTBOOT_GH_PROXY", None)
 
 
 def load_env_json():
@@ -418,7 +503,6 @@ def ensure_node(minimum=None):
 
     pid = plat_id()
     cn = cn_mode()
-    base = NODE_MIRROR_CN if cn else NODE_MIRROR_GLOBAL
     if pid.startswith("win"):
         fname = "node-%s-win-x64.zip" % NODE_VERSION
         inner = "node-%s-win-x64" % NODE_VERSION
@@ -426,11 +510,11 @@ def ensure_node(minimum=None):
         ext = "tar.gz" if pid.startswith("darwin") else "tar.xz"
         fname = "node-%s-%s.%s" % (NODE_VERSION, pid, ext)
         inner = "node-%s-%s" % (NODE_VERSION, pid)
-    urls = ["/".join([base, NODE_VERSION, fname])]
-    if cn:
-        urls.append("/".join([NODE_MIRROR_GLOBAL, NODE_VERSION, fname]))
-    else:
-        urls.append("/".join([NODE_MIRROR_CN, NODE_VERSION, fname]))
+    # 国内走多镜像，全球走官方；官方源始终作为最终兜底
+    bases = [b for _, b in NODE_MIRRORS] if cn else [NODE_MIRROR_GLOBAL]
+    if NODE_MIRROR_GLOBAL not in bases:
+        bases.append(NODE_MIRROR_GLOBAL)
+    urls = ["/".join([b, NODE_VERSION, fname]) for b in bases]
 
     dest_parent = RUNTIME_DIR
     os.makedirs(dest_parent, exist_ok=True)
@@ -455,10 +539,20 @@ def ensure_node(minimum=None):
         return None
     try:
         if not os.path.exists(sums_path):
-            sums_url = "%s/%s/SHASUMS256.txt" % (NODE_MIRROR_GLOBAL, NODE_VERSION)
-            req = urllib_request.Request(sums_url, headers={"User-Agent": "AgentBoot/1.0"})
-            with urllib_request.urlopen(req, timeout=60) as response, open(sums_path, "wb") as output:
-                shutil.copyfileobj(response, output)
+            sums_ok = False
+            for b in bases:
+                sums_url = "%s/%s/SHASUMS256.txt" % (b, NODE_VERSION)
+                try:
+                    log_info("下载校验文件：%s" % sums_url)
+                    req = urllib_request.Request(sums_url, headers={"User-Agent": "AgentBoot/1.0"})
+                    with urllib_request.urlopen(req, timeout=60) as response, open(sums_path, "wb") as output:
+                        shutil.copyfileobj(response, output)
+                    sums_ok = True
+                    break
+                except Exception as e:
+                    log_err("校验文件下载失败(%s)：%s" % (sums_url, e))
+            if not sums_ok:
+                return None
         expected = None
         with open(sums_path, "r", encoding="ascii") as sums:
             for line in sums:
@@ -908,7 +1002,7 @@ def npm_install(pkg, minimum=None, context=None):
     if "cn" not in context:
         context["cn"] = cn_mode()
     if context["cn"]:
-        cmd += ["--registry", NPM_MIRROR]
+        cmd += ["--registry", npm_registry(context["cn"])]
     log_info("$ %s" % " ".join(cmd))
     if "env" not in context:
         context["env"] = child_env()
@@ -1042,8 +1136,8 @@ def install_via_script(a):
         log_err("安装脚本必须使用有效的 HTTPS URL")
         return False
     urls = [url] + _script_fallback_urls(url)
-    if cn_mode() and parsed.hostname in ("github.com", "raw.githubusercontent.com"):
-        for p in ("https://gh-proxy.com/", "https://ghfast.top/"):
+    if parsed.hostname in ("github.com", "raw.githubusercontent.com"):
+        for p in gh_mirrors():
             urls.append(p + url)
     for u in urls:
         path = None
@@ -1479,7 +1573,7 @@ def _seed_uv(pkg_root):
             pass
     base = "https://github.com/astral-sh/uv/releases/download/%s/%s" % (version, asset)
     urls = [base]
-    for p in ("https://ghfast.top/", "https://gh-proxy.com/"):
+    for p in gh_mirrors():
         urls.append(p + base)
     os.makedirs(uv_dir, exist_ok=True)
     archive = os.path.join(uv_dir, asset)
@@ -1541,7 +1635,7 @@ def install_hermes_special(a):
            "--prefix", NPM_PREFIX, "--no-audit", "--no-fund", "--prefer-offline",
            "--progress=false", "--loglevel=error"]
     if cn_mode():
-        cmd += ["--registry", NPM_MIRROR]
+        cmd += ["--registry", npm_registry()]
     log_info("$ %s" % " ".join(cmd))
     env = child_env()
     if subprocess.run(cmd, env=env).returncode != 0:
@@ -1556,15 +1650,19 @@ def install_hermes_special(a):
         return False
     # 3) 执行官方 postinstall：git 不可达时启用镜像重写；Python/PyPI 镜像对全球用户同样可用
     env = child_env()
+    gh_prefixes = gh_mirrors()
     if not _github_git_reachable():
-        log_info("github.com git 端点不可达：启用镜像重写")
-        env.update({
-            "GIT_CONFIG_COUNT": "1",
-            "GIT_CONFIG_KEY_0": "url.https://gh-proxy.com/https://github.com/.insteadOf",
-            "GIT_CONFIG_VALUE_0": "https://github.com/",
-        })
+        if gh_prefixes:
+            log_info("github.com git 端点不可达：启用镜像重写（%s）" % gh_prefixes[0])
+            env.update({
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "url.%shttps://github.com/.insteadOf" % gh_prefixes[0],
+                "GIT_CONFIG_VALUE_0": "https://github.com/",
+            })
+    uv_mirror = (gh_prefixes[0] if gh_prefixes else "") \
+        + "https://github.com/astral-sh/python-build-standalone/releases/download"
     env.update({
-        "UV_PYTHON_INSTALL_MIRROR": "https://ghfast.top/https://github.com/astral-sh/python-build-standalone/releases/download",
+        "UV_PYTHON_INSTALL_MIRROR": uv_mirror,
         "UV_HTTP_TIMEOUT": "180",
     })
     node = node_exe() if _inside(npm, runtime_node_dir()) else shutil.which("node")
@@ -2217,12 +2315,31 @@ def write_env_scripts(url):
 
 
 def mirror_status():
+    from urllib.parse import urlsplit
     cn = cn_mode()
     print(t("menu.mirror_net") % (t("menu.mirror_cn") if cn else t("menu.mirror_global")))
     print(t("menu.mirror_npm") % npm_current_registry())
-    probes = agent.probe_hosts(("registry.npmmirror.com", "registry.npmjs.org"), timeout=1.5)
-    print(t("menu.mirror_npm_mirror") % ("✓" if probes.get("registry.npmmirror.com") else "✗"))
-    print(t("menu.mirror_npmjs") % ("✓" if probes.get("registry.npmjs.org") else "✗"))
+    npm_hosts = ["registry.npmjs.org"] + [urlsplit(url).hostname for _, url in NPM_MIRRORS]
+    probes = agent.probe_hosts(tuple(npm_hosts), timeout=1.5)
+    fixed = (load_env_json().get("npm_registry") or "").strip()
+    for label, url in NPM_MIRRORS:
+        mark = "✓" if probes.get(urlsplit(url).hostname) else "✗"
+        cur = t("menu.current_mark") if fixed == url else ""
+        print("  [%s] %s %s%s" % (mark, label, url, cur))
+    mark = "✓" if probes.get("registry.npmjs.org") else "✗"
+    cur = t("menu.current_mark") if fixed == NPM_OFFICIAL else ""
+    print("  [%s] %s %s%s" % (mark, t("menu.mirror_npm_official_label"), NPM_OFFICIAL, cur))
+    gh_fixed = (load_env_json().get("gh_proxy") or "").strip()
+    gh_order = gh_mirrors()
+    gh_hosts = tuple(urlsplit(p).hostname for _, p in GH_PROXIES)
+    ghp = agent.probe_hosts(gh_hosts, timeout=1.5)
+    for label, p in GH_PROXIES:
+        mark = "✓" if ghp.get(urlsplit(p).hostname) else "✗"
+        cur = t("menu.current_mark") if gh_fixed == p or (gh_order and gh_order[0] == p) else ""
+        print("  [%s] %s %s%s" % (mark, label, p, cur))
+    mode = "直连（已关闭加速）" if gh_fixed.lower() in ("off", "direct", "none") else \
+        ("固定 %s" % gh_fixed if gh_fixed else "自动探测（国内加速 / 全球直连）")
+    print("  GitHub 加速: %s" % mode)
     env = load_env_json()
     print(t("menu.mirror_proxy") % (env.get("proxy") or os.environ.get("HTTPS_PROXY") or "-"))
     print(t("menu.mirror_switch") % (os.environ.get("AGENTBOOT_MIRROR") or "auto"))
@@ -2525,16 +2642,40 @@ def menu_mirror():
     while True:
         print("\n" + t("menu.mirror_title"))
         mirror_status()
-        print(" [1] " + t("menu.mirror_npm_to"))
-        print(" [2] " + t("menu.mirror_npm_off"))
+        print(" [1] " + t("menu.mirror_pick_npm"))
+        print(" [2] " + t("menu.mirror_pick_gh"))
         print(" [3] " + t("menu.mirror_proxy_set"))
         print(" [4] " + t("menu.mirror_proxy_clear"))
         print(" [0] " + t("menu.pick_back"))
         c = input(t("menu.pick")).strip()
         if c == "1":
-            set_npm_registry(NPM_MIRROR)
+            fixed = (load_env_json().get("npm_registry") or "").strip()
+            print("\n" + t("menu.mirror_pick_npm"))
+            options = list(NPM_MIRRORS) + [(t("menu.mirror_npm_official_label"), NPM_OFFICIAL)]
+            for i, (label, url) in enumerate(options, 1):
+                cur = t("menu.current_mark") if fixed == url else ""
+                print("  [%d] %s %s%s" % (i, label, url, cur))
+            print("  [a] " + t("menu.mirror_npm_auto"))
+            raw = input(t("menu.pick")).strip().lower()
+            if raw == "a":
+                set_npm_mirror(None)
+            elif raw.isdigit() and 1 <= int(raw) <= len(options):
+                set_npm_mirror(options[int(raw) - 1][1])
         elif c == "2":
-            set_npm_registry(NPM_OFFICIAL)
+            fixed = (load_env_json().get("gh_proxy") or "").strip()
+            print("\n" + t("menu.mirror_pick_gh"))
+            print("  [a] " + t("menu.mirror_gh_auto"))
+            for i, (label, url) in enumerate(GH_PROXIES, 1):
+                cur = t("menu.current_mark") if fixed == url else ""
+                print("  [%d] %s %s%s" % (i, label, url, cur))
+            print("  [d] " + t("menu.mirror_gh_off"))
+            raw = input(t("menu.pick")).strip().lower()
+            if raw == "a":
+                set_gh_proxy("auto")
+            elif raw == "d":
+                set_gh_proxy("off")
+            elif raw.isdigit() and 1 <= int(raw) <= len(GH_PROXIES):
+                set_gh_proxy(GH_PROXIES[int(raw) - 1][1])
         elif c == "3":
             url = input(t("menu.proxy_addr")).strip()
             if url:
@@ -2691,14 +2832,18 @@ def main():
             mirror_status()
         elif arg == "cn":
             os.environ["AGENTBOOT_MIRROR"] = "cn"
-            set_npm_registry(NPM_MIRROR)
+            set_npm_registry(npm_registry(True))
         elif arg == "off":
             os.environ["AGENTBOOT_MIRROR"] = "off"
             mirror_status()
+        elif arg == "npm":
+            set_npm_mirror(argv[2] if len(argv) > 2 else None)
+        elif arg == "gh":
+            set_gh_proxy(argv[2] if len(argv) > 2 else "auto")
         elif arg == "proxy":
             set_proxy(argv[2] if len(argv) > 2 else None)
         else:
-            print("用法: menu.py mirror auto|cn|off|proxy [url]")
+            print("用法: menu.py mirror auto|cn|off|npm [源URL]|gh [auto|off|前缀URL]|proxy [url]")
     elif cmd == "add-agent":
         # 用法：
         #   add-agent --list

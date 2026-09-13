@@ -63,9 +63,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | | |
 |---|---|
 | 📦 **菜单自选安装** | 16 个主流 Agent 按需勾选（见下表），支持命令行指定 |
-| 🛟 **内置保底 Agent** | `ab` 零第三方依赖 Python 核心：Agnes 开箱即用、离线 Linux 知识库、工具调用、会话持久化 |
+| 🛟 **内置保底 Agent** | `ab` 零第三方依赖 Python 核心：Agnes 开箱即用、离线 Linux 知识库、工具调用、机器配置查询（`ab sys`）、会话持久化 |
 | 🧠 **提供商管理器** | Agnes 预设 + 自定义提供商命名管理 + Ollama/LM Studio 本地模型 + 故障切换顺序 |
-| 🇨🇳 **中国网络自适应** | npmmirror / Node 镜像 / 清华 PyPI 自动切换；Worker / Pages / Release 三源容错；代理一键配置 |
+| 🇨🇳 **中国网络自适应** | npm 镜像（npmmirror/腾讯云/华为云）与 GitHub 加速（gh-proxy 等）可切换；Node 多镜像；清华 PyPI；四源容错；代理一键配置 |
 | 📴 **可验证离线包** | Release 提供经安装/启动/卸载冒烟的 Codex 与 OpenCode 精简包；菜单 `[7]` 可按目标平台自建其他 Agent 包 |
 | ➕ **自定义 Agent** | 菜单向导或 `add-agent` 添加注册表之外的任意 Agent（npm / pip / 脚本），用户目录保存、升级不丢 |
 | 🧹 **安全卸载** | 菜单 `[9]` 或 `agentboot uninstall <id>`；精确清理程序，默认保留配置、认证与会话 |
@@ -116,7 +116,7 @@ ab bench                              # 性能基准
 
 ## 离线安装与瘦身定制
 
-到 [Releases](https://github.com/bit-cook/AgentBoot/releases) 下载带平台与 Agent 名称的已验证精简包，拷到目标机解压后运行包内 `install-offline.ps1` / `sh install-offline.sh`。v1.4.1 发布流水线会在 Linux、Windows、Intel macOS 与 Apple Silicon 上实际验证 OpenCode 安装、`--version` 和卸载后才上传。
+到 [Releases](https://github.com/bit-cook/AgentBoot/releases) 下载带平台与 Agent 名称的已验证精简包，拷到目标机解压后运行包内 `install-offline.ps1` / `sh install-offline.sh`。v1.4.2 发布流水线会在 Linux、Windows、Intel macOS 与 Apple Silicon 上实际验证 OpenCode 安装、`--version` 和卸载后才上传。
 
 其他 Agent 使用菜单 `[7]` 或 `build-offline win-x64 claude-code,pi` 在目标平台按需构建。Hermes 含平台相关 Python venv，必须在对应平台构建；Aider 暂不支持离线。
 

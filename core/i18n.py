@@ -160,6 +160,13 @@ ZH = {
     "agent.bench_fail": "模型首字延迟 : 测试失败（检查网络/模型源）",
     "agent.failover": "  ⚠ 模型源 %s 失败，自动切换 %s …\n",
     "agent.thinking": "⏳ 正在思考",
+    "menu.current_mark": " ← 当前",
+    "menu.mirror_npm_official_label": "npm 官方源",
+    "menu.mirror_pick_npm": "npm 源切换（官方 / 国内镜像）",
+    "menu.mirror_pick_gh": "GitHub 加速切换",
+    "menu.mirror_npm_auto": "自动选路（按网络环境）",
+    "menu.mirror_gh_auto": "自动探测（国内加速 / 全球直连）",
+    "menu.mirror_gh_off": "直连（关闭加速）",
 }
 
 EN = {
@@ -315,6 +322,13 @@ EN = {
     "agent.bench_fail": "Model TTFB    : test failed (check network/model)",
     "agent.failover": "  ⚠ provider %s failed, switching to %s …\n",
     "agent.thinking": "⏳ Thinking",
+    "menu.current_mark": " ← current",
+    "menu.mirror_npm_official_label": "npm official",
+    "menu.mirror_pick_npm": "Switch npm registry (official / CN mirrors)",
+    "menu.mirror_pick_gh": "Switch GitHub accelerator",
+    "menu.mirror_npm_auto": "Auto (per network)",
+    "menu.mirror_gh_auto": "Auto probe (CN accelerators / direct elsewhere)",
+    "menu.mirror_gh_off": "Direct (no accelerator)",
 }
 
 

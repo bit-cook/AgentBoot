@@ -1,6 +1,6 @@
 # AgentBoot Installation Guide
 
-> **v1.4.1** · Linux / macOS / Windows · CLI UI in Chinese by default (switchable to English: `agentboot lang en`)
+> **v1.4.2** · Linux / macOS / Windows · CLI UI in Chinese by default (switchable to English: `agentboot lang en`)
 > AgentBoot is a minimal, fast, ready-to-run AI Agent launcher: it ships a built-in fallback agent while Cursor, OpenCode, Claude Code, Codex, FreeBuff and the other agents are installed from a menu of your choice. Cursor, Aider, and FreeBuff are online-only; OpenCode uses pinned official native binaries in verified offline packs.
 
 **目录 / Table of contents**: [One-command online install](#one-command-online-install) · [One-command offline install](#one-command-offline-install) · [Custom agents](#custom-agents-beyond-the-registry) · [Custom offline packages](#custom-offline-packages-slim) · [China network](#china-network-adaptive) · [Model providers](#model-providers) · [Built-in agent](#built-in-agent-ab) · [Upgrade & uninstall](#upgrade--uninstall) · [Troubleshooting](#online-install-troubleshooting) · [FAQ](#faq)
@@ -66,9 +66,9 @@ Three steps: **① get an offline package → ② copy & extract → ③ run the
 ### Step 1 — Get an offline package
 
 - **Option A**: download from [Releases](https://github.com/bit-cook/AgentBoot/releases)
-  - `AgentBoot-offline-v1.4.1-win-x64-codex.zip` (Windows x64)
-  - `AgentBoot-offline-v1.4.1-linux-x64-codex.tar.gz` (Linux x64)
-  - `AgentBoot-offline-v1.4.1-linux-x64-codex-sfx.sh` (Linux x64 self-extracting file)
+  - `AgentBoot-offline-v1.4.2-win-x64-codex.zip` (Windows x64)
+  - `AgentBoot-offline-v1.4.2-linux-x64-codex.tar.gz` (Linux x64)
+  - `AgentBoot-offline-v1.4.2-linux-x64-codex-sfx.sh` (Linux x64 self-extracting file)
 - **Option B — build your own slim package** (recommended; see [Custom offline packages](#custom-offline-packages-slim)):
   pick platforms and agents, output goes to `dist/`.
 
@@ -77,9 +77,9 @@ Three steps: **① get an offline package → ② copy & extract → ③ run the
 | Target machine | How |
 |---|---|
 | Windows (any) | Right-click the ZIP → Extract All (built into Explorer) |
-| Windows 10/11 (CLI) | `tar -xf AgentBoot-offline-v1.4.1-win-x64-codex.zip` |
-| Linux x64 | `tar -xzf AgentBoot-offline-v1.4.1-linux-x64-codex.tar.gz -C ~` |
-| Minimal Linux x64 | `sh AgentBoot-offline-v1.4.1-linux-x64-codex-sfx.sh` |
+| Windows 10/11 (CLI) | `tar -xf AgentBoot-offline-v1.4.2-win-x64-codex.zip` |
+| Linux x64 | `tar -xzf AgentBoot-offline-v1.4.2-linux-x64-codex.tar.gz -C ~` |
+| Minimal Linux x64 | `sh AgentBoot-offline-v1.4.2-linux-x64-codex-sfx.sh` |
 
 ### Step 3 — Run the offline installer
 
@@ -174,10 +174,13 @@ Custom packs use the same structure and install flow as Release packs. Size depe
 ## 🌏 China network adaptive
 
 - Auto-detects `registry.npmjs.org` reachability and enables mirror mode;
-- npm → npmmirror, Node runtimes → npmmirror binary mirror, pip → Tsinghua mirror;
-- Multi-source downloads: project-controlled `boot.ide.pub` → GitHub Pages → GitHub Releases, each with same-origin SHA-256;
+- npm registries (switchable): npmmirror / Tencent Cloud / Huawei Cloud / official, applied to npm-based agent installs automatically;
+- Node runtimes: npmmirror → Huawei Cloud → Tencent Cloud binary mirrors in order (nodejs.org as final fallback);
+- GitHub acceleration (switchable): gh-proxy.com / ghfast.top / ghproxy.net, probe-ordered, can be pinned or disabled (direct);
+- pip → Tsinghua mirror;
+- Multi-source downloads: project-controlled `boot.ide.pub` → GitHub Pages → jsDelivr → GitHub Releases, each with same-origin SHA-256;
 - Proxy: menu `[5]`, stored for npm and AgentBoot downloads;
-- Force with `AGENTBOOT_MIRROR=cn|off`.
+- Switch in menu `[5]`, or via CLI: `agentboot mirror npm [registry-url]`, `agentboot mirror gh [auto|off|prefix-url]`; force mirror mode with `AGENTBOOT_MIRROR=cn|off`.
 
 ## 🧠 Model providers
 

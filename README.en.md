@@ -64,9 +64,9 @@ Two commands after install:
 | | |
 |---|---|
 | 📦 **Choose what to install** | 16 mainstream agents, multi-select in the menu |
-| 🛟 **Built-in fallback agent** | `ab`: zero third-party dependencies, Agnes by default, offline Linux knowledge base, session persistence |
+| 🛟 **Built-in fallback agent** | `ab`: zero third-party dependencies, Agnes by default, offline Linux knowledge base, tool calling, host spec query (`ab sys`), session persistence |
 | 🧠 **Model provider manager** | Named custom providers, Ollama/LM Studio presets, failover order, connectivity test |
-| 🇨🇳 **China network adaptive** | npmmirror / Node mirrors / Tsinghua PyPI, Worker/Pages/Release fallback, proxy support |
+| 🇨🇳 **China network adaptive** | Switchable npm mirrors (npmmirror/Tencent/Huawei) & GitHub accelerators (gh-proxy etc.); multi-mirror Node runtimes; Tsinghua PyPI; four-source fallback; proxy support |
 | 📴 **Verified offline packages** | Releases provide Codex and OpenCode slim packs tested through install/run/uninstall; menu `[7]` builds other Agents on their target platform |
 | ➕ **Custom agents** | Add anything beyond the registry (npm / pip / script), stored in your home dir |
 | 🧹 **Safe uninstall** | Menu `[9]` or `agentboot uninstall <id>`; removes owned program files and preserves user data by default |
@@ -115,7 +115,7 @@ ab model                            # provider manager
 
 ## Offline packages
 
-Download a platform-and-Agent-specific verified pack from [Releases](https://github.com/bit-cook/AgentBoot/releases). v1.4.1 verifies OpenCode install, `--version`, and uninstall on Linux, Windows, Intel macOS, and Apple Silicon before uploading packs. Build other Agents on their target platform with menu `[7]` or:
+Download a platform-and-Agent-specific verified pack from [Releases](https://github.com/bit-cook/AgentBoot/releases). v1.4.2 verifies OpenCode install, `--version`, and uninstall on Linux, Windows, Intel macOS, and Apple Silicon before uploading packs. Build other Agents on their target platform with menu `[7]` or:
 
 ```bash
 python core/menu.py build-offline win-x64 claude-code,pi

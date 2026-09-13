@@ -24,7 +24,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     VERSION = open(os.path.join(APP_DIR, "VERSION"), "r", encoding="ascii").read().strip()
 except OSError:
-    VERSION = "1.4.1"
+    VERSION = "1.4.2"
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
 CONFIG_PATH = os.path.join(AB_HOME, "config.json")
 KB_DIR = os.path.join(APP_DIR, "tools", "linux-kb")
@@ -1244,6 +1244,8 @@ def http_get(url):
 # ---------------------------------------------------------------- 工具 schema（OpenAI 格式）
 
 TOOLS = [
+    {"type": "function", "function": {"name": "sys_info", "description": "查询本机硬件与系统配置（主机名/操作系统/CPU/内存/磁盘/Python/AgentBoot 版本，零依赖离线）。用户询问机器配置、硬件信息、磁盘内存多大时优先使用，无需执行命令。",
+     "parameters": {"type": "object", "properties": {}}}},
     {"type": "function", "function": {"name": "run_cmd", "description": "在本机执行 shell 命令并返回输出。用于查看系统状态、操作 Linux、诊断和修复问题。",
      "parameters": {"type": "object", "properties": {"command": {"type": "string", "description": "要执行的命令"}, "timeout": {"type": "integer", "description": "超时秒数(5-300)，默认60"}}, "required": ["command"]}}},
     {"type": "function", "function": {"name": "read_file", "description": "读取文本文件内容。",
@@ -1265,6 +1267,8 @@ TOOLS = [
 
 def execute_tool(cfg, name, args, session_allow):
     """执行工具，返回 (结果文本, 是否危险命令)。"""
+    if name == "sys_info":
+        return sys_info(), False
     if name == "run_cmd":
         cmd = args.get("command", "")
         level = classify_cmd(cmd)
@@ -1350,16 +1354,18 @@ def system_prompt():
     if i18n.get_lang() == "en":
         return (
             "You are AgentBoot's built-in terminal assistant running locally on %s.\n"
-            "Use tools for commands, files, the offline Linux knowledge base, and public web pages.\n"
+            "Use tools for commands, files, the offline Linux knowledge base, public web pages, and host hardware info (sys_info).\n"
             "Rules: answer concisely in English; inspect with read-only tools before changing state; "
+            "use sys_info when the user asks about machine specs/hardware; "
             "explain destructive consequences first; put commands in code blocks; summarize verified results." % plat
         )
     return (
         "你是 AgentBoot 内置的终端智能助手（ab），直接运行在用户本机，当前系统：%s。\n"
-        "你可以调用工具：执行命令、读写文件、查询离线 Linux 知识库、抓取网页。\n"
+        "你可以调用工具：执行命令、读写文件、查询离线 Linux 知识库、抓取网页、查询本机硬件配置（sys_info）。\n"
         "守则：\n"
         "1. 始终用简体中文，回答简洁、直接、可执行。\n"
         "2. 涉及 Linux 命令用法、报错、配置时，先用 linux_help 查询离线知识库。\n"
+        "3. 用户问机器配置/硬件/内存磁盘大小时，用 sys_info 查询后再回答。\n"
         "3. 修复问题前先用只读命令确认现状（如 df/free/systemctl status），再动手。\n"
         "4. 高危操作（删除、格式化、重启、改分区）必须先说明后果。\n"
         "5. 给用户的命令放入独立代码块。\n"
@@ -1373,6 +1379,134 @@ def platform_info():
         return "%s %s" % (platform.system(), platform.release())
     except Exception:
         return "unknown"
+
+
+def _fmt_bytes(n):
+    n = float(n)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return ("%d %s" % (int(n), unit)) if unit == "B" else ("%.1f %s" % (n, unit))
+        n /= 1024.0
+    return "%d B" % n
+
+
+def _mem_bytes():
+    """(总内存, 可用内存) 字节数；取不到返回 (0, 0)。全部标准库实现。"""
+    try:
+        if os.name == "nt":
+            import ctypes
+
+            class _MemStatus(ctypes.Structure):
+                _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                            ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                            ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                            ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+            st = _MemStatus()
+            st.dwLength = ctypes.sizeof(_MemStatus)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(st)):
+                return int(st.ullTotalPhys), int(st.ullAvailPhys)
+        elif sys.platform.startswith("linux") and os.path.exists("/proc/meminfo"):
+            vals = {}
+            with open("/proc/meminfo", "r", encoding="ascii") as f:
+                for line in f:
+                    key, _, rest = line.partition(":")
+                    if rest:
+                        vals[key] = int(rest.strip().split()[0]) * 1024
+            return vals.get("MemTotal", 0), vals.get("MemAvailable", vals.get("MemFree", 0))
+        elif sys.platform == "darwin":
+            out = subprocess.run(["sysctl", "-n", "hw.memsize"],
+                                 capture_output=True, text=True, timeout=5)
+            return int(out.stdout.strip() or 0), 0
+    except Exception:
+        pass
+    return 0, 0
+
+
+def _disk_report():
+    """(挂载点, 总量, 剩余) 列表：Windows 枚举盘符，POSIX 查根分区与常见挂载点。"""
+    import shutil
+    out, seen = [], set()
+
+    def add_disk(path):
+        path = os.path.abspath(path)
+        if path in seen:
+            return
+        try:
+            usage = shutil.disk_usage(path)
+        except Exception:
+            return
+        seen.add(path)
+        out.append((path, usage.total, usage.free))
+
+    if os.name == "nt":
+        import string
+        for letter in string.ascii_uppercase[2:]:   # 跳过 A:/B: 软盘遗留
+            drive = "%s:\\" % letter
+            if os.path.exists(drive):
+                add_disk(drive)
+    else:
+        add_disk("/")
+        for extra in ("/home", "/tmp", "/var", "/data"):
+            if os.path.isdir(extra):
+                add_disk(extra)
+    return out
+
+
+def sys_info():
+    """采集本机硬件与系统配置（零依赖、离线），供回答「机器配置」类问题。"""
+    import getpass
+    import platform
+    lines = []
+    add = lines.append
+    try:
+        import socket
+        add("Hostname: %s" % socket.gethostname())
+    except Exception:
+        pass
+    add("OS: %s %s (%s)" % (platform.system(), platform.release(), platform.machine()))
+    try:
+        if platform.version():
+            add("OS build: %s" % platform.version())
+    except Exception:
+        pass
+    try:
+        add("User: %s" % getpass.getuser())
+    except Exception:
+        pass
+    add("CPU cores: %d" % (os.cpu_count() or 0))
+    cpu_name = ""
+    try:
+        if os.name == "nt":
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                                r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as key:
+                cpu_name = str(winreg.QueryValueEx(key, "ProcessorNameString")[0]).strip()
+        elif sys.platform.startswith("linux"):
+            with open("/proc/cpuinfo", "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    if line.lower().replace("\t", " ").startswith("model name"):
+                        cpu_name = line.split(":", 1)[1].strip()
+                        break
+        elif sys.platform == "darwin":
+            out = subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"],
+                                 capture_output=True, text=True, timeout=5)
+            cpu_name = out.stdout.strip()
+    except Exception:
+        cpu_name = ""
+    if cpu_name:
+        add("CPU model: %s" % cpu_name)
+    total, avail = _mem_bytes()
+    if total:
+        text = "Memory: %s total" % _fmt_bytes(total)
+        if avail:
+            text += " / %s available" % _fmt_bytes(avail)
+        add(text)
+    for mount, total_b, free_b in _disk_report():
+        add("Disk %s: %s total / %s free" % (mount, _fmt_bytes(total_b), _fmt_bytes(free_b)))
+    add("Python: %s" % sys.version.split()[0])
+    add("AgentBoot: v%s" % VERSION)
+    return "\n".join(lines)
 
 
 def agent_loop(cfg, user_text, history=None, stream=True):
@@ -1471,6 +1605,7 @@ HELP_TEXT = """命令：
   /帮助 /help        显示本帮助
   /模型 /model       模型提供商管理器（添加/切换/删除/故障切换）
   /linux <关键词>    直接查离线 Linux 知识库
+  /sys               查看本机硬件配置（CPU/内存/磁盘/系统）
   /继续              恢复上次会话的对话记忆
   /bench             性能基准（知识库/首字延迟/连接复用）
   /清空 /clear       清空本轮对话历史
@@ -1605,6 +1740,9 @@ def repl(cfg, resume=False):
             q = text[6:].strip()
             print(linux_help(q) if q else "usage: /linux <keywords>")
             continue
+        if low in ("/sys", "/配置", "/sysinfo"):
+            print(sys_info())
+            continue
         if low in ("/继续", "/resume"):
             loaded = load_session()
             if loaded:
@@ -1668,13 +1806,16 @@ def main():
     # 零配置命令优先：不加载模型配置，不触发 json/文件 IO，让一次性用法最快
     if cmd in ("help", "--help", "-h"):
         print(__doc__)
-        print("用法: ab [chat|run <任务>|model|doctor|linux <关键词>|version]")
+        print("用法: ab [chat|run <任务>|sys|model|doctor|linux <关键词>|version]")
         return
     if cmd in ("version", "--version", "-v"):
         print("AgentBoot Agent v%s" % VERSION)
         return
     if cmd == "linux":
         print(linux_help(" ".join(args)))
+        return
+    if cmd in ("sys", "sysinfo", "sys_info"):
+        print(sys_info())
         return
     cfg = load_config()
     i18n.set_lang(os.environ.get("AGENTBOOT_LANG") or cfg.get("lang") or "zh")
