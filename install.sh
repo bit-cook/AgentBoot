@@ -71,7 +71,7 @@ for launcher in "${BIN_DIR}/agentboot" "${BIN_DIR}/ab"; do
     fi
 done
 
-# ---------- 1. 下载在线包（项目控制的三源：Worker → Pages → GitHub Release） ----------
+# ---------- 1. 下载在线包（项目控制的四源：Worker → Pages → jsDelivr 镜像 → GitHub Release；任一域名失效仍可安装） ----------
 TMP="$(mktemp -d 2>/dev/null || echo /tmp/agentboot-install-$$)"
 mkdir -p "$TMP"
 STAGE="${TMP}/src"
@@ -95,6 +95,7 @@ dl_ok=""
 for url in \
     "${BOOT_BASE}/rel/${TARBALL}" \
     "https://bit-cook.github.io/AgentBoot/${TARBALL}" \
+    "https://cdn.jsdelivr.net/gh/${REPO}@gh-pages/${TARBALL}" \
     "${GH}/${TARBALL}"
 do
     say "下载：${url}"

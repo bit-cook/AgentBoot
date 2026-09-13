@@ -131,8 +131,19 @@
             </div>
             <code class="command-code">curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh</code>
           </article>
+
+          <article class="command-card">
+            <div class="command-head">
+              <span class="command-platform"><i class="platform-dot" aria-hidden="true"></i>GitHub Releases · 终极兜底（不依赖任何自定义域名）</span>
+              <button class="copy-button" type="button" data-copy="curl -fsSL https://github.com/bit-cook/AgentBoot/releases/latest/download/install.sh | sh" data-label-idle="复制" data-label-success="已复制" data-label-error="请手动选择" aria-live="polite">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+                <span data-copy-label>复制</span>
+              </button>
+            </div>
+            <code class="command-code">curl -fsSL https://github.com/bit-cook/AgentBoot/releases/latest/download/install.sh | sh</code>
+          </article>
         </div>
-        <p class="mirror-note">备用源与主入口同源发布：Windows 把地址中的 <code class="inline-code">install.sh</code> 换成 <code class="inline-code">install.ps1</code> 即可；安装脚本内置 Worker → Pages → Release 三源下载兜底；路径大小写均可（<code class="inline-code">/AgentBoot/</code> 与 <code class="inline-code">/agentboot/</code> 等价）。</p>
+        <p class="mirror-note">备用源与主入口同源发布：Windows 把地址中的 <code class="inline-code">install.sh</code> 换成 <code class="inline-code">install.ps1</code> 即可；安装脚本内置 Worker → Pages → jsDelivr 镜像 → GitHub Release 四源下载兜底；路径大小写均可（<code class="inline-code">/AgentBoot/</code> 与 <code class="inline-code">/agentboot/</code> 等价）。</p>
       </div>
 
       <ol class="steps shell" aria-label="三步上手">

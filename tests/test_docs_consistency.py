@@ -16,7 +16,7 @@ class DocumentationConsistencyTests(unittest.TestCase):
         facts = ("v1.4.0", "win-x64-codex.zip", "linux-x64-codex.tar.gz",
                  "PAYLOAD_SHA256SUMS.txt", "agentboot uninstall", "--purge",
                  "Hermes", "目标平台", "bit-cook.github.io/AgentBoot/install.sh",
-                 "/agentboot/")
+                 "/agentboot/", "releases/latest/download/install.sh", "jsDelivr")
         for fact in facts:
             for guide in guides:
                 self.assertIn(fact, guide, fact)
@@ -26,7 +26,8 @@ class DocumentationConsistencyTests(unittest.TestCase):
                     (ROOT / "pages/en/index.html").read_text(encoding="utf-8"),
                     (ROOT / "cloudflare/web-assets.js").read_text(encoding="utf-8")]
         for fact in ("v1.4.0", "Codex", "OpenCode", "Cursor", "uninstall",
-                     "bit-cook.github.io/AgentBoot/install.sh", "/agentboot/"):
+                     "bit-cook.github.io/AgentBoot/install.sh", "/agentboot/",
+                     "releases/latest/download/install.sh", "jsDelivr"):
             for surface in surfaces:
                 self.assertIn(fact, surface, fact)
 

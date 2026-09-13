@@ -32,7 +32,19 @@ curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://bit-cook.github.io/AgentBoot/install.ps1'))"
 ```
 
-The installer itself uses project-controlled origins only: `boot.ide.pub` → GitHub Pages → GitHub Releases, with same-origin SHA-256 enforcement.
+**Final fallback (GitHub Releases, no custom domains required)** — works even if `ide.pub`, `osome.work`, and every other custom domain has expired:
+
+```bash
+curl -fsSL https://github.com/bit-cook/AgentBoot/releases/latest/download/install.sh | sh
+```
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://github.com/bit-cook/AgentBoot/releases/latest/download/install.ps1'))"
+```
+
+> Maintainer note: `bit-cook.github.io` currently 301-redirects to the custom domain `osome.work`; if that domain ever expires, remove the custom domain under Settings → Pages of the `bit-cook.github.io` repo and `bit-cook.github.io` serves directly again. The jsDelivr mirror (`cdn.jsdelivr.net/gh/bit-cook/AgentBoot@main/install.sh`) depends on no GitHub Pages configuration at all.
+
+The installer itself uses project-controlled origins only: `boot.ide.pub` → GitHub Pages → jsDelivr mirror → GitHub Releases, with same-origin SHA-256 enforcement.
 
 **After install**
 

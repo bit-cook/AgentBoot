@@ -17,6 +17,9 @@
 - 新增 `publish-pages` 应急工作流（仅手动派发，直接把 gh-pages 分支以 artifact 形式发布到 Pages 服务层，绕开经典构建队列；默认托管 runner，自建 runner 可选）。
 - 主页与文档新增 GitHub Pages 冗余一键脚本（`bit-cook.github.io/AgentBoot/install.sh` / `install.ps1`）：`ide.pub` 域名不可用或过期时的备用入口，与主入口同源发布。
 - 备用源路径大小写均可：站点部署时自动生成 `/agentboot/` 小写别名目录（与 `/AgentBoot/` 内容一致，标记 noindex），小写输入不再 404。
+- 安装器下载兜底从三源扩为四源（Worker → Pages → jsDelivr 镜像 → GitHub Release）：jsDelivr（gh-pages 分支镜像）不依赖任何自定义域名，国内通常更可达。
+- 主页与文档新增 GitHub Releases 终极兜底一键入口（`releases/latest/download/install.sh`）：`ide.pub` 与 `osome.work` 等全部域名过期时仍可安装；文档补充「自定义域名失效 → 移除 Pages 自定义域名恢复 github.io 直出」的维护预案。
+- 修复 gh-pages 分支的陈旧内容：根目录补齐 v1.4.0 安装包与 .sha256（此前 Pages 兜底链取包会 404），入口 install.sh / install.ps1 由 v1.3.0 更新为 v1.4.0。
 
 ## v1.3.0 (2026-08-31)
 

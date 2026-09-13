@@ -47,7 +47,7 @@ curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://bit-cook.github.io/AgentBoot/install.ps1'))"
 ```
 
-> 冗余源与主入口同源发布（路径大小写均可：`/AgentBoot/` 与 `/agentboot/` 等价）；安装脚本内置 Worker → Pages → Release 三源下载兜底，任一域名失效都能完成安装。
+> 冗余源与主入口同源发布（路径大小写均可：`/AgentBoot/` 与 `/agentboot/` 等价）；安装脚本内置 Worker → Pages → jsDelivr 镜像 → GitHub Release 四源下载兜底，任一域名失效都能完成安装。若所有自定义域名都过期，还有不依赖域名的终极入口：`curl -fsSL https://github.com/bit-cook/AgentBoot/releases/latest/download/install.sh | sh`。
 
 装完得到两个命令：
 

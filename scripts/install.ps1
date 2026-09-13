@@ -146,13 +146,14 @@ foreach ($launcher in $launchers) {
     Assert-ManagedLauncher $launcher
 }
 
-# ---------- 1. 下载（项目控制的三源：Worker → Pages → GitHub Release） ----------
+# ---------- 1. 下载（项目控制的四源：Worker → Pages → jsDelivr 镜像 → GitHub Release；任一域名失效仍可安装） ----------
 $tmp  = Join-Path $env:TEMP ("agentboot-" + [guid]::NewGuid().ToString('N').Substring(0,8))
 New-Item -ItemType Directory -Path $tmp, (Join-Path $tmp 'src') -Force | Out-Null
 $pkg  = Join-Path $tmp $ZipName
 $sources = @(
     "$BootBase/rel/$ZipName",
     "https://bit-cook.github.io/AgentBoot/$ZipName",
+    "https://cdn.jsdelivr.net/gh/$Repo@gh-pages/$ZipName",
     "$GH/$ZipName"
 )
 $dl = $false
