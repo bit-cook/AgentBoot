@@ -617,6 +617,49 @@ def _safe_extract_tar(archive, destination):
         archive.extractall(root)
 
 
+def _extract_tgz_fast(archive, destination):
+    """系统 tar 解压 .tar.gz（C 实现，比 Python gzip 快数倍），安全校验后使用。
+
+    先 `tar -tzf` 列出成员做越界检查，通过后才 `tar -xzf` 解压；
+    任一环节失败返回 False，调用方回退 _safe_extract_tar。
+    调用前提：archive 已通过 SHA-256 校验（来源可信）。
+    GNU tar 会把 Windows 路径的盘符冒号当作远程主机，需 --force-local；
+    bsdtar（Windows 自带）不支持该选项但也不需要——两种调用都试。"""
+    import subprocess
+    tar = shutil.which("tar")
+    if not tar:
+        return False
+    try:
+        listing = None
+        base_cmd = None
+        for pre in ([tar, "--force-local"], [tar]):
+            try:
+                listing = subprocess.run(pre + ["-tzf", archive], capture_output=True,
+                                         text=True, errors="replace", timeout=300)
+            except OSError:
+                continue
+            if listing.returncode == 0:
+                base_cmd = pre
+                break
+        if not base_cmd:
+            return False
+        members = [line for line in listing.stdout.splitlines() if line]
+        if len(members) > 20000:
+            return False
+        for name in members:
+            norm = name.replace("\\", "/")
+            if norm.startswith(("/", "\\")) or norm.startswith("../") or norm == ".." \
+                    or "/../" in norm or norm.endswith("/..") or ":" in norm.split("/")[0]:
+                return False
+        os.makedirs(destination, exist_ok=True)
+        # 不用 -C：MSYS/GNU tar 对 Windows 目标路径的解析不可靠，直接以目标目录为 cwd
+        extract = subprocess.run(base_cmd + ["-xzf", archive], cwd=destination,
+                                 capture_output=True, timeout=600)
+        return extract.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def _remove_owned_shims(a, entry):
     candidates = [entry.get("executable")]
     suffix = "" if POSIX else ".cmd"
@@ -973,6 +1016,24 @@ def install_online(ids):
     return fail_list
 
 
+def _script_fallback_urls(url):
+    """GitHub Pages 项目页托管脚本的 jsDelivr 兜底地址。
+
+    bit-cook.github.io/<project>/… 由 <user>/<project> 仓库的 gh-pages 分支服务；
+    github.io 不可达或自定义域名过期时，jsDelivr 直读 git 内容仍可取到脚本。"""
+    from urllib.parse import urlsplit
+    parsed = urlsplit(url or "")
+    host = (parsed.hostname or "").lower()
+    parts = [p for p in parsed.path.split("/") if p]
+    if host.endswith(".github.io") and len(parts) >= 2:
+        user = host[: -len(".github.io")]
+        project = parts[0]
+        if project != "%s.github.io" % user:
+            return ["https://cdn.jsdelivr.net/gh/%s/%s@gh-pages/%s"
+                    % (user, project, "/".join(parts[1:]))]
+    return []
+
+
 def install_via_script(a):
     from urllib.parse import urlsplit
     url = a.get("script")
@@ -980,7 +1041,7 @@ def install_via_script(a):
     if parsed.scheme.lower() != "https" or not parsed.netloc:
         log_err("安装脚本必须使用有效的 HTTPS URL")
         return False
-    urls = [url]
+    urls = [url] + _script_fallback_urls(url)
     if cn_mode() and parsed.hostname in ("github.com", "raw.githubusercontent.com"):
         for p in ("https://gh-proxy.com/", "https://ghfast.top/"):
             urls.append(p + url)
@@ -1626,8 +1687,9 @@ def coco_offline_install(a, payload):
     if os.path.isdir(extract):
         shutil.rmtree(extract)
     os.makedirs(extract, exist_ok=True)
-    with tarfile.open(tgz, "r:gz") as t:
-        _safe_extract_tar(t, extract)
+    if not _extract_tgz_fast(tgz, extract):
+        with tarfile.open(tgz, "r:gz") as t:
+            _safe_extract_tar(t, extract)
     try:
         os.replace(os.path.join(extract, "package"), install_dir)
         shutil.rmtree(extract, ignore_errors=True)
@@ -1645,8 +1707,9 @@ def coco_offline_install(a, payload):
         runtime = os.path.join(install_dir, "runtime")
         shutil.rmtree(runtime, ignore_errors=True)
         os.makedirs(runtime, exist_ok=True)
-        with tarfile.open(node_archive, "r:gz") as archive:
-            _safe_extract_tar(archive, runtime)
+        if not _extract_tgz_fast(node_archive, runtime):
+            with tarfile.open(node_archive, "r:gz") as archive:
+                _safe_extract_tar(archive, runtime)
         children = [name for name in os.listdir(runtime) if name != "node"]
         if len(children) != 1 or not os.path.isdir(os.path.join(runtime, children[0])):
             raise ValueError("CoCo Node 载荷结构无效")

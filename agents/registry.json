@@ -13,7 +13,7 @@
       "node": null,
       "os": ["linux", "darwin"],
       "offline": true,
-      "notes": ["官方安装脚本来自 github.com/bit-cook/coco（当前 v0.8.0）", "官方支持 Linux / macOS，Windows 无官方安装器", "离线安装由 AgentBoot 复刻官方安装步骤（载荷内置发行包 + Agnes 密钥 + Node 22.23 运行时）"]
+      "notes": ["官方安装脚本来自 github.com/bit-cook/coco（当前 v0.8.0），自动适配国内镜像（npmmirror / gh-proxy，COCO_MIRROR=off 可关）", "官方支持 Linux / macOS，Windows 无官方安装器", "离线安装由 AgentBoot 复刻官方安装步骤（载荷内置发行包 + Agnes 密钥 + Node 22.23 运行时）"]
     },
     {
       "id": "opencode",

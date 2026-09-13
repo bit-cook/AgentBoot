@@ -1,5 +1,14 @@
 # 更新日志
 
+## v1.4.1 (2026-09-13)
+
+- 内置 Agent（ab）实时显示思考过程：支持 `reasoning_content` 独立通道与正文内联 `<think>…</think>` 标记（含跨分块截断），思考文本暗色渲染、与正文区分；个别把答案全放思考通道的模型按正文兜底，不再误报空响应。
+- 内置 Agent 新增首包等待指示器：模型响应前显示「⏳ 正在思考 Ns」行内动画，首个思考/正文 token 到达即清除，等待时间一目了然（仅交互式终端，Windows 自动启用 VT 序列）。
+- CoCo 安装提速（coco 仓库官方脚本）：Node 运行时改走 npmmirror 镜像、发行包与 Agnes 密钥支持 gh-proxy/ghfast 加速，自动探测网络选路，可用 `COCO_MIRROR=off` 强制直连、`COCO_NODE_DIST_BASE`/`COCO_RELEASE_MIRRORS` 覆盖；全部镜像互为兜底且保留 SHA-256 校验。
+- AgentBoot 脚本类安装（script 方法）新增 jsDelivr 兜底源：GitHub Pages 不可达或自定义域名过期时，自动改从 `cdn.jsdelivr.net/gh/<user>/<repo>@gh-pages/…` 获取安装脚本。
+- CoCo 离线安装解压提速：优先使用系统 tar（C 实现，含 `--force-local`/cwd 兼容处理）替代 Python gzip 解压，越界校验保持不变，失败自动回退原实现。
+- 安装器下载兜底从三源扩为四源（Worker → Pages → jsDelivr 镜像 → GitHub Release）；主页新增 Releases 终极安装入口（不依赖任何自定义域名）。
+
 ## v1.4.0 (2026-09-12)
 
 - 新增 FreeBuff（`freebuff`，freebuff.com）为第 16 个内置 Agent：免费、广告支持、无需 API Key；npm 轻量启动器，首次运行联网获取平台原生二进制，暂仅在线安装。

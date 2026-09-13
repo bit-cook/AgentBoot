@@ -159,6 +159,7 @@ ZH = {
     "agent.bench_gain": "连接复用收益 : 每轮省约 %.0f ms",
     "agent.bench_fail": "模型首字延迟 : 测试失败（检查网络/模型源）",
     "agent.failover": "  ⚠ 模型源 %s 失败，自动切换 %s …\n",
+    "agent.thinking": "⏳ 正在思考",
 }
 
 EN = {
@@ -313,6 +314,7 @@ EN = {
     "agent.bench_gain": "Reuse benefit : ~%.0f ms saved per turn",
     "agent.bench_fail": "Model TTFB    : test failed (check network/model)",
     "agent.failover": "  ⚠ provider %s failed, switching to %s …\n",
+    "agent.thinking": "⏳ Thinking",
 }
 
 

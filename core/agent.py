@@ -14,6 +14,7 @@ import os
 import re
 import shlex
 import sys
+import threading
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -23,12 +24,37 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     VERSION = open(os.path.join(APP_DIR, "VERSION"), "r", encoding="ascii").read().strip()
 except OSError:
-    VERSION = "1.4.0"
+    VERSION = "1.4.1"
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
 CONFIG_PATH = os.path.join(AB_HOME, "config.json")
 KB_DIR = os.path.join(APP_DIR, "tools", "linux-kb")
 
 # ---------------------------------------------------------------- 基础设施
+
+_ANSI_OK = [False]
+
+
+def _enable_ansi():
+    """Windows 控制台开启 VT 转义序列（暗色思考文本 / 行清除需要）；其他平台默认支持。"""
+    if _ANSI_OK[0]:
+        return
+    if os.name != "nt":
+        _ANSI_OK[0] = True
+        return
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetStdHandle(-11)
+        mode = ctypes.c_uint32()
+        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            _ANSI_OK[0] = bool(kernel32.SetConsoleMode(handle, mode.value | 0x0004))
+    except Exception:
+        pass
+
+
+def _clear_line():
+    sys.stdout.write("\r\x1b[2K" if _ANSI_OK[0]
+                     else "\r" + " " * 40 + "\r")
 
 def _utf8_console():
     """让 Windows 控制台也能正常输出中文。"""
@@ -310,7 +336,7 @@ class StreamInterrupted(ApiError):
     """流式响应中断且未收到任何内容（可安全重试）。"""
 
 
-def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature=0.7):
+def chat(cfg, messages, stream_cb=None, reasoning_cb=None, tools=None, max_tokens=None, temperature=0.7):
     """调用 OpenAI 兼容接口（连接复用 + 自动重试）。返回 (content, tool_calls)。"""
     import json
     p = get_provider(cfg)
@@ -366,7 +392,8 @@ def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature
                 choice = (data.get("choices") or [{}])[0]
                 msg = choice.get("message") or {}
                 return msg.get("content") or "", msg.get("tool_calls") or []
-            return _read_stream(resp, stream_cb, conn, scheme, host, port)
+            return _read_stream(resp, stream_cb, conn, scheme, host, port,
+                                reasoning_cb=reasoning_cb)
         except StreamInterrupted as e:
             last_err = e
             _drop_pool(scheme, host, port)
@@ -384,12 +411,142 @@ def chat(cfg, messages, stream_cb=None, tools=None, max_tokens=None, temperature
     raise ApiError("无法连接模型接口：%s（若需代理，请先设置 HTTP_PROXY/HTTPS_PROXY）" % last_err)
 
 
-def _read_stream(resp, stream_cb, conn, scheme, host, port):
+class _WaitIndicator:
+    """首包等待指示器：模型响应前在行内显示「思考中 Ns」旋转动画（仅交互式终端）。"""
+
+    _FRAMES = "-\\|/"
+
+    def __init__(self, label):
+        self._label = label
+        self._lock = threading.Lock()
+        self._stop_evt = threading.Event()
+        self._thread = None
+        self._active = False
+
+    def start(self):
+        if self._active:
+            return
+        self._stop_evt.clear()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._active = True
+        self._thread.start()
+
+    def _run(self):
+        start = time.time()
+        i = 0
+        while not self._stop_evt.wait(0.2):
+            with self._lock:
+                frame = self._FRAMES[i % len(self._FRAMES)]
+                sys.stdout.write("\r%s %ds %s   " % (self._label, int(time.time() - start), frame))
+                sys.stdout.flush()
+            i += 1
+
+    def stop(self):
+        if not self._active:
+            return
+        self._stop_evt.set()
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+            self._thread = None
+        with self._lock:
+            _clear_line()
+            sys.stdout.flush()
+        self._active = False
+
+
+class _ThinkRouter:
+    """把模型输出分流为「正文」与「思考」。
+
+    覆盖两类来源：delta.reasoning_content 独立通道；content 内联的 <think>…</think>
+    标记（含标签跨分块的情况）。未闭合的 <think> 段按思考处理，避免把推理过程
+    当正文回显进历史。"""
+
+    _OPEN = "<think>"
+    _CLOSE = "</think>"
+
+    def __init__(self):
+        self.in_think = False
+        self.tail = ""
+        self.has_reasoning = False
+        self.reasoning_text = ""
+
+    @staticmethod
+    def _partial_suffix(buf, tag):
+        """buf 末尾恰好是 tag 前缀（可能是被截断的标签）时返回该后缀长度。"""
+        limit = min(len(buf), len(tag) - 1)
+        for n in range(limit, 0, -1):
+            if tag.startswith(buf[-n:]):
+                return n
+        return 0
+
+    def feed(self, text):
+        """输入一段增量文本，返回 (正文部分, 思考部分)。"""
+        buf = self.tail + text
+        self.tail = ""
+        content_out, reason_out = [], []
+        while buf:
+            if self.in_think:
+                end = buf.find(self._CLOSE)
+                if end >= 0:
+                    reason_out.append(buf[:end])
+                    self.in_think = False
+                    buf = buf[end + len(self._CLOSE):]
+                    continue
+                keep = self._partial_suffix(buf, self._CLOSE)
+                emit = buf if not keep else buf[:-keep]
+                if emit:
+                    reason_out.append(emit)
+                if keep:
+                    self.tail = buf[-keep:]
+                buf = ""
+            else:
+                start = buf.find(self._OPEN)
+                if start >= 0:
+                    content_out.append(buf[:start])
+                    self.in_think = True
+                    buf = buf[start + len(self._OPEN):]
+                    continue
+                keep = self._partial_suffix(buf, self._OPEN)
+                emit = buf if not keep else buf[:-keep]
+                if emit:
+                    content_out.append(emit)
+                if keep:
+                    self.tail = buf[-keep:]
+                buf = ""
+        reason = "".join(reason_out)
+        if reason:
+            self.has_reasoning = True
+            self.reasoning_text += reason
+        return "".join(content_out), reason
+
+    def flush(self):
+        """流结束时冲掉尾部缓冲（未闭合的 <think> 段整体按思考处理）。"""
+        text, self.tail = self.tail, ""
+        if not text:
+            return "", ""
+        if self.in_think:
+            self.has_reasoning = True
+            self.reasoning_text += text
+            return "", text
+        return text, ""
+
+
+def _read_stream(resp, stream_cb, conn, scheme, host, port, reasoning_cb=None):
     import json
     content_parts = []
+    channel_reason = []
     tool_calls = {}
     terminal = False
     malformed = False
+    router = _ThinkRouter()
+
+    def emit_content(text):
+        if text and stream_cb:
+            stream_cb(text)
+
+    def emit_reason(text):
+        if text and reasoning_cb:
+            reasoning_cb(text)
 
     def flush_tc():
         out = []
@@ -423,10 +580,16 @@ def _read_stream(resp, stream_cb, conn, scheme, host, port):
                 if choice.get("finish_reason") is not None:
                     terminal = True
                 delta = choice.get("delta") or {}
+                reason = delta.get("reasoning_content") or delta.get("reasoning")
+                if reason:
+                    channel_reason.append(reason)
+                    emit_reason(reason)
                 piece = delta.get("content")
                 if piece:
-                    content_parts.append(piece)
-                    stream_cb(piece)
+                    text, think = router.feed(piece)
+                    emit_reason(think)
+                    emit_content(text)
+                    content_parts.append(text)
                 for tc in delta.get("tool_calls") or []:
                     idx = tc.get("index", 0)
                     slot = tool_calls.setdefault(idx, {"id": "", "name": "", "arguments": ""})
@@ -437,6 +600,10 @@ def _read_stream(resp, stream_cb, conn, scheme, host, port):
                         slot["name"] = (slot["name"] + fn["name"]) if slot["name"] else fn["name"]
                     if fn.get("arguments"):
                         slot["arguments"] += fn["arguments"]
+        text, think = router.flush()
+        emit_reason(think)
+        emit_content(text)
+        content_parts.append(text)
         try:
             resp.read()   # 排空剩余分块，保持连接可复用
         except Exception:
@@ -452,7 +619,7 @@ def _read_stream(resp, stream_cb, conn, scheme, host, port):
         raise ApiError("模型流包含无效 JSON，已拒绝处理。")
     if not terminal:
         _drop_pool(scheme, host, port)
-        if content_parts:
+        if "".join(content_parts):
             raise ApiError("模型流在完成前中断（已收到部分文本，未执行任何工具）。")
         raise StreamInterrupted("")
     content = "".join(content_parts)
@@ -464,25 +631,28 @@ def _read_stream(resp, stream_cb, conn, scheme, host, port):
             raise ApiError("模型返回了不完整的工具参数 JSON，已拒绝执行。")
         if not tc["function"]["name"] or not isinstance(parsed, dict):
             raise ApiError("模型返回了无效的工具参数，已拒绝执行。")
+    if not content and not tcs and (router.reasoning_text or channel_reason):
+        # 个别模型把答案全部放进思考通道：按正文兜底（避免误报空响应）
+        content = "".join(channel_reason) or router.reasoning_text
     if not content and not tcs:
         raise ApiError("模型返回为空（流式）。")
     return content, tcs
 
 
-def chat_auto(cfg, messages, stream_cb=None, **kw):
+def chat_auto(cfg, messages, stream_cb=None, reasoning_cb=None, **kw):
     """主模型源失败时自动切换备用源（cfg["fallback"]: 备用模型源名列表）。"""
     order = [cfg.get("active") or DEFAULT_ACTIVE]
     for n in (cfg.get("fallback") or []):
         if n and n not in order:
             order.append(n)
     if len(order) == 1:
-        return chat(cfg, messages, stream_cb=stream_cb, **kw)
+        return chat(cfg, messages, stream_cb=stream_cb, reasoning_cb=reasoning_cb, **kw)
     last = None
     for i, name in enumerate(order):
         c2 = dict(cfg)
         c2["active"] = name
         try:
-            return chat(c2, messages, stream_cb=stream_cb, **kw)
+            return chat(c2, messages, stream_cb=stream_cb, reasoning_cb=reasoning_cb, **kw)
         except ApiError as e:
             last = e
             if i < len(order) - 1:
@@ -1214,15 +1384,48 @@ def agent_loop(cfg, user_text, history=None, stream=True):
     msgs.append({"role": "user", "content": user_text})
     session_allow = set()
     final = ""
+    interactive = stream and _is_interactive()
+    if interactive:
+        _enable_ansi()
     for _ in range(int(cfg.get("max_steps", 12))):
         _shrink(msgs)   # 上下文预算控制：清理过老的大段工具输出
-        cb = (lambda piece: (sys.stdout.write(piece), sys.stdout.flush())) if (stream and _is_interactive()) else None
-        if cb:
-            sys.stdout.write("\n")
-            sys.stdout.flush()
-        content, tool_calls = chat_auto(cfg, msgs, stream_cb=cb, tools=TOOLS)
-        if cb:
-            sys.stdout.write("\n")
+        cb = rcb = wait = None
+        reasoning_shown = content_shown = False
+        if interactive:
+            wait = _WaitIndicator(i18n.t("agent.thinking"))
+            wait.start()
+
+            def rcb(piece):                       # 思考过程：暗色实时显示
+                nonlocal reasoning_shown
+                if wait is not None:
+                    wait.stop()
+                if not reasoning_shown:
+                    sys.stdout.write("\n" + ("\x1b[2m" if _ANSI_OK[0] else ""))
+                    reasoning_shown = True
+                sys.stdout.write(piece)
+                sys.stdout.flush()
+
+            def cb(piece):                        # 正文：思考结束后正常显示
+                nonlocal content_shown
+                if wait is not None:
+                    wait.stop()
+                if reasoning_shown and not content_shown:
+                    sys.stdout.write(("\x1b[0m" if _ANSI_OK[0] else "") + "\n")
+                elif not content_shown:
+                    sys.stdout.write("\n")
+                content_shown = True
+                sys.stdout.write(piece)
+                sys.stdout.flush()
+        try:
+            content, tool_calls = chat_auto(cfg, msgs, stream_cb=cb, reasoning_cb=rcb, tools=TOOLS)
+        finally:
+            if wait is not None:
+                wait.stop()
+        if interactive:
+            if reasoning_shown and not content_shown:
+                sys.stdout.write(("\x1b[0m" if _ANSI_OK[0] else "") + "\n")
+            elif content_shown:
+                sys.stdout.write("\n")
             sys.stdout.flush()
         if not tool_calls:
             final = content

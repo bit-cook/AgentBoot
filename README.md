@@ -116,7 +116,7 @@ ab bench                              # 性能基准
 
 ## 离线安装与瘦身定制
 
-到 [Releases](https://github.com/bit-cook/AgentBoot/releases) 下载带平台与 Agent 名称的已验证精简包，拷到目标机解压后运行包内 `install-offline.ps1` / `sh install-offline.sh`。v1.4.0 发布流水线会在 Linux、Windows、Intel macOS 与 Apple Silicon 上实际验证 OpenCode 安装、`--version` 和卸载后才上传。
+到 [Releases](https://github.com/bit-cook/AgentBoot/releases) 下载带平台与 Agent 名称的已验证精简包，拷到目标机解压后运行包内 `install-offline.ps1` / `sh install-offline.sh`。v1.4.1 发布流水线会在 Linux、Windows、Intel macOS 与 Apple Silicon 上实际验证 OpenCode 安装、`--version` 和卸载后才上传。
 
 其他 Agent 使用菜单 `[7]` 或 `build-offline win-x64 claude-code,pi` 在目标平台按需构建。Hermes 含平台相关 Python venv，必须在对应平台构建；Aider 暂不支持离线。
 
