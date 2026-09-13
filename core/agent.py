@@ -23,7 +23,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     VERSION = open(os.path.join(APP_DIR, "VERSION"), "r", encoding="ascii").read().strip()
 except OSError:
-    VERSION = "1.3.0"
+    VERSION = "1.4.0"
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
 CONFIG_PATH = os.path.join(AB_HOME, "config.json")
 KB_DIR = os.path.join(APP_DIR, "tools", "linux-kb")
@@ -1255,12 +1255,12 @@ def agent_loop(cfg, user_text, history=None, stream=True):
 # ---------------------------------------------------------------- 交互界面
 
 BANNER = r"""
-   _                    _            _
-  /_\   __ _  ___ _ __ | |_ __ _  __| | ___
- //_\\ / _` |/ _ \ '_ \| __/ _` |/ _` |/ _ \
-/  _  \ (_| |  __/ | | | || (_| | (_| |  __/
-\_/ \_/\__, |\___|_| |_|\__\__,_|\__,_|\___|
-       |___/   AgentBoot 内置 Agent v%s
+    _                    _   ____              _
+   / \   __ _  ___ _ __ | |_| __ )  ___   ___ | |_
+  / _ \ / _` |/ _ \ '_ \| __|  _ \ / _ \ / _ \| __|
+ / ___ \ (_| |  __/ | | | |_| |_) | (_) | (_) | |_
+/_/   \_\__, |\___|_| |_|\__|____/ \___/ \___/ \__|
+        |___/   AgentBoot 内置 Agent v%s
 """ % VERSION
 
 

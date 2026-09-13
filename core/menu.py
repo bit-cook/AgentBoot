@@ -1953,9 +1953,28 @@ def write_shim(a, env_extra=None, args_prefix=None, node_path=None, entry_overri
         return False
 
 
+def _broadcast_windows_env_change():
+    """广播 WM_SETTINGCHANGE，让资源管理器立即重载用户环境变量。
+
+    注册表写入本身不会通知已运行的进程；不广播的话，新开的终端要等到
+    注销/切换用户后才看得到新 PATH（用户可感知的“装完不能用”）。
+    """
+    try:
+        import ctypes
+        HWND_BROADCAST = 0xFFFF
+        WM_SETTINGCHANGE = 0x001A
+        SMTO_ABORTIFHUNG = 0x0002
+        result = ctypes.c_ulong()
+        ctypes.windll.user32.SendMessageTimeoutW(
+            HWND_BROADCAST, WM_SETTINGCHANGE, 0,
+            "Environment", SMTO_ABORTIFHUNG, 5000, ctypes.byref(result))
+    except Exception:
+        pass
+
+
 def ensure_path_registered():
     """把 AgentBoot 相关目录加入用户 PATH（幂等）。"""
-    targets = [os.path.join(AB_HOME, "bin")] + (prefix_bin_dirs() if POSIX else [])
+    targets = [os.path.join(AB_HOME, "bin")] + prefix_bin_dirs()
     if POSIX:
         block_begin = "# >>> agentboot >>>"
         block_end = "# <<< agentboot <<<"
@@ -2004,6 +2023,8 @@ def ensure_path_registered():
                 winreg.SetValueEx(key, "Path", 0, typ, ";".join(parts))
             winreg.CloseKey(key)
             os.environ["PATH"] = ";".join(targets + [os.environ.get("PATH", "")])
+            if changed:
+                _broadcast_windows_env_change()
         except Exception as e:
             log_err("更新用户 PATH 失败：%s（可手动把 %s 加入 PATH）" % (e, os.path.join(AB_HOME, "bin")))
 
@@ -2432,11 +2453,11 @@ def lang_switch(cfg):
 
 def banner():
     print(r"""
-    _                    _            _
-   /_\   __ _  ___ _ __ | |_ __ _  __| | ___
-  //_\\ / _` |/ _ \ '_ \| __/ _` |/ _` |/ _ \
- /  _  \ (_| |  __/ | | | || (_| | (_| |  __/
- \_/ \_/\__, |\___|_| |_|\__\__,_|\__,_|\___|
+    _                    _   ____              _
+   / \   __ _  ___ _ __ | |_| __ )  ___   ___ | |_
+  / _ \ / _` |/ _ \ '_ \| __|  _ \ / _ \ / _ \| __|
+ / ___ \ (_| |  __/ | | | |_| |_) | (_) | (_) | |_
+/_/   \_\__, |\___|_| |_|\__|____/ \___/ \___/ \__|
         |___/   AgentBoot Console v%s
 """ % VERSION)
     print(i18n.t("menu.tagline") + "\n")

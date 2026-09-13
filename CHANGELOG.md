@@ -1,17 +1,20 @@
 # 更新日志
 
-## 未发布（Unreleased）
+## v1.4.0 (2026-09-12)
 
 - 新增 FreeBuff（`freebuff`，freebuff.com）为第 16 个内置 Agent：免费、广告支持、无需 API Key；npm 轻量启动器，首次运行联网获取平台原生二进制，暂仅在线安装。
 - 文档、双语主页与 Agent 数量口径同步更新为 16；文档一致性测试同步锁定注册表与页面行数。
-- 修复 `deploy-pages` 工作流一致性测试的过时断言（工作流已改为 gh-pages 发布，测试同步校验 SHA 钉版 checkout 与凭据丢弃）。
-- 修复测试套件在 Windows 上的两类密封性问题：`expanduser` 优先读 `USERPROFILE` 导致 CoCo/Cursor 测试写真实主目录；离线安装成功用例未 patch `AGENTS_DIR` 导致载荷落进真实 `~/.agentboot`。POSIX 专属测试在 Windows 明确跳过，套件跨平台全绿。
+- 修复 TUI 字符画字形错乱：`agent.py` 与 `menu.py` 顶部 ASCII 艺术统一替换为经校验的标准字形，正确显示 AgentBoot。
+- 修复 Windows 安装 Agent 后新终端不可用的问题：用户 PATH 注册表目标补齐 npm prefix 等目录，并在写入后广播 `WM_SETTINGCHANGE`，资源管理器即时重载环境变量，无需注销/切换用户。
 - 极限优化冷启动：`agent.py` 全面惰性化 `ctypes / tempfile / socket / ipaddress / json` 导入；`ab version / linux / help` 走零配置路径（不加载模型配置）；Windows 控制台模式修复仅在真实 TTY 下执行 `ctypes`。实测一次性命令与菜单就绪提速约 40%+。
 - 知识库索引持久化：首次构建后以 marshal 缓存到 `~/.agentboot/kb-index.cache`，按「文件名+大小+mtime」指纹失效；仅对随包内置知识库落盘，后续冷查询免重建。
 - 模型接口 429 限流纳入自动重试并尊重 `Retry-After`（上限 10s），与 5xx 同等处理，提升免费额度下的稳定性。
 - 环境体检与镜像状态的网络探测并行化：doctor 三项探测由串行累加变为并发（最差 6s → 2s）。
 - 修复 `search_files` 非正则模式下从不匹配文件名的问题（与工具描述一致），并清理 `linux_help` 无匹配分支的死代码。
 - 性能基准脚本支持 Windows（假工具链按平台生成 .cmd），安装项看门狗放宽至 60s 以消除杀软首扫抖动。
+- 修复 `deploy-pages` 工作流一致性测试的过时断言（工作流已改为 gh-pages 发布，测试同步校验 SHA 钉版 checkout 与凭据丢弃）。
+- 修复测试套件在 Windows 上的两类密封性问题：`expanduser` 优先读 `USERPROFILE` 导致 CoCo/Cursor 测试写真实主目录；离线安装成功用例未 patch `AGENTS_DIR` 导致载荷落进真实 `~/.agentboot`。POSIX 专属测试在 Windows 明确跳过，套件跨平台全绿。
+- 新增 `publish-pages` 应急工作流（仅手动派发，self-hosted runner 可用），并在 Windows 场景下注入 Git usr/bin 以修复 upload-pages-artifact 的 tar 依赖。
 
 ## v1.3.0 (2026-08-31)
 
