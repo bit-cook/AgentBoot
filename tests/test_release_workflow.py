@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Static guarantees for coordinated release publication."""
 
 from pathlib import Path
@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ReleaseWorkflowTests(unittest.TestCase):
     def test_release_supports_prerelease_dry_run_and_tag_only_publish(self):
-        text = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        text = (ROOT / ".github/workflows/release-pipeline.yml").read_text(encoding="utf-8")
         # release.yml is intentionally tag-and-dispatch only; pull_request
         # was removed to fix the zero-job stale head_branch failure.
         self.assertIn("workflow_dispatch:", text)
@@ -28,7 +28,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("AGENTS=opencode", text)
         self.assertIn("python3 core/menu.py install cursor", text)
         self.assertIn("$smokeHome", text)
-        self.assertIn("测试-home", text)
+        self.assertIn("娴嬭瘯-home", text)
         self.assertNotIn("$home =", text)
         self.assertIn("contents: read", text)
         self.assertIn("contents: write", text)
