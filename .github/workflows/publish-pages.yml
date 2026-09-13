@@ -15,7 +15,9 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, pages-fix]
+    # 托管 runner 为默认通道（账号托管队列恢复即可自愈）；
+    # 如需改用自建 runner，注册 labels: [self-hosted, pages-fix] 后改回即可。
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
