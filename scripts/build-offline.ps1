@@ -71,6 +71,48 @@ function Confirm-NodeArchive([string]$path, [string]$version, [string]$filename)
     return (Get-Sha256 $path) -eq $expected
 }
 
+# 逐源下载并校验：镜像站可能返回截断/损坏文件（华为云镜像的 win-embed.zip 曾实测为坏包），
+# 只有 SHA-256 与期望值一致的源才被接受，否则继续尝试下一个源。
+function Get-UrlVerified([string]$want, [string]$out, [string[]]$urls) {
+    foreach ($u in $urls) {
+        if (Get-Url $u $out) {
+            if ((Get-Sha256 $out) -eq $want) { return $true }
+            Write-Err "源文件校验失败（可能损坏），尝试下一个源：$u"
+        }
+        Remove-Item $out -Force -ErrorAction SilentlyContinue
+    }
+    return $false
+}
+
+# Node 运行时：先查本地缓存，再按 国内镜像 → 官方源 顺序逐源校验下载。
+function Ensure-NodeArchive([string]$filename, [string]$version) {
+    $arc = Join-Path $Dist $filename
+    if (Confirm-NodeArchive $arc $version $filename) { return $true }
+    Remove-Item $arc -Force -ErrorAction SilentlyContinue
+    $sums = Join-Path $Dist "SHASUMS256-$version.txt"
+    $expected = $null
+    if (Test-Path $sums) {
+        $line = Get-Content $sums | Where-Object { $_ -match "\s\*?$([regex]::Escape($filename))$" } | Select-Object -First 1
+        if ($line) { $expected = ($line -split '\s+')[0].ToLowerInvariant() }
+    }
+    if ($expected) {
+        if (Get-UrlVerified $expected $arc @(
+                "https://registry.npmmirror.com/-/binary/node/$version/$filename",
+                "https://nodejs.org/dist/$version/$filename")) { return $true }
+        Write-Err "Node 运行时 SHA-256 校验失败：$filename"
+        return $false
+    }
+    if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/$version/$filename" $arc)) {
+        Get-Url "https://nodejs.org/dist/$version/$filename" $arc | Out-Null
+    }
+    if (-not (Confirm-NodeArchive $arc $version $filename)) {
+        Remove-Item $arc -Force -ErrorAction SilentlyContinue
+        Write-Err "Node 下载或 SHA-256 校验失败：$filename"
+        return $false
+    }
+    return $true
+}
+
 # 平台映射：node 包名 / npm os / npm cpu / libc
 $Map = @{
     'linux-x64'    = @{ file = "node-$NodeVersion-linux-x64.tar.gz";   os = 'linux';  cpu = 'x64';   libc = 'glibc' }
@@ -90,11 +132,8 @@ if (-not $npm) {
     $nzip = Join-Path $Dist 'node-portable.zip'
     New-Item -ItemType Directory -Path $ndir -Force | Out-Null
     $nfile = "node-$NodeVersion-win-x64.zip"
-    if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/$NodeVersion/$nfile" $nzip) -or
-        -not (Confirm-NodeArchive $nzip $NodeVersion $nfile)) {
-        if (-not (Get-Url "https://nodejs.org/dist/$NodeVersion/$nfile" $nzip) -or
-            -not (Confirm-NodeArchive $nzip $NodeVersion $nfile)) { throw "Node 下载或 SHA-256 校验失败：$nfile" }
-    }
+    if (-not (Ensure-NodeArchive $nfile $NodeVersion)) { throw "Node 下载或 SHA-256 校验失败：$nfile" }
+    Copy-Item (Join-Path $Dist $nfile) $nzip -Force
     & $Tar -xf $nzip -C $ndir
     Remove-Item $nzip -Force
     $inner = Get-ChildItem $ndir | Where-Object { $_.PSIsContainer } | Select-Object -First 1
@@ -132,15 +171,7 @@ if ($needsNode) { foreach ($plat in $Platforms -split ',') {
     if (-not $m) { Write-Err "未知平台：$plat"; exit 1 }
     Write-Step "Node 运行时 [$plat] …"
     $arc = Join-Path $Dist $m.file
-    if (-not (Confirm-NodeArchive $arc $NodeVersion $m.file)) {
-        Remove-Item $arc -Force -ErrorAction SilentlyContinue
-        if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/$NodeVersion/$($m.file)" $arc)) {
-            if (-not (Get-Url "https://nodejs.org/dist/$NodeVersion/$($m.file)" $arc)) {
-                Write-Err "下载失败：$($m.file)"; exit 1
-            }
-        }
-        if (-not (Confirm-NodeArchive $arc $NodeVersion $m.file)) { throw "Node SHA-256 校验失败：$($m.file)" }
-    }
+    if (-not (Ensure-NodeArchive $m.file $NodeVersion)) { exit 1 }
     $tmpEx = Join-Path $Dist ("extract-" + [guid]::NewGuid().ToString('N').Substring(0, 6))
     New-Item -ItemType Directory -Path $tmpEx -Force | Out-Null
     & $Tar -xf $arc -C $tmpEx
@@ -198,21 +229,22 @@ Write-Step '内置 Python（win-embed）…'
 $pyDir = Join-Path $Stage 'payloads\python'
 New-Item -ItemType Directory -Path $pyDir -Force | Out-Null
 $pyZip = Join-Path $pyDir 'win-embed.zip'
-if (-not (Test-Path $pyZip)) {
-    if (-not (Get-Url 'https://mirrors.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip' $pyZip)) {
-        Get-Url 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip' $pyZip | Out-Null
+$PyEmbedSha = '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3'
+if (-not (Test-Path $pyZip) -or (Get-Sha256 $pyZip) -ne $PyEmbedSha) {
+    # 官方 python.org 的 SHA-256 为权威值；华为云镜像曾实测返回损坏文件，逐源校验
+    if (-not (Get-UrlVerified $PyEmbedSha $pyZip @(
+            'https://mirrors.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip',
+            'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip'))) {
+        throw 'Windows Python 便携包下载或 SHA-256 校验失败'
     }
-}
-if ((Get-Sha256 $pyZip) -ne '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3') {
-    Remove-Item $pyZip -Force -ErrorAction SilentlyContinue
-    throw 'Windows Python 便携包 SHA-256 校验失败'
 }
 Write-Ok 'win-embed.zip 就绪'
 
 # CoCo（script 类）离线载荷：发行包 + sha256 + Agnes 密钥 + Node 22.23 运行时
 $wantCoco = ($want -contains 'coco')
 if ($wantCoco) {
-    $CocoVer = '0.8.0'
+    $CocoVer = @($registry.agents | Where-Object { $_.id -eq 'coco' } | ForEach-Object { $_.coco_version } | Select-Object -First 1)
+    if (-not $CocoVer) { $CocoVer = '0.8.1' }
     foreach ($plat in ($Platforms -split ',')) {
         if ($plat -eq 'win-x64') { continue }   # CoCo 官方不支持 Windows
         $cdir = Join-Path $Stage "payloads\agents\coco\$plat"
@@ -228,20 +260,22 @@ if ($wantCoco) {
                 if (-not (Get-Url $f[0] $dest)) { Write-Err "CoCo 载荷下载失败：$($f[1])" }
             }
         }
+        # 构建期即验证发行包与官方 sidecar 一致，避免把坏包打进离线包
+        $side = Join-Path $cdir "coco-$CocoVer.tgz.sha256"
+        $tgz  = Join-Path $cdir "coco-$CocoVer.tgz"
+        if (Test-Path $side -and (Test-Path $tgz)) {
+            $expected = ((Get-Content $side -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+            if ((Get-Sha256 $tgz) -ne $expected) { throw "CoCo 发行包 SHA-256 校验失败（$CocoVer @ $plat）" }
+            Write-Ok "CoCo 发行包校验通过（$CocoVer）"
+        } else { throw "CoCo 发行包或 sidecar 缺失（$CocoVer @ $plat）" }
         $nf = switch ($plat) {
             'linux-x64'    { 'node-v22.23.2-linux-x64.tar.gz' }
             'linux-arm64'  { 'node-v22.23.2-linux-arm64.tar.gz' }
             'darwin-x64'   { 'node-v22.23.2-darwin-x64.tar.gz' }
             'darwin-arm64' { 'node-v22.23.2-darwin-arm64.tar.gz' }
         }
-        $ndest = Join-Path $cdir $nf
-        if (-not (Confirm-NodeArchive $ndest 'v22.23.2' $nf)) {
-            Remove-Item $ndest -Force -ErrorAction SilentlyContinue
-            if (-not (Get-Url "https://registry.npmmirror.com/-/binary/node/v22.23.2/$nf" $ndest)) {
-                Get-Url "https://nodejs.org/dist/v22.23.2/$nf" $ndest | Out-Null
-            }
-            if (-not (Confirm-NodeArchive $ndest 'v22.23.2' $nf)) { throw "CoCo Node SHA-256 校验失败：$nf" }
-        }
+        if (-not (Ensure-NodeArchive $nf 'v22.23.2')) { exit 1 }
+        Copy-Item (Join-Path $Dist $nf) (Join-Path $cdir $nf) -Force
         Write-Ok "CoCo 离线载荷 [$plat] 就绪"
     }
 }

@@ -1,0 +1,167 @@
+# 平台离线包作业（Windows / macOS）：仅手动触发（workflow_dispatch）。
+#
+# 这些作业需要真实的 Windows / macOS 执行环境，无法在仓库现有的自托管
+# Linux runner 上运行，因此不并入 tag 自动发布流水线（release-pipeline.yml），
+# 避免 publish 作业永远等待本账号要排队数小时的 GitHub-hosted runner。
+#
+# 接入方式（任一）：
+#   1. 在 Windows / macOS 机器上按《安装指南.md》同款方式注册自托管 runner
+#      （labels 增加 windows 或 macos），把下方 runs-on 改为对应标签；
+#   2. 临时需要时保持 GitHub-hosted，手动 dispatch 本工作流即可。
+name: release-platforms
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build verified Codex offline package
+        shell: powershell
+        run: .\scripts\build-offline.ps1 -Tag ('v' + (Get-Content VERSION -Raw).Trim()) -Platforms win-x64 -Agents codex
+      - name: Smoke install, execute, and uninstall
+        shell: powershell
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'agentboot-smoke'
+          $extract = Join-Path $root 'extract'
+          $smokeHome = Join-Path $root '测试-home'
+          New-Item -ItemType Directory -Path $extract, $smokeHome -Force | Out-Null
+          $tag = 'v' + (Get-Content VERSION -Raw).Trim()
+          tar -xf "dist\AgentBoot-offline-$tag-win-x64.zip" -C $extract
+          $app = Join-Path $extract 'AgentBoot'
+          $env:AGENTBOOT_HOME = Join-Path $smokeHome '.agentboot'
+          $env:USERPROFILE = $smokeHome
+          $env:LOCALAPPDATA = Join-Path $smokeHome 'LocalAppData'
+          & "$app\install-offline.ps1" -Agents codex
+          & "$smokeHome\.agentboot\bin\codex.cmd" --version
+          python "$env:LOCALAPPDATA\AgentBoot\app\core\menu.py" uninstall codex
+          if (Test-Path "$smokeHome\.agentboot\agents\codex") { throw 'Codex payload not removed' }
+          Move-Item "dist\AgentBoot-offline-$tag-win-x64.zip" "dist\AgentBoot-offline-$tag-win-x64-codex.zip"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: offline-windows
+          path: dist/AgentBoot-offline-*-win-x64-codex.zip
+
+  macos-smoke:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build and smoke native macOS Codex package
+        shell: bash
+        run: |
+          AGENTS=codex PLATFORMS=darwin-x64 TAG="v$(cat VERSION)" sh scripts/build-offline.sh
+          root="$(mktemp -d)"
+          mkdir -p "$root/extract" "$root/home"
+          tag="v$(cat VERSION)"
+          tar -xzf "dist/AgentBoot-offline-${tag}-darwin-x64.tar.gz" -C "$root/extract"
+          HOME="$root/home" sh "$root/extract/AgentBoot/install-offline.sh" codex
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" "$root/home/.agentboot/bin/codex" --version
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 "$root/home/.agentboot/app/core/menu.py" uninstall codex
+          test ! -e "$root/home/.agentboot/agents/codex"
+
+  extended-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build and smoke OpenCode Windows offline package
+        shell: powershell
+        run: |
+          $tag = 'v' + (Get-Content VERSION -Raw).Trim()
+          .\scripts\build-offline.ps1 -Tag $tag -Platforms win-x64 -Agents opencode
+          $root = Join-Path $env:RUNNER_TEMP 'opencode-smoke'
+          $extract = Join-Path $root 'extract'
+          $opencodeHome = Join-Path $root 'home'
+          New-Item -ItemType Directory -Path $extract, $opencodeHome -Force | Out-Null
+          tar -xf "dist\AgentBoot-offline-$tag-win-x64.zip" -C $extract
+          $app = Join-Path $extract 'AgentBoot'
+          $env:AGENTBOOT_HOME = Join-Path $opencodeHome '.agentboot'
+          $env:USERPROFILE = $opencodeHome
+          $env:LOCALAPPDATA = Join-Path $opencodeHome 'LocalAppData'
+          & "$app\install-offline.ps1" -Agents opencode
+          & "$opencodeHome\.agentboot\bin\opencode.cmd" --version
+          python "$env:LOCALAPPDATA\AgentBoot\app\core\menu.py" uninstall opencode
+          if (Test-Path "$opencodeHome\.agentboot\agents\opencode") { throw 'OpenCode payload not removed' }
+          if (-not (Test-Path "$opencodeHome\.config\opencode\opencode.json")) { throw 'OpenCode config was not preserved' }
+          Move-Item "dist\AgentBoot-offline-$tag-win-x64.zip" "dist\AgentBoot-offline-$tag-win-x64-opencode.zip"
+      - name: Install verify and uninstall official Cursor user app
+        shell: powershell
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'cursor-smoke'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          $env:AGENTBOOT_HOME = Join-Path $root '.agentboot'
+          $env:USERPROFILE = $root
+          python core/menu.py install cursor
+          $exe = Join-Path $root '.agentboot\apps\cursor\Cursor.exe'
+          if (-not (Test-Path $exe)) { throw 'Cursor.exe missing' }
+          $signature = Get-AuthenticodeSignature -LiteralPath $exe
+          if ($signature.Status -ne 'Valid') { throw 'Cursor.exe signature invalid' }
+          python core/menu.py uninstall cursor
+          if (Test-Path (Join-Path $root '.agentboot\apps\cursor')) { throw 'Cursor managed app not removed' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: extended-windows
+          path: dist/AgentBoot-offline-*-win-x64-opencode.zip
+
+  extended-macos-x64:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build and smoke OpenCode plus Cursor on Intel macOS
+        shell: bash
+        run: |
+          AGENTS=opencode PLATFORMS=darwin-x64 TAG="v$(cat VERSION)" sh scripts/build-offline.sh
+          root="$(mktemp -d)"; mkdir -p "$root/extract" "$root/home"
+          tag="v$(cat VERSION)"; tar -xzf "dist/AgentBoot-offline-${tag}-darwin-x64.tar.gz" -C "$root/extract"
+          HOME="$root/home" sh "$root/extract/AgentBoot/install-offline.sh" opencode
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" "$root/home/.agentboot/bin/opencode" --version
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 "$root/home/.agentboot/app/core/menu.py" uninstall opencode
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 core/menu.py install cursor
+          test -d "$root/home/.agentboot/apps/cursor/Cursor.app"
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 core/menu.py uninstall cursor
+          test ! -e "$root/home/.agentboot/apps/cursor"
+          mv "dist/AgentBoot-offline-${tag}-darwin-x64.tar.gz" "dist/AgentBoot-offline-${tag}-darwin-x64-opencode.tar.gz"
+          mv "dist/AgentBoot-offline-${tag}-darwin-x64-sfx.sh" "dist/AgentBoot-offline-${tag}-darwin-x64-opencode-sfx.sh"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: extended-macos-x64
+          path: dist/AgentBoot-offline-*-darwin-x64-opencode*
+
+  extended-macos-arm64:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build and smoke OpenCode plus Cursor on Apple Silicon
+        shell: bash
+        run: |
+          test "$(uname -m)" = arm64
+          AGENTS=opencode PLATFORMS=darwin-arm64 TAG="v$(cat VERSION)" sh scripts/build-offline.sh
+          root="$(mktemp -d)"; mkdir -p "$root/extract" "$root/home"
+          tag="v$(cat VERSION)"; tar -xzf "dist/AgentBoot-offline-${tag}-darwin-arm64.tar.gz" -C "$root/extract"
+          HOME="$root/home" sh "$root/extract/AgentBoot/install-offline.sh" opencode
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" "$root/home/.agentboot/bin/opencode" --version
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 "$root/home/.agentboot/app/core/menu.py" uninstall opencode
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 core/menu.py install cursor
+          test -d "$root/home/.agentboot/apps/cursor/Cursor.app"
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 core/menu.py uninstall cursor
+          test ! -e "$root/home/.agentboot/apps/cursor"
+          mv "dist/AgentBoot-offline-${tag}-darwin-arm64.tar.gz" "dist/AgentBoot-offline-${tag}-darwin-arm64-opencode.tar.gz"
+          mv "dist/AgentBoot-offline-${tag}-darwin-arm64-sfx.sh" "dist/AgentBoot-offline-${tag}-darwin-arm64-opencode-sfx.sh"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: extended-macos-arm64
+          path: dist/AgentBoot-offline-*-darwin-arm64-opencode*

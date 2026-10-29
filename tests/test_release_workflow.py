@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Static guarantees for coordinated release publication."""
 
 from pathlib import Path
@@ -22,14 +22,8 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("verify-live-release.py", text)
         self.assertIn("--prerelease=false --latest", text)
         self.assertIn("extended-linux", text)
-        self.assertIn("extended-windows", text)
-        self.assertIn("extended-macos-x64", text)
-        self.assertIn("extended-macos-arm64", text)
         self.assertIn("AGENTS=opencode", text)
         self.assertIn("python3 core/menu.py install cursor", text)
-        self.assertIn("$smokeHome", text)
-        self.assertIn("测试-home", text)
-        self.assertNotIn("$home =", text)
         self.assertIn("contents: read", text)
         self.assertIn("contents: write", text)
         self.assertIn("environment: release-production", text)
@@ -38,11 +32,36 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("gh release upload", text)
         self.assertIn("--clobber", text)
         self.assertIn("install-offline.sh\" codex", text)
+        # 自动发布流水线全部跑在自托管 Linux runner 上（GitHub-hosted 在此账号
+        # 排队数小时，且 Windows/macOS 作业无法在本机执行）
+        self.assertIn("runs-on: self-hosted", text)
+        for hosted in ("ubuntu-latest", "windows-latest", "macos-15"):
+            self.assertNotIn(hosted, text)
+        # 平台专属作业移入手动触发的 release-platforms.yml
+        self.assertNotIn("extended-windows", text)
+        self.assertNotIn("extended-macos-x64", text)
+
+    def test_platform_jobs_live_in_dispatch_only_workflow(self):
+        text = (ROOT / ".github/workflows/release-platforms.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", text)
+        self.assertNotIn("push:", text)
+        self.assertNotIn("pull_request:", text)
+        for job in ("offline-windows", "macos-smoke", "extended-windows",
+                    "extended-macos-x64", "extended-macos-arm64"):
+            self.assertIn(job, text)
         self.assertIn("install-offline.ps1\" -Agents codex", text)
+        self.assertIn("$smokeHome", text)
+        self.assertIn("测试-home", text)
         self.assertIn("runs-on: macos-15-intel", text)
         self.assertIn("PLATFORMS=darwin-x64", text)
-        # runs-on uses literal 'ubuntu-latest' (no vars.* override)
-        self.assertNotIn("vars.AGENTBOOT_LINUX_RUNNER", text)
+
+    def test_pages_workflows_run_on_self_hosted_runner(self):
+        for relative in (".github/workflows/deploy-pages.yml",
+                         ".github/workflows/publish-pages.yml",
+                         ".github/workflows/release-pr.yml"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("runs-on: self-hosted", text, relative)
+            self.assertNotIn("ubuntu-latest", text, relative)
 
     def test_live_verifier_covers_primary_and_mirror(self):
         text = (ROOT / "scripts/verify-live-release.py").read_text(encoding="utf-8")

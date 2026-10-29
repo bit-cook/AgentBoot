@@ -989,6 +989,42 @@ NPM_FETCH_FLAGS = ["--fetch-timeout=120000", "--fetch-retries=4",
                    "--fetch-retry-mintimeout=10000", "--fetch-retry-maxtimeout=60000"]
 
 
+def _kill_process_tree(process):
+    """超时后清理子进程树。
+
+    安全约束（曾因 killpg(0) 误伤自身进程组而挂死）：
+    pgid 为 0、不存在、或与当前进程同组时绝不 killpg，退化为 kill 单进程。
+    """
+    pid = getattr(process, "pid", None)
+    if not pid or pid == os.getpid():
+        return
+    if not POSIX:
+        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return
+    import signal
+    try:
+        pgid = os.getpgid(pid)
+    except OSError:
+        pgid = None          # 进程已退出
+    if pgid and pgid != os.getpgrp():
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            try:
+                os.killpg(pgid, sig)
+            except OSError:
+                return
+            try:
+                process.wait(timeout=10)
+                return
+            except Exception:
+                continue
+        return
+    try:
+        process.kill()
+    except Exception:
+        pass
+
+
 def _run_npm_process(cmd, env):
     """执行 npm 命令：整体超时保护 + 超时清理整棵进程树。
 
@@ -1029,19 +1065,7 @@ def _run_npm_process(cmd, env):
             code = process.wait(timeout=NPM_INSTALL_TIMEOUT)
         except subprocess.TimeoutExpired:
             ticker_stop.set()
-            if not POSIX:
-                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            else:
-                import signal
-                try:
-                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                    process.wait(timeout=10)
-                except Exception:
-                    try:
-                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                    except OSError:
-                        pass
+            _kill_process_tree(process)
             log_err("npm 执行超时（超过 %d 分钟），已终止进程树" % (NPM_INSTALL_TIMEOUT // 60))
             return None, ""
         finally:
@@ -1812,11 +1836,12 @@ def coco_offline_install(a, payload):
     """CoCo 离线安装（Linux/macOS）：本地复刻官方安装步骤，不联网。"""
     import hashlib
     import tarfile
-    tgz = os.path.join(payload, "coco-0.8.0.tgz")
+    coco_version = str(a.get("coco_version") or "0.8.1")
+    tgz = os.path.join(payload, "coco-%s.tgz" % coco_version)
     side = tgz + ".sha256"
     key_file = os.path.join(payload, "agnes.key")
     if not (os.path.exists(tgz) and os.path.exists(side) and os.path.exists(key_file)):
-        log_err("CoCo 离线载荷不完整（缺 coco-0.8.0.tgz / .sha256 / agnes.key）")
+        log_err("CoCo 离线载荷不完整（缺 coco-%s.tgz / .sha256 / agnes.key）" % coco_version)
         return False
     with open(side, "r", encoding="utf-8") as source:
         expected = source.read().split()[0].lower()
@@ -2450,8 +2475,10 @@ def doctor():
         agents = load_registry()
         print("可安装 Agent（%d 个）：" % len(agents))
         for a in agents:
-            installed = bool(find_bin(a.get("bin") or ""))
-            mark = "已安装" if installed else "未安装"
+            status = detect_install(a)
+            mark = {"managed": "已安装（AgentBoot 管理）", "legacy": "已安装（旧版残留）",
+                    "external": "已安装（外部安装，AgentBoot 不管理）"}.get(
+                status["status"], "未安装")
             print("  %-14s %-22s [%s]" % (a["id"], a["name"], mark))
     except Exception as e:
         log_err("读取 Agent 注册表失败：%s" % e)
@@ -2696,7 +2723,7 @@ def _agnes_env_posix_lines(env_extra):
 
 def write_online_shim(a, found, env_extra, args_prefix=None):
     """在线安装后写包装 shim（注入 Agnes 环境变量并转发到真实命令）。"""
-    aid, bin_ = a["id"], a["bin"]
+    bin_ = a["bin"]
     args_prefix = args_prefix or []
     bin_dir = os.path.join(AB_HOME, "bin")
     os.makedirs(bin_dir, exist_ok=True)
@@ -2884,7 +2911,10 @@ def main():
         return
     cfg = resolve_lang()
     if not argv:
-        main_menu(cfg)
+        try:
+            main_menu(cfg)
+        except EOFError:
+            print(t("menu.bye"))
         return
     cmd = argv[0]
     if cmd == "lang":
@@ -3004,3 +3034,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n（已退出）")
+    except EOFError:
+        print("\n（输入已结束，已退出）")

@@ -24,7 +24,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     VERSION = open(os.path.join(APP_DIR, "VERSION"), "r", encoding="ascii").read().strip()
 except OSError:
-    VERSION = "1.4.3"
+    VERSION = "1.4.4"
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
 CONFIG_PATH = os.path.join(AB_HOME, "config.json")
 KB_DIR = os.path.join(APP_DIR, "tools", "linux-kb")
@@ -1392,6 +1392,7 @@ def _fmt_bytes(n):
 
 def _mem_bytes():
     """(总内存, 可用内存) 字节数；取不到返回 (0, 0)。全部标准库实现。"""
+    import subprocess
     try:
         if os.name == "nt":
             import ctypes
@@ -1457,6 +1458,7 @@ def sys_info():
     """采集本机硬件与系统配置（零依赖、离线），供回答「机器配置」类问题。"""
     import getpass
     import platform
+    import subprocess
     lines = []
     add = lines.append
     try:
@@ -1873,3 +1875,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n（已退出）")
+    except EOFError:
+        print("\n（输入已结束，已退出）")

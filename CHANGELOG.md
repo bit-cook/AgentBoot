@@ -1,5 +1,19 @@
 # 更新日志
 
+## v1.4.4 (2026-10-29)
+
+- 修复 npm 安装超时清理的 killpg(0) 自杀式信号缺陷：子进程组为 0、不存在或与当前进程同组时绝不 killpg，退化为单进程 kill——此前会在超时清理时挂死自身进程组（test_deep_polish 实测挂死 45 秒以上无法终止）。
+- 修复 CI 全红连锁：自 v1.4.0 引入 npm 超时保护起，`test_agent_hardening` 在 Linux runner 上必失败（断言了 Windows 专属的 taskkill 路径）、`test_deep_polish` 挂死，导致 deploy-pages / release-pipeline / release-pr 全部无法完成；现全量 253 个测试 8.9 秒跑绿。
+- 修复 core/agent.py darwin 分支两处 `subprocess.run` 缺少 import（pyflakes F821）：macOS 上内存总量与 CPU 型号查询此前被 except 静默吞掉，`ab sys` / `ab doctor` 信息不全。
+- 修复镜像损坏不回退：华为云镜像的 `python-3.12.10-embed-amd64.zip` 实测为截断坏包（sha `1940ea1a…` vs python.org 官方 `4acbed6d…`，BadZipFile）。build-offline.sh / build-offline.ps1 / install.ps1 全部改为逐源校验下载（fetch_verified / Get-UrlVerified / Ensure-NodeArchive），损坏源自动切换官方源——此前离线包构建必败、无 Python 的 Windows 一键安装必败。
+- CoCo 离线发行包 0.8.0 → 0.8.1（官方 sidecar 校验通过），版本号收敛到 `agents/registry.json` 的 `coco_version` 单一来源，构建期即校验发行包完整性。
+- Node 运行时与 CoCo 载荷下载同样改为逐源校验（npmmirror → nodejs.org），本地缓存命中时先验 sha。
+- CI 架构改为全自托管：注册仓库级 self-hosted Linux runner（LEC-Dev-agentboot，systemd 服务），deploy-pages / release-pr / publish-pages / release-pipeline 的 Linux 作业全部 `runs-on: self-hosted`；Windows/macOS 平台作业移入仅手动触发的 release-platforms.yml（本机无法执行，避免 publish 永远等待要排队数小时的 GitHub-hosted runner）。
+- 交互入口（agentboot 菜单 / ab）stdin 关闭或管道输入时干净退出，不再抛 EOFError traceback。
+- `agentboot doctor` 的安装状态改用归属判定（AgentBoot 管理 / 旧版残留 / 外部安装），不再把系统里的同名命令误标为已安装。
+- 工程清理：tests/test_release_workflow.py 去除 UTF-8 BOM（全库唯一）；verify-live-release.py 删除未用导入；pages 下 6 个 .sha256 sidecar 统一 LF 行尾，消除每次构建的伪 diff。
+- 新增回归测试 tests/test_release_hardening.py（9 个）：镜像损坏逐源回退（真实执行 fetch_verified）、CoCo 版本单一来源、stdin EOF 干净退出。
+
 ## v1.4.3 (2026-09-14)
 
 - 深度完善：镜像模式（auto / cn / off）持久化到 `~/.agentboot/env.json`——`agentboot mirror cn|off` 重启后依然生效，不再只对当前会话有效；菜单「镜像代理」新增模式切换子项；环境变量 `AGENTBOOT_MIRROR` 仍可临时覆盖。

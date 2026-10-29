@@ -10,6 +10,7 @@
       "bin": "coco",
       "method": "script",
       "script": "https://bit-cook.github.io/coco/install.sh",
+      "coco_version": "0.8.1",
       "node": null,
       "os": ["linux", "darwin"],
       "offline": true,

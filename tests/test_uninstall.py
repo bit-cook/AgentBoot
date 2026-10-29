@@ -215,9 +215,12 @@ class UninstallAcceptanceTests(unittest.TestCase):
         self.assertFalse(any((external_dir / name).exists() for name in ("coco", "web", "coweb")))
 
     def test_coco_offline_private_node_survives_install_swap(self):
+        # CoCo 离线发行包版本以 registry 的 coco_version 为唯一来源
+        registry = json.loads((ROOT / "agents" / "registry.json").read_text(encoding="utf-8"))
+        coco_version = next(a["coco_version"] for a in registry["agents"] if a["id"] == "coco")
         payload = self.home / "payload"
         payload.mkdir()
-        tgz = payload / "coco-0.8.0.tgz"
+        tgz = payload / ("coco-%s.tgz" % coco_version)
         with tarfile.open(tgz, "w:gz") as archive:
             info = tarfile.TarInfo("package/bin/coco")
             data = b"console.log('coco')\n"
@@ -225,7 +228,7 @@ class UninstallAcceptanceTests(unittest.TestCase):
             info.mode = 0o755
             archive.addfile(info, io.BytesIO(data))
         digest = hashlib.sha256(tgz.read_bytes()).hexdigest()
-        (payload / "coco-0.8.0.tgz.sha256").write_text(digest + "\n", encoding="ascii")
+        (payload / ("coco-%s.tgz.sha256" % coco_version)).write_text(digest + "\n", encoding="ascii")
         (payload / "agnes.key").write_text("test-key", encoding="ascii")
         node_archive = payload / "node-v22.23.2-linux-x64.tar.gz"
         with tarfile.open(node_archive, "w:gz") as archive:
@@ -234,7 +237,8 @@ class UninstallAcceptanceTests(unittest.TestCase):
             info.size = len(data)
             info.mode = 0o755
             archive.addfile(info, io.BytesIO(data))
-        agent = {"id": "coco", "name": "CoCo", "bin": "coco", "method": "script"}
+        agent = {"id": "coco", "name": "CoCo", "bin": "coco", "method": "script",
+                 "coco_version": coco_version}
         with mock.patch.object(menu.shutil, "which", return_value=None):
             self.assertTrue(menu.coco_offline_install(agent, str(payload)))
         node = self.home / ".coco" / "runtime" / "node" / "bin" / "node"

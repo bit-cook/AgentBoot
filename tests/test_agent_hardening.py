@@ -248,10 +248,8 @@ class NpmInstallTimeoutTests(unittest.TestCase):
             processes.append(proc)
             return proc
 
-        killed = []
         with mock.patch.object(menu.subprocess, "Popen", side_effect=fake_popen), \
-                mock.patch.object(menu.subprocess, "run",
-                                  side_effect=lambda cmd, **kw: killed.append(cmd) or mock.Mock()) as run, \
+                mock.patch.object(menu, "_kill_process_tree") as kill_tree, \
                 mock.patch.object(menu, "npm_cmd", return_value="npm"), \
                 mock.patch.object(menu.shutil, "which", return_value="npm"), \
                 mock.patch.object(menu, "cn_mode", return_value=False), \
@@ -259,7 +257,8 @@ class NpmInstallTimeoutTests(unittest.TestCase):
                 mock.patch.object(menu.os, "makedirs"):
             self.assertTrue(menu.npm_install("@earendil-works/pi-coding-agent"))
         self.assertEqual(len(processes), 2)  # 超时后重试一次
-        self.assertTrue(killed)  # 进程树被清理
+        self.assertEqual(kill_tree.call_count, 1)  # 超时进程树被清理
+        self.assertIs(kill_tree.call_args.args[0], processes[0])
         self.assertEqual(child_env.call_count, 1)  # 环境探测在重试间复用
 
     def test_persistent_failure_retries_once_then_fails(self):
@@ -272,6 +271,73 @@ class NpmInstallTimeoutTests(unittest.TestCase):
                 mock.patch.object(menu.os, "makedirs"):
             self.assertFalse(menu.npm_install("@earendil-works/pi-coding-agent"))
         self.assertEqual(proc.wait_calls, 2)  # 恰好重试一次
+
+
+class ProcessTreeKillTests(unittest.TestCase):
+    """_kill_process_tree 的安全守卫：绝不误伤自身/自身进程组（killpg(0) 事故回归）。"""
+
+    def _proc(self, pid=4242):
+        proc = mock.Mock()
+        proc.pid = pid
+        return proc
+
+    def test_own_pid_is_never_signaled(self):
+        proc = self._proc(pid=os.getpid())
+        with mock.patch.object(menu.os, "killpg") as killpg, \
+                mock.patch.object(menu.os, "getpgid") as getpgid:
+            menu._kill_process_tree(proc)
+        killpg.assert_not_called()
+        getpgid.assert_not_called()
+        proc.kill.assert_not_called()
+
+    @unittest.skipIf(os.name == "nt", "POSIX 专用")
+    def test_pgid_zero_never_calls_killpg(self):
+        # 内核工作进程等 pgid=0；killpg(0) 会打到调用者自身进程组——必须退化为单进程 kill
+        proc = self._proc()
+        with mock.patch.object(menu.os, "getpgid", return_value=0), \
+                mock.patch.object(menu.os, "killpg") as killpg:
+            menu._kill_process_tree(proc)
+        killpg.assert_not_called()
+        proc.kill.assert_called_once_with()
+
+    @unittest.skipIf(os.name == "nt", "POSIX 专用")
+    def test_own_process_group_is_never_signaled(self):
+        proc = self._proc()
+        with mock.patch.object(menu.os, "getpgid", return_value=os.getpgrp()), \
+                mock.patch.object(menu.os, "killpg") as killpg:
+            menu._kill_process_tree(proc)
+        killpg.assert_not_called()
+        proc.kill.assert_called_once_with()
+
+    @unittest.skipIf(os.name == "nt", "POSIX 专用")
+    def test_normal_group_gets_term_then_kill(self):
+        import signal
+        proc = self._proc()
+        proc.wait.side_effect = subprocess.TimeoutExpired(cmd="npm", timeout=10)
+        with mock.patch.object(menu.os, "getpgid", return_value=99999), \
+                mock.patch.object(menu.os, "getpgrp", return_value=os.getpid()), \
+                mock.patch.object(menu.os, "killpg") as killpg:
+            menu._kill_process_tree(proc)
+        self.assertEqual([c.args[1] for c in killpg.call_args_list],
+                         [signal.SIGTERM, signal.SIGKILL])
+        self.assertEqual(killpg.call_args_list[0].args[0], 99999)
+
+    @unittest.skipIf(os.name == "nt", "POSIX 专用")
+    def test_dead_process_is_silent(self):
+        proc = self._proc()
+        with mock.patch.object(menu.os, "getpgid",
+                               side_effect=ProcessLookupError), \
+                mock.patch.object(menu.os, "killpg") as killpg:
+            menu._kill_process_tree(proc)
+        killpg.assert_not_called()
+        proc.kill.assert_called_once_with()
+
+    @unittest.skipUnless(os.name == "nt", "Windows 专用")
+    def test_windows_uses_taskkill(self):
+        proc = self._proc()
+        with mock.patch.object(menu.subprocess, "run") as run:
+            menu._kill_process_tree(proc)
+        self.assertEqual(run.call_args.args[0][:3], ["taskkill", "/PID", "4242"])
 
 
 if __name__ == "__main__":

@@ -46,6 +46,24 @@ sha256_file() {
     fi
 }
 
+# 逐源下载并校验：只有 SHA-256 与期望值一致的源才被接受。
+# 镜像站可能返回截断/损坏的文件（曾实测华为云镜像的 win-embed.zip 为坏包），
+# 此时必须继续尝试下一个源，而不是让整个构建失败。
+fetch_verified() { # fetch_verified <sha256> <dest> <url>...
+    _want="$1"; _dest="$2"; shift 2
+    for _url in "$@"; do
+        rm -f "$_dest"
+        if fetch_file "$_url" "$_dest"; then
+            if [ "$(sha256_file "$_dest" 2>/dev/null || true)" = "$_want" ]; then
+                return 0
+            fi
+            err "源文件校验失败（可能损坏），尝试下一个源：$_url"
+        fi
+        rm -f "$_dest"
+    done
+    return 1
+}
+
 verify_node_archive() { # verify_node_archive <archive> <version> <filename>
     sums="$DIST/SHASUMS256-$2.txt"
     if [ ! -s "$sums" ]; then
@@ -56,6 +74,45 @@ verify_node_archive() { # verify_node_archive <archive> <version> <filename>
     actual="$(sha256_file "$1")" || return 1
     [ "$actual" = "$expected" ]
 }
+
+# Node 运行时：先查本地缓存，再按 国内镜像 → 官方源 顺序逐源校验下载。
+ensure_node_archive() { # ensure_node_archive <filename> <version>
+    _nf="$1"; _ver="$2"; _arc="$DIST/$_nf"
+    # 先确保校验清单在位（官方源，体积很小）
+    [ -s "$DIST/SHASUMS256-$_ver.txt" ] || \
+        fetch_file "https://nodejs.org/dist/$_ver/SHASUMS256.txt" "$DIST/SHASUMS256-$_ver.txt" || true
+    if [ -s "$_arc" ] && verify_node_archive "$_arc" "$_ver" "$_nf"; then
+        return 0
+    fi
+    _sums="$(awk -v name="$_nf" '$2 == name {print $1; exit}' "$DIST/SHASUMS256-$_ver.txt" 2>/dev/null || true)"
+    rm -f "$_arc"
+    if [ -n "$_sums" ]; then
+        if fetch_verified "$_sums" "$_arc" \
+                "https://registry.npmmirror.com/-/binary/node/$_ver/$_nf" \
+                "https://nodejs.org/dist/$_ver/$_nf"; then
+            return 0
+        fi
+        err "Node 运行时 SHA-256 校验失败：$_nf"
+        return 1
+    fi
+    # 校验清单不可用时退化为「下载后校验」（保留原有严格性）
+    fetch_file "https://registry.npmmirror.com/-/binary/node/$_ver/$_nf" "$_arc" \
+        || fetch_file "https://nodejs.org/dist/$_ver/$_nf" "$_arc" \
+        || { err "Node 下载失败：$_nf"; return 1; }
+    verify_node_archive "$_arc" "$_ver" "$_nf" \
+        || { rm -f "$_arc"; err "Node SHA-256 校验失败：$_nf"; return 1; }
+}
+
+# CoCo 离线发行包版本以 agents/registry.json 的 coco_version 为唯一来源
+COCO_VER="$(python3 - "$ROOT/agents/registry.json" <<'PYEOF'
+import json,sys
+for a in json.load(open(sys.argv[1], encoding='utf-8'))['agents']:
+    if a['id'] == 'coco':
+        print(a.get('coco_version') or '0.8.1')
+        break
+PYEOF
+)"
+COCO_VER="${COCO_VER:-0.8.1}"
 
 case "$(uname -s)-$(uname -m)" in
     Darwin-arm*) HOST_PLAT="darwin-arm64" ;;
@@ -76,11 +133,7 @@ if ! command -v npm >/dev/null 2>&1; then
         Linux-aarch*|Linux-arm64) NF="node-$NODE_VERSION-linux-arm64.tar.gz" ;;
         *)           NF="node-$NODE_VERSION-linux-x64.tar.gz" ;;
     esac
-    fetch_file "https://registry.npmmirror.com/-/binary/node/$NODE_VERSION/$NF" "$DIST/$NF" \
-        || fetch_file "https://nodejs.org/dist/$NODE_VERSION/$NF" "$DIST/$NF" \
-        || { err "Node 下载失败：$NF"; exit 1; }
-    verify_node_archive "$DIST/$NF" "$NODE_VERSION" "$NF" \
-        || { err "Node SHA-256 校验失败：$NF"; exit 1; }
+    ensure_node_archive "$NF" "$NODE_VERSION" || exit 1
     tar -xzf "$DIST/$NF" -C "$DIST/build-node"
     NODE_HOME="$DIST/build-node/node-$NODE_VERSION-${NF#node-$NODE_VERSION-}"
     NODE_HOME="${NODE_HOME%.tar.gz}"
@@ -127,14 +180,7 @@ if [ "$NEEDS_NODE" = 1 ]; then for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
         *) err "未知平台：$PLAT"; exit 1 ;;
     esac
     ARC="$DIST/$NF"
-    if [ ! -s "$ARC" ] || ! verify_node_archive "$ARC" "$NODE_VERSION" "$NF"; then
-        rm -f "$ARC"
-        fetch_file "https://registry.npmmirror.com/-/binary/node/$NODE_VERSION/$NF" "$ARC" \
-            || fetch_file "https://nodejs.org/dist/$NODE_VERSION/$NF" "$ARC" \
-            || { err "Node 下载失败：$NF"; exit 1; }
-        verify_node_archive "$ARC" "$NODE_VERSION" "$NF" \
-            || { rm -f "$ARC"; err "Node SHA-256 校验失败：$NF"; exit 1; }
-    fi
+    ensure_node_archive "$NF" "$NODE_VERSION" || exit 1
     rm -rf "$DIST/x"
     mkdir -p "$DIST/x"
     tar -xf "$ARC" -C "$DIST/x"
@@ -173,9 +219,13 @@ PYEOF
         step "载荷 $AID [$PLAT] ← $PKG"
         PREFIX="$STAGE/payloads/agents/$AID/$PLAT"
         mkdir -p "$PREFIX"
-        if npm install --global-style --prefix "$PREFIX" --os "$OSV" --cpu "$CPUV" ${LIBCV:+--libc "$LIBCV"} \
-               $EXTRA "$PKG" --registry "$NPM_MIRROR" --no-audit --no-fund --loglevel=error; then
+        NPM_PAYLOAD_CMD="npm install --global-style --prefix \"$PREFIX\" --os \"$OSV\" --cpu \"$CPUV\" ${LIBCV:+--libc \"$LIBCV\"} $EXTRA \"$PKG\" --registry \"$NPM_MIRROR\" --no-audit --no-fund --loglevel=error"
+        if $NPM_PAYLOAD_CMD; then
             ok "$AID [$PLAT] 完成"
+        elif env npm_config_proxy= npm_config_https_proxy= npm_config_userconfig=/dev/null \
+               $NPM_PAYLOAD_CMD; then
+            # 构建机继承的代理配置失效（国内过期代理是常见故障）时，清掉代理重试一次
+            ok "$AID [$PLAT] 完成（已忽略无效代理配置）"
         else
             err "载荷安装失败：$AID@$PLAT（继续其他载荷）"
         fi
@@ -202,19 +252,21 @@ done
 # ---------- 4. 内置 Python（Windows 便携版）+ CoCo 离线载荷 ----------
 step '内置 Python（win-embed）…'
 mkdir -p "$STAGE/payloads/python"
-[ -s "$STAGE/payloads/python/win-embed.zip" ] || \
-    fetch_file "https://mirrors.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip" \
-        "$STAGE/payloads/python/win-embed.zip" \
-    || fetch_file "https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip" \
-        "$STAGE/payloads/python/win-embed.zip" \
-    || { err "Windows Python 便携包下载失败"; exit 1; }
-[ "$(sha256_file "$STAGE/payloads/python/win-embed.zip")" = "4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3" ] \
-    || { rm -f "$STAGE/payloads/python/win-embed.zip"; err "Windows Python SHA-256 校验失败"; exit 1; }
+# 官方 python.org 的 SHA-256 为权威值；华为云镜像曾实测返回损坏文件，
+# 因此逐源校验，损坏即切换下一个源。
+PY_EMBED_SHA="4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3"
+if [ ! -s "$STAGE/payloads/python/win-embed.zip" ] || \
+   [ "$(sha256_file "$STAGE/payloads/python/win-embed.zip" 2>/dev/null || true)" != "$PY_EMBED_SHA" ]; then
+    rm -f "$STAGE/payloads/python/win-embed.zip"
+    fetch_verified "$PY_EMBED_SHA" "$STAGE/payloads/python/win-embed.zip" \
+        "https://mirrors.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip" \
+        "https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip" \
+        || { err "Windows Python 便携包下载或校验失败"; exit 1; }
+fi
 ok 'win-embed.zip 就绪'
 
 # CoCo（script 类）离线载荷：发行包 + sha256 + Agnes 密钥 + Node 22.23 运行时
 case " $WANT " in *" coco "*)
-    COCO_VER="0.8.0"
     for PLAT in $(echo "$PLATFORMS" | tr ',' ' '); do
         [ "$PLAT" = "win-x64" ] && continue
         CDIR="$STAGE/payloads/agents/coco/$PLAT"
@@ -230,19 +282,22 @@ case " $WANT " in *" coco "*)
                 || fetch_file "$U" "$F" \
                 || { err "CoCo 载荷下载失败：$(basename "$U")"; exit 1; }
         done
+        # 构建期即验证发行包与官方 sidecar 一致，避免把坏包打进离线包
+        COCO_EXPECTED="$(awk '{print $1}' "$CDIR/coco-$COCO_VER.tgz.sha256" 2>/dev/null | tr 'A-F' 'a-f')"
+        COCO_ACTUAL="$(sha256_file "$CDIR/coco-$COCO_VER.tgz" 2>/dev/null || true)"
+        if [ -z "$COCO_EXPECTED" ] || [ "$COCO_EXPECTED" != "$COCO_ACTUAL" ]; then
+            err "CoCo 发行包 SHA-256 校验失败（$COCO_VER @ $PLAT）"
+            exit 1
+        fi
+        ok "CoCo 发行包校验通过（$COCO_VER）"
         case "$PLAT" in
             linux-x64) NF="node-v22.23.2-linux-x64.tar.gz" ;;
             linux-arm64) NF="node-v22.23.2-linux-arm64.tar.gz" ;;
             darwin-x64) NF="node-v22.23.2-darwin-x64.tar.gz" ;;
             darwin-arm64) NF="node-v22.23.2-darwin-arm64.tar.gz" ;;
         esac
-        if [ ! -s "$CDIR/$NF" ] || ! verify_node_archive "$CDIR/$NF" "v22.23.2" "$NF"; then
-            fetch_file "https://registry.npmmirror.com/-/binary/node/v22.23.2/$NF" "$CDIR/$NF" \
-                || fetch_file "https://nodejs.org/dist/v22.23.2/$NF" "$CDIR/$NF" \
-                || { err "CoCo Node 下载失败：$NF"; exit 1; }
-            verify_node_archive "$CDIR/$NF" "v22.23.2" "$NF" \
-                || { rm -f "$CDIR/$NF"; err "CoCo Node SHA-256 校验失败：$NF"; exit 1; }
-        fi
+        ensure_node_archive "$NF" "v22.23.2" || exit 1
+        cp -f "$DIST/$NF" "$CDIR/$NF"
         ok "CoCo 离线载荷 [$PLAT] 就绪"
     done
 ;; esac

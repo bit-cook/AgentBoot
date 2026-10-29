@@ -5,6 +5,7 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "core"))
@@ -45,6 +46,21 @@ class SysInfoTests(unittest.TestCase):
         if total:
             self.assertGreater(total, 0)
             self.assertLessEqual(avail or 0, total)
+
+    def test_darwin_memory_uses_sysctl_without_name_error(self):
+        # 回归：darwin 分支曾因缺少 import subprocess 抛 NameError 被 except 吞掉
+        completed = subprocess.CompletedProcess([], 0, stdout="8589934592\n")
+        with mock.patch.object(sys, "platform", "darwin"), \
+                mock.patch("subprocess.run", return_value=completed):
+            total, _avail = agent._mem_bytes()
+        self.assertEqual(total, 8589934592)
+
+    def test_darwin_cpu_model_uses_sysctl_without_name_error(self):
+        completed = subprocess.CompletedProcess([], 0, stdout="Apple M2 Pro\n")
+        with mock.patch.object(sys, "platform", "darwin"), \
+                mock.patch("subprocess.run", return_value=completed):
+            text = agent.sys_info()
+        self.assertIn("CPU model: Apple M2 Pro", text)
 
 
 class ToolRegistrationTests(unittest.TestCase):

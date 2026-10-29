@@ -115,7 +115,7 @@ ab model                            # provider manager
 
 ## Offline packages
 
-Download a platform-and-Agent-specific verified pack from [Releases](https://github.com/bit-cook/AgentBoot/releases). v1.4.3 verifies OpenCode install, `--version`, and uninstall on Linux, Windows, Intel macOS, and Apple Silicon before uploading packs. Build other Agents on their target platform with menu `[7]` or:
+Download a platform-and-Agent-specific verified pack from [Releases](https://github.com/bit-cook/AgentBoot/releases). Since v1.4.4 the pipeline runs on a self-hosted runner and verifies install, `--version`, and uninstall on Linux before uploading; Windows/macOS packs are built on demand via the release-platforms workflow. Build other Agents on their target platform with menu `[7]` or:
 
 ```bash
 python core/menu.py build-offline win-x64 claude-code,pi

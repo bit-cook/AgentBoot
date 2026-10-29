@@ -114,13 +114,21 @@ class NpmTickerTests(unittest.TestCase):
 
     def test_timeout_path_still_reports(self):
         process = mock.Mock()
-        process.pid = 100
+        process.pid = 2 ** 30          # 不可能存在的 PID：绝不误伤真实进程
         process.wait.side_effect = menu.subprocess.TimeoutExpired(cmd="npm", timeout=1)
         with mock.patch.object(menu.sys, "stdin", new=mock.Mock(isatty=lambda: False)), \
                 mock.patch.object(menu.subprocess, "Popen", return_value=process), \
-                mock.patch.object(menu.subprocess, "run"):
+                mock.patch.object(menu.subprocess, "run"), \
+                mock.patch.object(menu.os, "getpgid", return_value=process.pid) as getpgid, \
+                mock.patch.object(menu.os, "getpgrp", return_value=os.getpid()), \
+                mock.patch.object(menu.os, "killpg") as killpg:
             code, _tail = menu._run_npm_process(["npm", "install", "-g", "x"], {})
         self.assertIsNone(code)
+        if menu.POSIX:
+            getpgid.assert_called_once_with(process.pid)
+            self.assertGreaterEqual(killpg.call_count, 1)   # 超时后清理进程树
+            import signal
+            self.assertEqual(killpg.call_args_list[0].args[1], signal.SIGTERM)
 
 
 class DoctorPolishTests(unittest.TestCase):
