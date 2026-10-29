@@ -192,6 +192,12 @@ done
 fi
 
 # ---------- 3. Agent 载荷（npm --os/--cpu 跨平台拉取） ----------
+# 单个载荷的 npm 安装命令（函数形式，避免字符串拼接破坏引号）
+npm_payload_install() {
+    npm install --global-style --prefix "$PREFIX" --os "$OSV" --cpu "$CPUV" ${LIBCV:+--libc "$LIBCV"} \
+           $EXTRA "$PKG" --registry "$NPM_MIRROR" --no-audit --no-fund --loglevel=error
+}
+
 step "Agent 载荷：$WANT"
 for AID in $WANT; do
     PKG="$(python3 - "$ROOT/agents/registry.json" "$AID" <<'PYEOF'
@@ -219,12 +225,11 @@ PYEOF
         step "载荷 $AID [$PLAT] ← $PKG"
         PREFIX="$STAGE/payloads/agents/$AID/$PLAT"
         mkdir -p "$PREFIX"
-        NPM_PAYLOAD_CMD="npm install --global-style --prefix \"$PREFIX\" --os \"$OSV\" --cpu \"$CPUV\" ${LIBCV:+--libc \"$LIBCV\"} $EXTRA \"$PKG\" --registry \"$NPM_MIRROR\" --no-audit --no-fund --loglevel=error"
-        if $NPM_PAYLOAD_CMD; then
+        if npm_payload_install; then
             ok "$AID [$PLAT] 完成"
-        elif env npm_config_proxy= npm_config_https_proxy= npm_config_userconfig=/dev/null \
-               $NPM_PAYLOAD_CMD; then
-            # 构建机继承的代理配置失效（国内过期代理是常见故障）时，清掉代理重试一次
+        elif ( export npm_config_userconfig=/dev/null; npm_payload_install ); then
+            # 构建机继承的代理配置失效（国内过期代理是常见故障）时，
+            # 清掉用户级 npm 配置后重试一次（registry 由命令行显式指定，不受影响）
             ok "$AID [$PLAT] 完成（已忽略无效代理配置）"
         else
             err "载荷安装失败：$AID@$PLAT（继续其他载荷）"

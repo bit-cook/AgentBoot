@@ -70,6 +70,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin gh-pages --depth 1
+          # 自托管 runner 的 _work 目录跨运行复用：先清理上次遗留的 worktree
+          # 注册与目录，否则 git worktree add 会因路径已存在而失败（exit 128）
+          git worktree remove ../gh-pages --force 2>/dev/null || true
+          git worktree prune
+          rm -rf ../gh-pages
           git worktree add ../gh-pages origin/gh-pages
           find ../gh-pages -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cp -r pages/. ../gh-pages/
