@@ -9,7 +9,7 @@ $ProgressPreference = 'SilentlyContinue'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $Repo      = 'bit-cook/AgentBoot'
-$Tag       = 'v1.4.3'
+$Tag       = 'v1.4.4'
 $ZipName   = "agentboot-online-$Tag.zip"
 $BootBase  = 'https://boot.ide.pub'
 $GH        = "https://github.com/$Repo/releases/download/$Tag"
@@ -199,22 +199,21 @@ if (-not $pyExe) {
     $pyExe  = Join-Path $pyDir 'python.exe'
     if (-not (Test-Path $pyExe)) {
         $embZip = Join-Path $tmp 'py-embed.zip'
-        $embUrls = @(
-            'https://mirrors.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip',
-            'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip'
-        )
+        $embSha = '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3'
         $got = $false
-        foreach ($u in $embUrls) {
+        foreach ($u in @(
+            'https://mirrors.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip',
+            'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip')) {
             Write-Host "下载便携 Python：$u"
-            if (Get-Url $u $embZip) { $got = $true; break }
+            # 逐源校验：华为云镜像曾实测返回损坏文件（sha 不符），损坏即切换官方源
+            if ((Get-Url $u $embZip) -and ((Get-Sha256 $embZip) -eq $embSha)) { $got = $true; break }
+            Remove-Item $embZip -Force -ErrorAction SilentlyContinue
         }
         if ($got) {
-            if ((Get-Sha256 $embZip) -ne '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3') {
-                Remove-Item $embZip -Force -ErrorAction SilentlyContinue
-                throw 'Windows Python 便携包 SHA-256 校验失败'
-            }
             New-Item -ItemType Directory -Path $pyDir -Force | Out-Null
             Expand-Pkg $embZip $pyDir | Out-Null
+        } else {
+            Write-Err '便携 Python 下载或校验失败，尝试 winget 安装系统 Python …'
         }
     }
     if (Test-Path $pyExe) { Write-Ok "便携 Python 就绪：$pyExe" }
