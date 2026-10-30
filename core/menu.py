@@ -82,8 +82,11 @@ CURSOR_DOWNLOADS = {
     "win-arm64": "https://api2.cursor.sh/updates/download/golden/win32-arm64-user/cursor/3.18",
 }
 CURSOR_MAX_BYTES = 600 * 1024 * 1024
+# 注意：api2.cursor.sh 的 golden 渠道会重 build 同一版本号（哈希随之变化），
+# 因此这里的钉值需要随上游重建而刷新；校验失败时的提示已说明这一点。
+# 仅 Linux 分支使用 SHA-256 钉值；Windows/macOS 走签名验证（Authenticode/codesign/spctl）。
 CURSOR_SHA256 = {
-    "linux-x64": "44f3760fbb63d082bafa6562001ca66e9be803274c4c7642215e20de92490664",
+    "linux-x64": "874d17528bbe288bfcb5c8f2dc26c3f1ca61b49862d3590afcef4a9c68efef7d",
     "linux-arm64": "ec03879fca957065623d2274b39cd814d3209692cb4864f25859284cfb1302ec",
 }
 
@@ -1452,7 +1455,8 @@ def install_cursor(a):
         os.makedirs(candidate, mode=0o700, exist_ok=True)
         if pid.startswith("linux"):
             if digest != CURSOR_SHA256.get(pid):
-                raise ValueError("Cursor AppImage SHA-256 校验失败")
+                raise ValueError("Cursor AppImage SHA-256 校验失败（golden 渠道已重 build 该版本，"
+                                 "请更新 core/menu.py 的 CURSOR_SHA256）")
             executable = os.path.join(candidate, "Cursor.AppImage")
             shutil.move(path, executable)
             path = None
