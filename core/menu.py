@@ -222,6 +222,62 @@ def cn_mode():
     return not can_tcp("registry.npmjs.org", 443, 1.5)
 
 
+# ---------------------------------------------------------------- 模型预置开关
+
+def preset_model_enabled():
+    """安装第三方 Agent 时是否预置 Agnes 模型 provider。
+
+    默认关（原版安装）：Agent 装好后保持厂商默认状态，首次运行时由用户
+    自己登录/配置模型。开启后安装即写入 Agnes 免费模型配置。
+    优先级：环境变量 AGENTBOOT_PRESET_MODEL > env.json 持久化 > 默认关。
+    """
+    env = os.environ.get("AGENTBOOT_PRESET_MODEL")
+    if env is not None and env.strip():
+        return env.strip().lower() in ("1", "true", "yes", "on")
+    return bool(load_env_json().get("preset_agent_model"))
+
+
+def set_preset_model(on):
+    """持久化「安装时预置模型」开关。"""
+    data = load_env_json()
+    if on:
+        data["preset_agent_model"] = True
+    else:
+        data.pop("preset_agent_model", None)
+    save_env_json(data)
+    if on:
+        log_ok("已开启：安装 Agent 时预置 Agnes 免费模型")
+    else:
+        log_ok("已关闭：安装 Agent 保持原版（默认，首次运行时自选模型）")
+
+
+def _resolve_preset(preset):
+    """install/offline 的 --preset / --no-preset 一次性覆盖；None 用持久化设置。"""
+    if preset is None:
+        return preset_model_enabled()
+    return bool(preset)
+
+
+def _preset_flag(args):
+    """解析 --preset / --no-preset；未出现返回 None（用持久化设置）。"""
+    if "--preset" in args and "--no-preset" in args:
+        log_err("--preset 与 --no-preset 不能同时使用")
+        raise SystemExit(2)
+    if "--no-preset" in args:
+        return False
+    if "--preset" in args:
+        return True
+    return None
+
+
+def preset_status_line():
+    """安装前的一句话透明度提示：本次会不会预置模型。"""
+    if preset_model_enabled():
+        log_info("本次安装将预置 Agnes 免费模型（--no-preset 可改为原版安装）")
+    else:
+        log_info("原版安装：不预置模型，首次运行时自选（--preset 可改为预置 Agnes）")
+
+
 def npm_registry(cn=None):
     """安装使用的 npm 源：用户固定选择（env.json）优先，其次按网络自动选路。"""
     chosen = (load_env_json().get("npm_registry") or "").strip()
@@ -1131,7 +1187,8 @@ def npm_install(pkg, minimum=None, context=None):
     return False
 
 
-def install_online(ids):
+def install_online(ids, preset=None):
+    preset = _resolve_preset(preset)
     agents = load_registry()
     by_id = {a["id"]: a for a in agents}
     ok_list, fail_list = [], []
@@ -1193,7 +1250,8 @@ def install_online(ids):
         if ok and a.get("bin"):
             found = aider_venv_executable() if method == "venv" else find_bin(a["bin"])
             if found:
-                env_extra, args_prefix = wire_agnes(a)
+                # 原版安装（默认）：不写任何模型配置、不注入环境变量
+                env_extra, args_prefix = wire_agnes(a) if preset else ({}, [])
                 executable = found
                 if env_extra or args_prefix:
                     if not write_online_shim(a, found, env_extra, args_prefix):
@@ -1836,16 +1894,24 @@ def fixup_hermes_venv(payload_plat_dir, dst_nm):
         f.write("import sys\nfrom hermes_cli.main import main\nsys.exit(main())\n")
 
 
-def coco_offline_install(a, payload):
-    """CoCo 离线安装（Linux/macOS）：本地复刻官方安装步骤，不联网。"""
+def coco_offline_install(a, payload, preset=None):
+    """CoCo 离线安装（Linux/macOS）：本地复刻官方安装步骤，不联网。
+
+    preset=False（默认，原版）：只装官方发行包，不写 auth/settings，
+    CoCo 首次运行时走自己的模型配置流程。
+    preset=True：额外写入 Agnes 密钥与默认模型设置。
+    """
+    preset = _resolve_preset(preset)
     import hashlib
     import tarfile
     coco_version = str(a.get("coco_version") or "0.8.1")
     tgz = os.path.join(payload, "coco-%s.tgz" % coco_version)
     side = tgz + ".sha256"
     key_file = os.path.join(payload, "agnes.key")
-    if not (os.path.exists(tgz) and os.path.exists(side) and os.path.exists(key_file)):
-        log_err("CoCo 离线载荷不完整（缺 coco-%s.tgz / .sha256 / agnes.key）" % coco_version)
+    required = [tgz, side] + ([key_file] if preset else [])
+    if not all(os.path.exists(p) for p in required):
+        log_err("CoCo 离线载荷不完整（缺 coco-%s.tgz / .sha256%s）"
+                % (coco_version, " / agnes.key" if preset else ""))
         return False
     with open(side, "r", encoding="utf-8") as source:
         expected = source.read().split()[0].lower()
@@ -1948,15 +2014,19 @@ def coco_offline_install(a, payload):
     models_path = os.path.join(agent_dir, "models.json")
     if not os.path.exists(models_path):
         _write_json(models_path, {"providers": providers})
-    auth_path = os.path.join(agent_dir, "auth.json")
-    if not os.path.exists(auth_path):
-        with open(key_file, "r", encoding="utf-8") as source:
-            agnes_key = source.read().strip()
-        _write_json(auth_path, {"agnes": {"type": "api_key", "key": agnes_key}})
-    settings_path = os.path.join(agent_dir, "settings.json")
-    if not os.path.exists(settings_path):
-        _write_json(settings_path, {"defaultProvider": "agnes", "defaultModel": "agnes-2.5-flash",
-                                    "defaultThinkingLevel": "max"})
+    # auth/settings 属于「预置模型」：仅 preset=True 时写入；
+    # 原版安装（默认）不写，CoCo 首次运行时走自己的模型配置流程
+    if preset:
+        auth_path = os.path.join(agent_dir, "auth.json")
+        if not os.path.exists(auth_path):
+            with open(key_file, "r", encoding="utf-8") as source:
+                agnes_key = source.read().strip()
+            _write_json(auth_path, {"agnes": {"type": "api_key", "key": agnes_key}})
+        settings_path = os.path.join(agent_dir, "settings.json")
+        if not os.path.exists(settings_path):
+            _write_json(settings_path, {"defaultProvider": "agnes", "defaultModel": "agnes-2.5-flash",
+                                        "defaultThinkingLevel": "max"})
+        log_ok("已预置 Agnes 免费模型（~/.coco/agent/auth.json + settings.json）")
 
     # 命令 shim（AgentBoot 管理的 bin 目录，已在 PATH）
     for name, arg in (("coco", ""), ("web", " web"), ("coweb", " web")):
@@ -1965,7 +2035,8 @@ def coco_offline_install(a, payload):
             f.write("#!/bin/sh\n# AgentBoot shim for coco\nexec \"%s\" \"%s\"%s \"$@\"\n" %
                     (node_bin, os.path.join(install_dir, "bin", "coco"), arg))
         os.chmod(shim, 0o755)
-    log_ok("%s 离线安装完成，命令：coco / web / coweb（预置 Agnes 免费模型）" % a["name"])
+    suffix = "（预置 Agnes 免费模型）" if preset else "（原版安装，首次运行时自选模型）"
+    log_ok("%s 离线安装完成，命令：coco / web / coweb%s" % (a["name"], suffix))
     return True
 
 
@@ -1983,7 +2054,8 @@ def find_payload_dir(explicit=None):
     return None
 
 
-def offline_install(ids, payload_dir=None):
+def offline_install(ids, payload_dir=None, preset=None):
+    preset = _resolve_preset(preset)
     pdir = find_payload_dir(payload_dir)
     if not pdir:
         log_err("未找到离线包 payloads/ 目录。请确认已解压完整离线安装包，"
@@ -2051,7 +2123,7 @@ def offline_install(ids, payload_dir=None):
                 log_err("%s：离线包中没有 %s 平台的载荷" % (a["name"], pid))
                 fail_list.append(aid)
                 continue
-            if coco_offline_install(a, plat_payload):
+            if coco_offline_install(a, plat_payload, preset=preset):
                 record_install(a, "offline", os.path.join(AB_HOME, "bin", "coco"))
                 ok_list.append(aid)
             else:
@@ -2106,7 +2178,8 @@ def offline_install(ids, payload_dir=None):
                 if os.path.isdir(backup): os.replace(backup, dst)
                 fail_list.append(aid)
                 continue
-        env_extra, args_prefix = wire_agnes(a)
+        # 原版安装（默认）：不写任何模型配置、不注入环境变量
+        env_extra, args_prefix = wire_agnes(a) if preset else ({}, [])
         shim = write_shim(a, env_extra, args_prefix, node_path=offline_node,
                           entry_override=entry_override)
         if shim:
@@ -2261,7 +2334,7 @@ def write_shim(a, env_extra=None, args_prefix=None, node_path=None, entry_overri
                 runpy = os.path.join(AGENTS_DIR, "hermes", "hermes-run.py")
                 body = '"%s" "%s" %%*\r\n' % (venv_py, runpy)
             else:
-                lines = ["rem AgentBoot shim (Agnes preset)"]
+                lines = ["rem AgentBoot shim"]
                 lines += _agnes_env_cmd_lines(env_extra)
                 entry = entry_override or offline_npm_entry(a)
                 if not entry:
@@ -2552,8 +2625,20 @@ def pick_installed_agents(agents):
 
 
 def menu_model(cfg):
-    """模型配置：与 ab /model 同一套提供商管理器（列表/切换/添加/删除/故障切换/测速）。"""
+    """模型配置：ab 提供商管理器 + 安装第三方 Agent 时的预置开关。"""
     agent.choose_model(cfg)
+    print("")
+    print(t("menu.preset_title"))
+    state = t("menu.preset_on") if preset_model_enabled() else t("menu.preset_off")
+    print("  " + t("menu.preset_state") % state)
+    print("  [1] " + t("menu.preset_enable"))
+    print("  [2] " + t("menu.preset_disable"))
+    print("  [0] " + t("menu.pick_back"))
+    c = input(t("menu.pick")).strip()
+    if c == "1":
+        set_preset_model(True)
+    elif c == "2":
+        set_preset_model(False)
 
 
 # ---------------------------------------------------------------- 自定义离线包构建
@@ -2736,7 +2821,7 @@ def write_online_shim(a, found, env_extra, args_prefix=None):
     try:
         if POSIX:
             p = os.path.join(bin_dir, bin_)
-            lines = ["#!/bin/sh", "# AgentBoot wrapper: Agnes 预置"]
+            lines = ["#!/bin/sh", "# AgentBoot wrapper"]
             lines += _agnes_env_posix_lines(env_extra or {})
             pre = " ".join('"%s"' % x for x in args_prefix)
             lines.append('exec "%s"%s "$@"' % (found, (" " + pre) if pre else ""))
@@ -2745,7 +2830,7 @@ def write_online_shim(a, found, env_extra, args_prefix=None):
             os.chmod(p, 0o755)
         else:
             p = os.path.join(bin_dir, bin_ + ".cmd")
-            lines = ["@echo off", "rem AgentBoot wrapper: Agnes preset"]
+            lines = ["@echo off", "rem AgentBoot wrapper"]
             lines += _agnes_env_cmd_lines(env_extra or {})
             pre = " ".join(args_prefix)
             lines.append('"%s"%s %%*' % (found, (" " + pre) if pre else ""))
@@ -2929,13 +3014,15 @@ def main():
     if cmd == "doctor":
         doctor()
     elif cmd == "install":
+        preset = _preset_flag(argv[1:])
         ids = [t for t in re.split(r"[,\s]+", " ".join(argv[1:])) if t and not t.startswith("-")]
         if ids:
-            failures = install_online(ids)
+            preset_status_line()
+            failures = install_online(ids, preset=preset)
             if failures:
                 raise SystemExit(1)
         else:
-            print("用法: menu.py install claude-code qwen-code")
+            print("用法: menu.py install [--preset|--no-preset] claude-code qwen-code")
     elif cmd == "offline":
         payload = None
         if "--payload" in argv:
@@ -2946,11 +3033,12 @@ def main():
             rest = argv[1:]
         ids = [t for t in re.split(r"[,\s]+", " ".join(rest)) if t and not t.startswith("-")]
         if ids:
-            failures = offline_install(ids, payload)
+            preset_status_line()
+            failures = offline_install(ids, payload, preset=_preset_flag(argv[1:]))
             if failures:
                 raise SystemExit(1)
         else:
-            print("用法: menu.py offline claude-code --payload <dir>")
+            print("用法: menu.py offline [--preset|--no-preset] claude-code --payload <dir>")
     elif cmd in ("uninstall", "remove"):
         purge = "--purge" in argv
         rest = [arg for arg in argv[1:] if arg != "--purge"]
@@ -2980,6 +3068,20 @@ def main():
             set_proxy(argv[2] if len(argv) > 2 else None)
         else:
             print("用法: menu.py mirror auto|cn|off|npm [源URL]|gh [auto|off|前缀URL]|proxy [url]")
+    elif cmd == "preset":
+        arg = argv[1].strip().lower() if len(argv) > 1 else ""
+        if arg in ("on", "1", "true", "yes", "开", "启用"):
+            set_preset_model(True)
+        elif arg in ("off", "0", "false", "no", "关", "关闭"):
+            set_preset_model(False)
+        elif arg == "":
+            state = "开" if preset_model_enabled() else "关（原版安装，默认）"
+            print("安装 Agent 时预置 Agnes 免费模型：当前 [%s]" % state)
+            print("  agentboot preset on   开启预置（安装即写好模型配置）")
+            print("  agentboot preset off  关闭预置（默认，Agent 保持原版）")
+            print("一次性覆盖：agentboot install <id> --preset / --no-preset")
+        else:
+            print("用法: menu.py preset [on|off]")
     elif cmd == "add-agent":
         # 用法：
         #   add-agent --list

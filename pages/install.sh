@@ -9,7 +9,7 @@
 set -eu
 
 REPO="bit-cook/AgentBoot"
-TAG="v1.4.4"
+TAG="v1.5.0"
 TARBALL="agentboot-online-${TAG}.tar.gz"
 BOOT_BASE="https://boot.ide.pub"
 GH="https://github.com/${REPO}/releases/download/${TAG}"
@@ -199,25 +199,37 @@ rm -rf "$OLD_APP"
 ok "已写入 ${BIN_DIR}"
 
 # ---------- 4. PATH 注册（幂等） ----------
+# 注意：rc 文件不存在时必须先创建再追加——早期版本用 [ -f "$rc" ] 判断，
+# 在新系统（root 无 ~/.bashrc）上会静默跳过，导致装完 agentboot 找不到命令。
 case ":$PATH:" in
     *":${BIN_DIR}:"*) ;;
     *)
         BLOCK="# >>> agentboot >>>"
         for rc in "${HOME}/.bashrc" "${HOME}/.profile"; do
-            if [ -f "$rc" ] && ! grep -q "$BLOCK" "$rc" 2>/dev/null; then
-                { echo ''; echo "$BLOCK";
-                  echo 'for _d in "$HOME/.local/bin" "$HOME/.agentboot/bin"; do'
-                  echo '  [ -d "$_d" ] && case ":$PATH:" in *":$_d:"*) ;; *) export PATH="$_d:$PATH";; esac'
-                  echo 'done'; echo 'unset _d'; } >> "$rc"
+            [ -d "$HOME" ] || continue
+            grep -q "$BLOCK" "$rc" 2>/dev/null && continue
+            [ -f "$rc" ] || : > "$rc" 2>/dev/null || { err "无法创建 $rc，PATH 需手动配置"; continue; }
+            if { echo ''; echo "$BLOCK";
+                 echo 'for _d in "$HOME/.local/bin" "$HOME/.agentboot/bin"; do'
+                 echo '  [ -d "$_d" ] && case ":$PATH:" in *":$_d:"*) ;; *) export PATH="$_d:$PATH";; esac'
+                 echo 'done'; echo 'unset _d'; } >> "$rc" 2>/dev/null; then
                 ok "PATH 已写入 $rc（重开终端生效）"
+            else
+                err "无法写入 $rc，请手动把 ${BIN_DIR} 加入 PATH"
             fi
         done
-        if [ -f "${HOME}/.zshrc" ] && ! grep -q "$BLOCK" "${HOME}/.zshrc" 2>/dev/null; then
-            { echo ''; echo "$BLOCK";
-              echo 'for _d in "$HOME/.local/bin" "$HOME/.agentboot/bin"; do'
-              echo '  [ -d "$_d" ] && case ":$PATH:" in *":$_d:"*) ;; *) export PATH="$_d:$PATH";; esac'
-              echo 'done'; echo 'unset _d'; } >> "${HOME}/.zshrc"
-            ok "PATH 已写入 ~/.zshrc（重开终端生效）"
+        if ! grep -q "$BLOCK" "${HOME}/.zshrc" 2>/dev/null; then
+            [ -d "$HOME" ] || HOME_ZSHRC_SKIP=1
+            if [ -z "${HOME_ZSHRC_SKIP:-}" ]; then
+                [ -f "${HOME}/.zshrc" ] || : > "${HOME}/.zshrc" 2>/dev/null || true
+                if [ -f "${HOME}/.zshrc" ]; then
+                    { echo ''; echo "$BLOCK";
+                      echo 'for _d in "$HOME/.local/bin" "$HOME/.agentboot/bin"; do'
+                      echo '  [ -d "$_d" ] && case ":$PATH:" in *":$_d:"*) ;; *) export PATH="$_d:$PATH";; esac'
+                      echo 'done'; echo 'unset _d'; } >> "${HOME}/.zshrc" 2>/dev/null \
+                        && ok "PATH 已写入 ~/.zshrc（重开终端生效）" || true
+                fi
+            fi
         fi
         ;;
 esac
@@ -230,18 +242,31 @@ step "环境体检"
 say ""
 say "=============================================="
 ok  "AgentBoot 安装完成！"
-say "  控制台菜单 : agentboot"
-say "  内置 Agent : ab      （默认 Agnes 免费模型，直接可用）"
-say "  安装其他 Agent：运行 agentboot → 选 [2] 在线安装"
-say "  当前终端立即生效：export PATH=\"${BIN_DIR}:\$PATH\""
+say ""
+say "  如何启动："
+say "    控制台菜单 : agentboot        （装/卸 Agent、镜像、模型配置）"
+say "    内置 Agent : ab              （直接对话，默认 Agnes 免费模型）"
+say "    安装其他 Agent：运行 agentboot → 选 [2] 在线安装"
+say ""
+if grep -q "# >>> agentboot >>>" "${HOME}/.bashrc" 2>/dev/null; then
+    say "  PATH 已写入 ~/.bashrc。当前终端立即生效请执行："
+    say "      source ~/.bashrc"
+    say "  或者直接关掉本终端、重开一个（新终端自动生效）。"
+else
+    say "  未能自动写入 shell 配置。当前终端立即生效请执行："
+    say "      export PATH=\"${BIN_DIR}:\$PATH\""
+    say "  并建议把上面这行追加到 ~/.bashrc，以后新终端自动生效。"
+fi
 say "=============================================="
 
-# 交互终端时询问是否直接打开菜单
+# 交互终端时询问是否直接打开菜单。
+# 注意：curl | sh 安装时本脚本的 stdin 是已耗尽的管道，菜单必须改从
+# /dev/tty 读输入，否则菜单一启动就遇到 EOF 直接退出（实测踩过）。
 if [ -n "$PY" ] && [ -e /dev/tty ] && [ -t 2 ]; then
     printf '是否现在打开控制台菜单? [Y/n] '
     read ans < /dev/tty || ans="n"
     case "$ans" in
-        n|N|no|NO) ;;
-        *) exec "$PY" "${APP_DIR}/core/menu.py" ;;
+        n|N|no|NO) say "下次输入 agentboot 即可打开控制台。" ;;
+        *) exec "$PY" "${APP_DIR}/core/menu.py" < /dev/tty ;;
     esac
 fi

@@ -84,8 +84,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | 5 | CodeBuddy CLI | `codebuddy` | Tencent | ✓ | |
 | 6 | Pi Coding Agent | `pi` | Earendil Works | ✓ | pi.dev 同源包 |
 | 7 | Claude Code | `claude` | Anthropic | ✓ | Anthropic 协议，需官方账号 |
-| 8 | OpenAI Codex CLI | `codex` | OpenAI | ✓ | **已预置 Agnes**；钉 0.90.0 |
-| 9 | Qwen Code | `qwen` | Alibaba | ✓ | **已预置 Agnes** |
+| 8 | OpenAI Codex CLI | `codex` | OpenAI | ✓ | 可选预置 Agnes；钉 0.90.0 |
+| 9 | Qwen Code | `qwen` | Alibaba | ✓ | 可选预置 Agnes |
 | 10 | MiMo Code | `mimo` | Xiaomi | ✓ | |
 | 11 | OpenClaw | `openclaw` | OpenClaw | ✓ | |
 | 12 | Gemini CLI | `gemini` | Google | ✓ | |
@@ -116,7 +116,7 @@ ab bench                              # 性能基准
 
 ## 离线安装与瘦身定制
 
-到 [Releases](https://github.com/bit-cook/AgentBoot/releases) 下载带平台与 Agent 名称的已验证精简包，拷到目标机解压后运行包内 `install-offline.ps1` / `sh install-offline.sh`。v1.4.4 起发布流水线跑在自托管 runner 上，Linux 侧实际验证安装、`--version` 与卸载后才上传；Windows/macOS 包经 release-platforms 工作流按需构建。
+到 [Releases](https://github.com/bit-cook/AgentBoot/releases) 下载带平台与 Agent 名称的已验证精简包，拷到目标机解压后运行包内 `install-offline.ps1` / `sh install-offline.sh`。v1.5.0 起发布流水线跑在自托管 runner 上，Linux 侧实际验证安装、`--version` 与卸载后才上传；Windows/macOS 包经 release-platforms 工作流按需构建。
 
 其他 Agent 使用菜单 `[7]` 或 `build-offline win-x64 claude-code,pi` 在目标平台按需构建。Hermes 含平台相关 Python venv，必须在对应平台构建；Aider 暂不支持离线。
 

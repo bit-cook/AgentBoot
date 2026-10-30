@@ -1,5 +1,14 @@
 # 更新日志
 
+## v1.5.0 (2026-10-30)
+
+- 模型预置改为可选、默认原版：安装第三方 Agent（opencode / codex / qwen-code / aider / CoCo 等）不再写任何模型配置、不注入环境变量，Agent 保持厂商默认状态，首次运行时由用户自己登录/配置模型。开启方式：`agentboot preset on`、菜单 [4] 里的「安装 Agent 时的模型预置」开关、或一次性 `agentboot install <id> --preset`；环境变量 `AGENTBOOT_PRESET_MODEL=1` 可临时覆盖。安装前会打印一行说明本次是否会预置。内置 ab 的默认模型不受影响（仍可用 `/model` 切换）。
+- 修复安装后 `agentboot` 命令找不到：PATH 注册段此前用 `[ -f "$rc" ]` 判断，rc 文件不存在（新系统 root 无 ~/.bashrc）时静默跳过，什么都不写。install.sh / install-offline.sh 均改为「不存在先创建再追加」，写入失败时明确报错并给出手动配置方法。
+- 修复 `curl | sh` 装完按 Y 打开菜单却立即退出：脚本经管道运行时 stdin 是已耗尽的管道，菜单 `input()` 立刻 EOF。两个安装器的菜单启动均改从 `/dev/tty` 读输入。
+- 安装完成提示重写为「如何启动」：明确列出 `agentboot` / `ab` 两个入口、PATH 写进了哪个文件、当前终端如何立即生效（`source ~/.bashrc` 或 export），回答 n 时也提示下次怎么打开。
+- 全线实测期间发现并修复（均带回归测试，测试总数 278 → 299）：SSE 空 `data:` 心跳行曾杀死整条流（one-api/new-api 类中转常发）；REPL 裸 `exit`/`quit`/`q`/`退出` 不退出而被当成任务发给模型；高危命令在交互模式下无法确认（拒绝消息却承诺「交互模式下可确认」，该路径不存在，且修复时连带堵掉二次确认流漏洞）；Cloudflare Worker 代理 GitHub release 资产间歇 502（上游 618、在资产间轮换）——改为 Release 为主、Pages CDN（jsDelivr）兜底，health 同逻辑；`agentboot lang` 输出双勾；英文 i18n 块混入中文串；菜单多选输入无效编号零反馈；`AGENTBOOT_HOME` 指向文件时裸抛 traceback；en 首页 hero 徽章残留 v1.4.3（版本一致性测试加强为「页面所有版本串必须等于当前版本」）。
+- 新增回归测试：tests/test_installer_path_regression.py（9 个，沙箱 HOME 中真实执行 PATH 注册段）、tests/test_preset_optional.py（12 个，默认关/环境变量覆盖/标志解析/三条安装路径门控/CoCo auth 门控，门控拆掉即红）。
+
 ## v1.4.4 (2026-10-29)
 
 - 修复 npm 安装超时清理的 killpg(0) 自杀式信号缺陷：子进程组为 0、不存在或与当前进程同组时绝不 killpg，退化为单进程 kill——此前会在超时清理时挂死自身进程组（test_deep_polish 实测挂死 45 秒以上无法终止）。
