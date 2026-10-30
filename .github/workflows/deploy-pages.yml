@@ -37,22 +37,14 @@ jobs:
         with:
           persist-credentials: false
       - name: Run tests
+        # 测试内含工作流静态守卫（如作业级 env 禁用的 runner 上下文）；
+        # 完整 actionlint 检查为本地手动步骤——CI 下载 GitHub release 资产
+        # 会被概率性重置（curl 23），不作为门禁
         run: python3 -m unittest discover -s tests -v
       - name: Compile Python sources
         run: python3 -m py_compile core/*.py scripts/tools/*.py scripts/build-online.py
       - name: Verify generated web assets
         run: python3 scripts/sync-web-assets.py --check
-      - name: Lint workflows (actionlint)
-        shell: bash
-        # job 级 env 误用 runner.temp 曾让发布流水线无法解析；此处提前拦截
-        run: |
-          # 国内网络直连 GitHub release 资产不稳定：重试 + 代理镜像兜底
-          curl -fsSL --retry 3 --retry-all-errors --retry-delay 2 -o /tmp/actionlint.tar.gz \
-            "https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz" \
-            || curl -fsSL --retry 3 --retry-all-errors --retry-delay 2 -o /tmp/actionlint.tar.gz \
-            "https://gh-proxy.com/https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz"
-          tar -xzf /tmp/actionlint.tar.gz -C /tmp
-          /tmp/actionlint .github/workflows/*.yml
       - name: Build online packages
         run: python3 scripts/build-online.py
       - name: Verify package payload
