@@ -80,6 +80,10 @@ def _utf8_console():
 
 
 def ensure_home():
+    if os.path.exists(AB_HOME) and not os.path.isdir(AB_HOME):
+        raise SystemExit(
+            "✗ AGENTBOOT_HOME 指向已存在的文件：%s\n"
+            "  请改指一个目录，或取消该环境变量（默认 ~/.agentboot）。" % AB_HOME)
     os.makedirs(AB_HOME, mode=0o700, exist_ok=True)
     try:
         os.chmod(AB_HOME, 0o700)
@@ -571,6 +575,8 @@ def _read_stream(resp, stream_cb, conn, scheme, host, port, reasoning_cb=None):
             if data == "[DONE]":
                 terminal = True
                 break
+            if not data:
+                continue          # 空 data: 行是中转网关的心跳，跳过
             try:
                 obj = json.loads(data)
             except Exception:
@@ -1277,9 +1283,19 @@ def execute_tool(cfg, name, args, session_allow):
             policy = "smart"
         if policy == "safe" and level != "safe":
             return "safe 模式只允许只读命令，已拒绝：%s" % cmd, level == "danger"
+        danger_confirmed = False
         if level == "danger" and policy != "always" and cmd not in session_allow:
-            return "已拦截高危命令（如需放行请在交互模式下确认，或修改配置 confirm=always）：%s" % cmd, True
-        if level != "safe" and policy == "smart" and cmd not in session_allow:
+            if _is_interactive():
+                print("\n  ⚠ 高危命令：\n    %s" % cmd)
+                ans = input("  确认执行? [y=执行 / n=拒绝] ").strip().lower()
+                if ans != "y":
+                    return "用户拒绝了高危命令。", False
+                danger_confirmed = True   # 已明确确认，不再进普通写操作提示
+            else:
+                return ("已拦截高危命令（交互模式下可确认放行，"
+                        "或修改配置 confirm=always）：%s" % cmd), True
+        if (not danger_confirmed and level != "safe" and policy == "smart"
+                and cmd not in session_allow):
             if _is_interactive():
                 print("\n  ⚠ 将执行命令：\n    %s" % cmd)
                 ans = input("  允许执行? [y=允许 / n=拒绝 / a=本会话总是允许] ").strip().lower()
@@ -1612,7 +1628,7 @@ HELP_TEXT = """命令：
   /bench             性能基准（知识库/首字延迟/连接复用）
   /清空 /clear       清空本轮对话历史
   /状态 /status      显示当前模型与配置
-  /退出 /exit        退出
+  /退出 /exit        退出（直接输入 exit/quit 也可以）
 直接输入问题或任务即可，例如：
   查一下这台机器磁盘占用情况，若有异常给出清理建议
   nginx 起不来怎么排查？
@@ -1626,7 +1642,7 @@ HELP_EN = """Commands:
   /bench             Performance benchmark (KB / TTFB / connection reuse)
   /clear             Clear conversation history
   /status            Show current model & config
-  /exit              Exit
+  /exit              Exit (bare exit/quit also works)
 Type a question or task directly, e.g.:
   check disk usage and suggest cleanup
   why won't nginx start?
@@ -1726,7 +1742,7 @@ def repl(cfg, resume=False):
         if not text:
             continue
         low = text.lower()
-        if low in ("/exit", "/quit", "/退出", "/q"):
+        if low in ("/exit", "/quit", "/退出", "/q", "exit", "quit", "q", "退出"):
             save_session(history)
             print(i18n.t("agent.bye_saved"))
             return

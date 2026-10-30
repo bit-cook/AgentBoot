@@ -35,6 +35,19 @@ class VersionConsistencyTests(unittest.TestCase):
             text = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn(TAG, text, relative)
 
+    def test_pages_have_no_stale_version_strings(self):
+        """页面里每一个版本样字符串都必须是当前版本。
+
+        曾因只断言「包含当前版本」而漏掉 en/index.html hero 徽章残留的
+        v1.4.3（英文用户看到旧版本号，中文页却是新的）。
+        """
+        pattern = re.compile(r"[vV]?\d+\.\d+\.\d+")
+        for relative in ("pages/index.html", "pages/en/index.html", "pages/404.html"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            stale = [m for m in pattern.findall(text)
+                     if m.lstrip("vV") != VERSION]
+            self.assertEqual(stale, [], "%s 残留旧版本串: %s" % (relative, stale))
+
     def test_web_asset_cache_busters_match_version(self):
         for relative in ("pages/index.html", "pages/en/index.html"):
             text = (ROOT / relative).read_text(encoding="utf-8")

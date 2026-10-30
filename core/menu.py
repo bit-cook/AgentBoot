@@ -2519,6 +2519,8 @@ def pick_agents(agents, title, allow_custom=False):
             ids.append(agents[int(tok) - 1]["id"])
         elif tok in [a["id"] for a in agents]:
             ids.append(tok)
+    if not ids:
+        print(t("menu.pick_none"))   # 无效输入要有反馈，不能静默跳回上级
     return sorted(set(ids), key=lambda x: [a["id"] for a in agents].index(x))
 
 

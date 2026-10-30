@@ -125,5 +125,79 @@ class ConfirmationPolicyTests(unittest.TestCase):
         self.assertEqual(parsed, ["/usr/bin/ls", "-la"])
 
 
+class DangerConfirmationTests(unittest.TestCase):
+    """高危命令在交互模式下必须可确认——拒绝消息承诺的路径要真实存在。"""
+
+    def test_smart_interactive_danger_runs_on_yes(self):
+        answers = iter(["y"])   # 只给一个 y：二次确认会 StopIteration
+        with mock.patch.object(agent, "_is_interactive", return_value=True), \
+                mock.patch("builtins.input", lambda *a, **k: next(answers)), \
+                mock.patch.object(agent, "run_cmd", return_value="ok") as run:
+            result, danger = agent.execute_tool(
+                {"confirm": "smart"}, "run_cmd", {"command": "rm -rf /tmp/x"}, set())
+        self.assertEqual(result, "ok")
+        self.assertTrue(danger)
+        run.assert_called_once()
+
+    def test_smart_interactive_danger_prompts_exactly_once(self):
+        prompts = []
+
+        def fake_input(prompt=""):
+            prompts.append(prompt)
+            return "y"
+
+        with mock.patch.object(agent, "_is_interactive", return_value=True), \
+                mock.patch("builtins.input", fake_input), \
+                mock.patch.object(agent, "run_cmd", return_value="ok"):
+            agent.execute_tool(
+                {"confirm": "smart"}, "run_cmd", {"command": "rm -rf /tmp/x"}, set())
+        self.assertEqual(len(prompts), 1, prompts)
+        self.assertIn("y=执行", prompts[0])
+
+    def test_smart_interactive_danger_refused_on_no(self):
+        with mock.patch.object(agent, "_is_interactive", return_value=True), \
+                mock.patch("builtins.input", return_value="n"), \
+                mock.patch.object(agent, "run_cmd") as run:
+            result, danger = agent.execute_tool(
+                {"confirm": "smart"}, "run_cmd", {"command": "rm -rf /tmp/x"}, set())
+        self.assertIn("拒绝", result)
+        self.assertFalse(danger)
+        run.assert_not_called()
+
+    def test_danger_confirmation_offers_no_session_allow(self):
+        prompts = []
+
+        def fake_input(prompt=""):
+            prompts.append(prompt)
+            return "a"      # 高危提示不应有「本会话总是允许」
+
+        with mock.patch.object(agent, "_is_interactive", return_value=True), \
+                mock.patch("builtins.input", fake_input), \
+                mock.patch.object(agent, "run_cmd") as run:
+            result, _danger = agent.execute_tool(
+                {"confirm": "smart"}, "run_cmd", {"command": "rm -rf /tmp/x"}, set())
+        self.assertTrue(all("总是允许" not in p for p in prompts), prompts)
+        self.assertIn("拒绝", result)
+        run.assert_not_called()
+
+    def test_noninteractive_danger_still_blocked(self):
+        with mock.patch.object(agent, "_is_interactive", return_value=False), \
+                mock.patch.object(agent, "run_cmd") as run:
+            result, danger = agent.execute_tool(
+                {"confirm": "smart"}, "run_cmd", {"command": "rm -rf /tmp/x"}, set())
+        self.assertIn("高危", result)
+        self.assertTrue(danger)
+        run.assert_not_called()
+
+    def test_always_mode_still_allows_danger(self):
+        with mock.patch.object(agent, "_is_interactive", return_value=False), \
+                mock.patch.object(agent, "run_cmd", return_value="ok") as run:
+            result, danger = agent.execute_tool(
+                {"confirm": "always"}, "run_cmd", {"command": "rm -rf /tmp/x"}, set())
+        self.assertEqual(result, "ok")
+        self.assertTrue(danger)
+        run.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

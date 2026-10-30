@@ -45,6 +45,52 @@ def stream_response(deltas, done=True):
     return FakeResp(lines)
 
 
+class ReadStreamHeartbeatTests(unittest.TestCase):
+    """中转网关（one-api/new-api 类）会插空 data: 心跳行，不能杀死整条流。"""
+
+    def _run(self, resp):
+        import json as _json
+        out = []
+        result = agent._read_stream(
+            resp, out.append, None, "https", "example.test", 443)
+        return result, "".join(out)
+
+    def _line(self, obj):
+        import json as _json
+        return "data: %s" % _json.dumps(obj, ensure_ascii=False)
+
+    def test_empty_data_lines_tolerated(self):
+        resp = FakeResp([
+            self._line({"choices": [{"delta": {"content": "你好"}}]}),
+            "data:",                      # 空 data 行（心跳）
+            "data:   ",                   # 仅空白的 data 行
+            self._line({"choices": [{"delta": {"content": "世界"}}]}),
+            "data: [DONE]",
+        ])
+        (content, tcs), shown = self._run(resp)
+        self.assertEqual(content, "你好世界")
+        self.assertEqual(tcs, [])
+
+    def test_nonempty_garbage_still_rejected(self):
+        import json as _json
+        resp = FakeResp([
+            self._line({"choices": [{"delta": {"content": "part"}}]}),
+            "data: {not json}",           # 非空垃圾仍须拒绝
+        ])
+        with self.assertRaises(agent.ApiError):
+            self._run(resp)
+
+    def test_sse_comment_lines_skipped(self):
+        resp = FakeResp([
+            ": keep-alive",
+            self._line({"choices": [{"delta": {"content": "ok"}}]}),
+            "event: message",
+            "data: [DONE]",
+        ])
+        (content, _), shown = self._run(resp)
+        self.assertEqual(content, "ok")
+
+
 class ThinkRouterTests(unittest.TestCase):
     def test_plain_content_passes_through(self):
         r = agent._ThinkRouter()

@@ -109,12 +109,13 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertNotIn("vars.AGENTBOOT_LINUX_RUNNER", text)
 
     def test_worker_health_checks_assets_and_proxy_forwards_ranges(self):
-        text = (ROOT / "cloudflare/worker.js").read_text(encoding="utf-8")
+        text = (ROOT / "cloudflare" / "worker.js").read_text(encoding="utf-8")
         self.assertIn("const required =", text)
-        self.assertIn("assets[name] = response.status", text)
+        self.assertIn("assets[name] = hit.resp", text)
         self.assertIn('"Range", "If-Range"', text)
         self.assertIn("cacheEverything: !requestHeaders.has(\"Range\")", text)
         self.assertIn("resp.status !== 304", text)
+        self.assertIn("ok ? 200 : 503", text)
 
 
 if __name__ == "__main__":

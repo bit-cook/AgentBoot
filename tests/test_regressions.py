@@ -2,6 +2,7 @@
 """Regression tests for high-impact v1.0.0 defects found during uninstall review."""
 
 from pathlib import Path
+import os
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,104 @@ sys.path.insert(0, str(ROOT / "core"))
 
 import agent  # noqa: E402
 import menu  # noqa: E402
+
+
+class PickAgentFeedbackTests(unittest.TestCase):
+    """多选界面输入无法识别的编号/ID 时必须给出反馈，不能静默跳回主菜单。"""
+
+    def _agents(self):
+        return [{"id": "codex", "name": "Codex", "method": "npm", "offline": True,
+                 "desc": "x"},
+                {"id": "coco", "name": "CoCo", "method": "npm", "offline": True,
+                 "desc": "y"}]
+
+    def test_out_of_range_number_gives_feedback(self):
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with mock.patch("builtins.input", return_value="99"):
+            with contextlib.redirect_stdout(buf):
+                result = menu.pick_agents(self._agents(), "t")
+        self.assertEqual(result, [])
+        self.assertIn("未识别", buf.getvalue())
+
+    def test_garbage_token_gives_feedback(self):
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with mock.patch("builtins.input", return_value="hello world"):
+            with contextlib.redirect_stdout(buf):
+                result = menu.pick_agents(self._agents(), "t")
+        self.assertEqual(result, [])
+        self.assertIn("未识别", buf.getvalue())
+
+    def test_valid_mixed_input_still_works(self):
+        with mock.patch("builtins.input", return_value="2 codex"):
+            self.assertEqual(menu.pick_agents(self._agents(), "t"), ["codex", "coco"])
+
+    def test_blank_and_zero_stay_silent(self):
+        import io
+        import contextlib
+        for answer in ("", "0"):
+            buf = io.StringIO()
+            with mock.patch("builtins.input", return_value=answer):
+                with contextlib.redirect_stdout(buf):
+                    self.assertEqual(menu.pick_agents(self._agents(), "t"), [])
+            self.assertNotIn("未识别", buf.getvalue())
+
+
+class HomePathGuardTests(unittest.TestCase):
+    """AGENTBOOT_HOME 指向已存在的文件时必须给明确错误，而不是裸 traceback。"""
+
+    def test_file_as_home_exits_cleanly(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile() as fh:
+            with mock.patch.object(agent, "AB_HOME", fh.name):
+                with self.assertRaises(SystemExit) as ctx:
+                    agent.ensure_home()
+        self.assertIn("AGENTBOOT_HOME", str(ctx.exception))
+        self.assertIn("文件", str(ctx.exception))
+
+    def test_missing_home_is_created(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            target = os.path.join(d, "sub", "home")
+            with mock.patch.object(agent, "AB_HOME", target):
+                agent.ensure_home()
+            self.assertTrue(os.path.isdir(target))
+
+
+class ReplExitCommandTests(unittest.TestCase):
+    """REPL 退出命令：斜杠形式之外，裸 exit/quit/q/退出 也必须退出。
+
+    否则用户本能输入的 exit 会被当成任务发给模型（费 token 且困惑）。
+    """
+
+    def _drive(self, typed):
+        calls = []
+
+        def fake_loop(cfg, text, history=None, **kw):
+            calls.append(text)
+            return "", history or []
+
+        cfg = {"active": "mock", "providers": {"mock": {
+            "base_url": "http://127.0.0.1:1/v1", "api_key": "", "model": "m"}},
+            "lang": "zh"}
+        with mock.patch("builtins.input", side_effect=list(typed) + [EOFError]):
+            with mock.patch.object(agent, "agent_loop", fake_loop):
+                agent.repl(cfg)  # 正常返回即退出成功
+        self.assertEqual(calls, [], "这些命令不应发给模型: %s" % calls)
+
+    def test_slash_forms_exit(self):
+        for word in ("/exit", "/quit", "/退出", "/q"):
+            self._drive([word])
+
+    def test_bare_words_exit(self):
+        for word in ("exit", "quit", "q", "退出"):
+            self._drive([word])
+
+    def test_eof_exits(self):
+        self._drive([])
 
 
 class HighImpactRegressionTests(unittest.TestCase):
