@@ -1250,15 +1250,16 @@ def install_online(ids, preset=None):
         if ok and a.get("bin"):
             found = aider_venv_executable() if method == "venv" else find_bin(a["bin"])
             if found:
-                # 原版安装（默认）：不写任何模型配置、不注入环境变量
+                # 原版安装（默认）：不写任何模型配置、不注入环境变量。
+                # shim 始终写——它是命令进 PATH 的入口（AB_HOME/bin 在 PATH 上，
+                # 而 npm prefix 的 bin 不在），与是否预置无关。
                 env_extra, args_prefix = wire_agnes(a) if preset else ({}, [])
                 executable = found
-                if env_extra or args_prefix:
-                    if not write_online_shim(a, found, env_extra, args_prefix):
-                        log_err(t("menu.install_fail") % a["name"])
-                        fail_list.append(aid)
-                        continue
-                    executable = os.path.join(AB_HOME, "bin", a["bin"] + ("" if POSIX else ".cmd"))
+                if not write_online_shim(a, found, env_extra, args_prefix):
+                    log_err(t("menu.install_fail") % a["name"])
+                    fail_list.append(aid)
+                    continue
+                executable = os.path.join(AB_HOME, "bin", a["bin"] + ("" if POSIX else ".cmd"))
                 record_install(a, "online", executable, NPM_PREFIX if method == "npm" else None)
                 log_ok(t("menu.install_ok") % (a["name"], a["bin"]))
                 ok_list.append(aid)

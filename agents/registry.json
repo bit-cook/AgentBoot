@@ -14,7 +14,7 @@
       "node": null,
       "os": ["linux", "darwin"],
       "offline": true,
-      "notes": ["官方安装脚本来自 github.com/bit-cook/coco（当前 v0.8.1，安装提速：运行时复用/缓存/并行下载），自动适配国内镜像（npmmirror / gh-proxy，COCO_MIRROR=off 可关）", "官方支持 Linux / macOS，Windows 无官方安装器", "离线安装由 AgentBoot 复刻官方安装步骤（载荷内置发行包 + Agnes 密钥 + Node 22.23 运行时）"]
+      "notes": ["官方安装脚本来自 github.com/bit-cook/coco（当前 v0.8.1，安装提速：运行时复用/缓存/并行下载），自动适配国内镜像（npmmirror / gh-proxy，COCO_MIRROR=off 可关）", "官方支持 Linux / macOS，Windows 无官方安装器", "离线安装由 AgentBoot 复刻官方安装步骤（载荷内置发行包 + Node 22.23 运行时；Agnes 密钥仅在开启预置时写入）"]
     },
     {
       "id": "opencode",
@@ -35,7 +35,7 @@
         "win-x64": ["opencode-windows-x64", "opencode-windows-x64-baseline"]
       },
       "script": "https://opencode.ai/install",
-      "notes": ["已预置 Agnes 免费模型（~/.config/opencode/opencode.json），安装即用", "离线包同时携带官方原生 binary 与 x64 baseline 兼容包"]
+      "notes": ["模型：默认原版安装不预置（首次运行时自选）；agentboot preset on 后安装即写入 Agnes", "离线包同时携带官方原生 binary 与 x64 baseline 兼容包"]
     },
     {
       "id": "cursor",
@@ -120,7 +120,7 @@
       "npm": "@openai/codex@0.90.0",
       "node": ">=16",
       "offline": true,
-      "notes": ["已预置 Agnes 免费模型（config.toml + AGNES_API_KEY），安装即用", "钉住 0.90.0：0.100+ 移除了 chat 协议，且新版私有工具类型与 OpenAI 兼容网关不兼容", "如需官方 ChatGPT 登录，可自行升级 codex 后用官方方式配置"]
+      "notes": ["模型：默认原版安装不预置（首次运行时自选）；agentboot preset on 后安装即写入 Agnes", "钉住 0.90.0：0.100+ 移除了 chat 协议，且新版私有工具类型与 OpenAI 兼容网关不兼容", "如需官方 ChatGPT 登录，可自行升级 codex 后用官方方式配置"]
     },
     {
       "id": "qwen-code",
@@ -132,7 +132,7 @@
       "npm": "@qwen-code/qwen-code",
       "node": ">=22",
       "offline": true,
-      "notes": ["已预置 Agnes 免费模型（OPENAI_* 环境变量随 shim 注入），安装即用", "支持 Qwen OAuth 免费额度或 DASHSCOPE_API_KEY"]
+      "notes": ["模型：默认原版安装不预置（首次运行时自选）；agentboot preset on 后安装即注入 Agnes", "支持 Qwen OAuth 免费额度或 DASHSCOPE_API_KEY"]
     },
     {
       "id": "mimo",

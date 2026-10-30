@@ -101,12 +101,18 @@ class InstallGateTests(unittest.TestCase):
         with mock.patch.object(menu, "load_registry", return_value=[self.AGENT]), \
                 mock.patch.object(menu, "npm_install", return_value=True), \
                 mock.patch.object(menu, "find_bin", return_value="/managed/bin/codex"), \
+                mock.patch.object(menu, "write_online_shim", return_value=True) as shim, \
                 mock.patch.object(menu, "wire_agnes") as wire, \
-                mock.patch.object(menu, "record_install"), \
+                mock.patch.object(menu, "record_install") as record, \
                 mock.patch.object(menu, "preset_model_enabled", return_value=False):
             failures = menu.install_online(["codex"])
         self.assertEqual(failures, [])
         wire.assert_not_called()
+        # 原版安装也必须写 shim：它是命令进 PATH 的入口（npm prefix 不在 PATH 上）
+        shim.assert_called_once()
+        recorded_executable = record.call_args.args[2]
+        self.assertTrue(recorded_executable.endswith(os.path.join("bin", "codex")),
+                        recorded_executable)
 
     def test_online_preset_flag_wires_agnes(self):
         with mock.patch.object(menu, "load_registry", return_value=[self.AGENT]), \

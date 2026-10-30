@@ -43,12 +43,17 @@ class InstallTrackingTests(unittest.TestCase):
                 mock.patch.object(menu, "npm_install", return_value=True), \
                 mock.patch.object(menu, "find_bin", return_value="/managed/npm/bin/codex"), \
                 mock.patch.object(menu, "wire_agnes", return_value=({}, [])), \
+                mock.patch.object(menu, "write_online_shim", return_value=True), \
                 mock.patch.object(menu, "NPM_PREFIX", "/managed/npm"), \
                 mock.patch.object(menu, "record_install") as record, \
                 mock.patch.object(menu, "ensure_path_registered"):
             failures = menu.install_online(["codex"])
         self.assertEqual(failures, [])
-        record.assert_called_once_with(agent, "online", "/managed/npm/bin/codex", "/managed/npm")
+        # shim 是命令进 PATH 的入口，与是否预置无关：记录 AB_HOME/bin 下的 shim 路径
+        self.assertEqual(record.call_args.args[:2], (agent, "online"))
+        recorded = record.call_args.args[2]
+        self.assertTrue(recorded.endswith(os.path.join("bin", "codex")), recorded)
+        self.assertEqual(record.call_args.args[3], "/managed/npm")
 
     def test_offline_success_records_agentboot_payload(self):
         agent = {"id": "codex", "name": "Codex", "bin": "codex", "method": "npm"}
