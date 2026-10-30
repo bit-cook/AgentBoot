@@ -118,5 +118,15 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("ok ? 200 : 503", text)
 
 
+    def test_release_smoke_locks_vanilla_and_preset_paths(self):
+        """发布流水线的 opencode 冒烟必须同时锁定两个方向：
+        默认原版不写配置；--preset 必须写配置（v1.5.0 起默认改为原版，
+        旧的「必须存在 opencode.json」断言曾让 extended-linux 直接失败）。"""
+        text = (ROOT / ".github/workflows" / "release-pipeline.yml").read_text(encoding="utf-8")
+        self.assertIn('test ! -e "$root/home/.config/opencode/opencode.json"', text)
+        self.assertIn('install-offline.sh" opencode --preset', text)
+        self.assertIn('test -f "$root/home/.config/opencode/opencode.json"', text)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

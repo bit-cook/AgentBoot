@@ -158,6 +158,25 @@ class InstallGateTests(unittest.TestCase):
         self.assertEqual(failures, [])
         wire.assert_not_called()
 
+    def test_offline_preset_flag_wires_agnes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = Path(tmp) / "payloads"
+            source = payload / "agents" / "codex" / menu.plat_id() / "node_modules"
+            source.mkdir(parents=True)
+            with mock.patch.object(menu, "load_registry", return_value=[self.AGENT]), \
+                    mock.patch.object(menu, "find_payload_dir", return_value=str(payload)), \
+                    mock.patch.object(menu, "AGENTS_DIR", str(Path(tmp) / "agents")), \
+                    mock.patch.object(menu, "AB_HOME", str(tmp)), \
+                    mock.patch.object(menu, "node_ok", return_value=True), \
+                    mock.patch.object(menu, "write_shim", return_value=True), \
+                    mock.patch.object(menu, "wire_agnes",
+                                      return_value=({"K": "v"}, [])) as wire, \
+                    mock.patch.object(menu, "record_install"), \
+                    mock.patch.object(menu, "preset_model_enabled", return_value=False):
+                failures = menu.offline_install(["codex"], str(payload), preset=True)
+        self.assertEqual(failures, [])
+        wire.assert_called_once()
+
 
 class CocoPresetGateTests(unittest.TestCase):
     """CoCo 离线安装：原版不写 auth/settings；开启才写。"""

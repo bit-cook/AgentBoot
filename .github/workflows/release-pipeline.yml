@@ -105,7 +105,13 @@ jobs:
           HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" "$root/home/.agentboot/bin/opencode" --version
           HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 "$root/home/.agentboot/app/core/menu.py" uninstall opencode
           test ! -e "$root/home/.agentboot/agents/opencode"
+          # 默认原版安装（v1.5.0 起）：不得写任何模型配置
+          test ! -e "$root/home/.config/opencode/opencode.json"
+          # opt-in：--preset 必须写入 Agnes 配置（开箱即用路径仍受保护）
+          HOME="$root/home" sh "$app/install-offline.sh" opencode --preset
           test -f "$root/home/.config/opencode/opencode.json"
+          HOME="$root/home" AGENTBOOT_HOME="$root/home/.agentboot" python3 "$root/home/.agentboot/app/core/menu.py" uninstall opencode
+          test ! -e "$root/home/.agentboot/agents/opencode"
           mv "dist/AgentBoot-offline-${tag}-linux-x64.tar.gz" "dist/AgentBoot-offline-${tag}-linux-x64-opencode.tar.gz"
           mv "dist/AgentBoot-offline-${tag}-linux-x64-sfx.sh" "dist/AgentBoot-offline-${tag}-linux-x64-opencode-sfx.sh"
       - name: Install verify and uninstall official Cursor AppImage
