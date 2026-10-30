@@ -63,6 +63,26 @@ class ReleaseWorkflowTests(unittest.TestCase):
             self.assertIn("runs-on: self-hosted", text, relative)
             self.assertNotIn("ubuntu-latest", text, relative)
 
+    def test_no_runner_context_in_job_level_env(self):
+        # runner.* 上下文在 job 级 env 不合法（曾让整个发布流水线解析失败、
+        # HTTP 422 无法触发，且因该工作流长期只产生幽灵运行而一直潜伏）。
+        # 此处用不依赖网络的轻量检查守住这个 bug 类；actionlint 在 CI 做全量检查。
+        import re
+        for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+            in_job_env = False
+            for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if re.match(r"^    env:\s*$", line):      # 作业级 env（4 空格缩进）
+                    in_job_env = True
+                    continue
+                if not in_job_env:
+                    continue
+                if re.match(r"^      \S", line):          # env 条目（6 空格缩进）
+                    if "${{" in line and re.search(r"runner\.", line):
+                        self.fail("%s:%d 作业级 env 使用了 runner 上下文：%s"
+                                  % (path.name, lineno, line.strip()))
+                elif line.strip():
+                    in_job_env = False                    # 遇到下一个作业键，块结束
+
     def test_live_verifier_covers_primary_and_mirror(self):
         text = (ROOT / "scripts/verify-live-release.py").read_text(encoding="utf-8")
         self.assertIn("https://boot.ide.pub/health", text)

@@ -46,8 +46,11 @@ jobs:
         shell: bash
         # job 级 env 误用 runner.temp 曾让发布流水线无法解析；此处提前拦截
         run: |
-          curl -fsSL -o /tmp/actionlint.tar.gz \
-            "https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz"
+          # 国内网络直连 GitHub release 资产不稳定：重试 + 代理镜像兜底
+          curl -fsSL --retry 3 --retry-all-errors --retry-delay 2 -o /tmp/actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz" \
+            || curl -fsSL --retry 3 --retry-all-errors --retry-delay 2 -o /tmp/actionlint.tar.gz \
+            "https://gh-proxy.com/https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz"
           tar -xzf /tmp/actionlint.tar.gz -C /tmp
           /tmp/actionlint .github/workflows/*.yml
       - name: Build online packages
