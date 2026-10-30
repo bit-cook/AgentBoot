@@ -42,6 +42,14 @@ jobs:
         run: python3 -m py_compile core/*.py scripts/tools/*.py scripts/build-online.py
       - name: Verify generated web assets
         run: python3 scripts/sync-web-assets.py --check
+      - name: Lint workflows (actionlint)
+        shell: bash
+        # job 级 env 误用 runner.temp 曾让发布流水线无法解析；此处提前拦截
+        run: |
+          curl -fsSL -o /tmp/actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz"
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp
+          /tmp/actionlint .github/workflows/*.yml
       - name: Build online packages
         run: python3 scripts/build-online.py
       - name: Verify package payload

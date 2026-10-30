@@ -52,7 +52,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("install-offline.ps1\" -Agents codex", text)
         self.assertIn("$smokeHome", text)
         self.assertIn("测试-home", text)
-        self.assertIn("runs-on: macos-15-intel", text)
+        self.assertIn("runs-on: macos-15", text)
         self.assertIn("PLATFORMS=darwin-x64", text)
 
     def test_pages_workflows_run_on_self_hosted_runner(self):

@@ -8,6 +8,9 @@
 #   1. 在 Windows / macOS 机器上按《安装指南.md》同款方式注册自托管 runner
 #      （labels 增加 windows 或 macos），把下方 runs-on 改为对应标签；
 #   2. 临时需要时保持 GitHub-hosted，手动 dispatch 本工作流即可。
+#
+# 注意：GitHub 已淘汰 macos-15-intel 标签（Intel 镜像退役），统一用 macos-15；
+# 跨平台载荷由 npm --os/--cpu 拉取，darwin-x64 作业在 arm64 runner 上同样可构建。
 name: release-platforms
 
 on:
@@ -50,7 +53,7 @@ jobs:
           path: dist/AgentBoot-offline-*-win-x64-codex.zip
 
   macos-smoke:
-    runs-on: macos-15-intel
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -114,7 +117,7 @@ jobs:
           path: dist/AgentBoot-offline-*-win-x64-opencode.zip
 
   extended-macos-x64:
-    runs-on: macos-15-intel
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

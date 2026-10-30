@@ -30,6 +30,12 @@ jobs:
           sh -n install.sh scripts/*.sh pages/install.sh cloudflare/deploy.sh
           python3 scripts/sync-web-assets.py --check
           node --check cloudflare/worker.js
+          # 工作流静态检查：曾因 job 级 env 使用 runner.temp（上下文不合法）导致
+          # 整个发布流水线无法解析，而该工作流长期没有真正运行过、问题被潜伏
+          curl -fsSL -o /tmp/actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz"
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp
+          /tmp/actionlint .github/workflows/*.yml
 
   online:
     runs-on: self-hosted
@@ -81,9 +87,11 @@ jobs:
 
   extended-linux:
     runs-on: self-hosted
-    env:
-      TMPDIR: ${{ runner.temp }}
     steps:
+      - name: Use runner temp as TMPDIR
+        shell: bash
+        # runner.temp 不能用于 job 级 env（上下文不合法）；经 GITHUB_ENV 注入后续步骤
+        run: echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
