@@ -122,22 +122,30 @@ SWAP_COMMITTED=1
 rm -rf "$OLD_APP"
 
 # PATH（幂等写入）
+# 注意：rc 不存在时要先创建再写——用 [ -f ] 判断会在新系统上静默跳过，
+# 导致装完 agentboot 找不到命令（v1.4.4 实测踩过）。
 case ":$PATH:" in
     *":${BIN_DIR}:"*) ;;
     *)
         for rc in "${HOME}/.bashrc" "${HOME}/.profile"; do
-            if [ -f "$rc" ] && ! grep -q "agentboot" "$rc" 2>/dev/null; then
-                { echo ''; echo '# >>> agentboot >>>';
-                  echo 'for _d in "$HOME/.local/bin" "$HOME/.agentboot/bin"; do'
-                  echo '  [ -d "$_d" ] && case ":$PATH:" in *":$_d:"*) ;; *) export PATH="$_d:$PATH";; esac'
-                  echo 'done'; echo 'unset _d'; } >> "$rc"
-            fi
-        done
-        [ -f "${HOME}/.zshrc" ] && ! grep -q "agentboot" "${HOME}/.zshrc" 2>/dev/null && \
+            [ -d "$HOME" ] || continue
+            grep -q "agentboot" "$rc" 2>/dev/null && continue
+            [ -f "$rc" ] || : > "$rc" 2>/dev/null || continue
             { echo ''; echo '# >>> agentboot >>>';
               echo 'for _d in "$HOME/.local/bin" "$HOME/.agentboot/bin"; do'
               echo '  [ -d "$_d" ] && case ":$PATH:" in *":$_d:"*) ;; *) export PATH="$_d:$PATH";; esac'
-              echo 'done'; echo 'unset _d'; } >> "${HOME}/.zshrc" || true
+              echo 'done'; echo 'unset _d'; } >> "$rc" 2>/dev/null \
+                && ok "PATH 已写入 $rc（重开终端生效）" \
+                || err "无法写入 $rc，请手动把 ${BIN_DIR} 加入 PATH"
+        done
+        if [ -d "$HOME" ] && ! grep -q "agentboot" "${HOME}/.zshrc" 2>/dev/null; then
+            [ -f "${HOME}/.zshrc" ] || : > "${HOME}/.zshrc" 2>/dev/null || true
+            [ -f "${HOME}/.zshrc" ] && \
+                { echo ''; echo '# >>> agentboot >>>';
+                  echo 'for _d in "$HOME/.local/bin" "$HOME/.agentboot/bin"; do'
+                  echo '  [ -d "$_d" ] && case ":$PATH:" in *":$_d:"*) ;; *) export PATH="$_d:$PATH";; esac'
+                  echo 'done'; echo 'unset _d'; } >> "${HOME}/.zshrc" 2>/dev/null || true
+        fi
         ;;
 esac
 
@@ -161,16 +169,28 @@ fi
 say ""
 say "=============================================="
 ok  "AgentBoot 离线安装完成！"
-say "  控制台菜单 : agentboot   （菜单[3] 可继续离线安装其他 Agent）"
-say "  内置 Agent : ab          （默认 Agnes 免费模型；联网后可直接用）"
-say "  纯离线用模型：菜单[4] → 配置本地模型（Ollama / LM Studio）"
+say ""
+say "  如何启动："
+say "    控制台菜单 : agentboot   （菜单[3] 可继续离线安装其他 Agent）"
+say "    内置 Agent : ab          （默认 Agnes 免费模型；联网后可直接用）"
+say "    纯离线用模型：菜单[4] → 配置本地模型（Ollama / LM Studio）"
+say ""
+if grep -q "agentboot" "${HOME}/.bashrc" 2>/dev/null; then
+    say "  PATH 已写入 ~/.bashrc。当前终端立即生效请执行：source ~/.bashrc"
+    say "  或者关掉本终端重开一个（新终端自动生效）。"
+else
+    say "  未能自动写入 shell 配置。当前终端立即生效请执行："
+    say "      export PATH=\"${BIN_DIR}:\$PATH\""
+fi
 say "=============================================="
 
 if [ -z "$ARGS" ] && [ -e /dev/tty ] && [ -t 2 ]; then
     printf '是否现在打开控制台菜单? [Y/n] '
     read ans < /dev/tty || ans="n"
     case "$ans" in
-        n|N|no|NO) ;;
-        *) exec "$PY" "${APP_DIR}/core/menu.py" ;;
+        n|N|no|NO) say "下次输入 agentboot 即可打开控制台。" ;;
+        # stdin 必须是 /dev/tty：经管道运行本脚本时 stdin 已耗尽，
+        # 不重定向菜单一启动就 EOF 退出（v1.4.4 实测踩过）
+        *) exec "$PY" "${APP_DIR}/core/menu.py" < /dev/tty ;;
     esac
 fi
