@@ -26,6 +26,9 @@ class CursorLifecycleTests(unittest.TestCase):
         self.patches = [
             mock.patch.object(menu, "AB_HOME", str(self.ab_home)),
             mock.patch.object(menu, "APPS_DIR", str(self.apps)),
+            # shim 目录钉到沙箱：否则 root 机器上会写进真实 /usr/local/bin
+            mock.patch.object(menu, "shim_bin_dir",
+                              return_value=str(self.ab_home / "bin")),
             # Windows 的 expanduser 优先读 USERPROFILE，两个都指向临时目录才隔离。
             mock.patch.dict(os.environ, {"HOME": str(self.home),
                                          "USERPROFILE": str(self.home)}, clear=False),

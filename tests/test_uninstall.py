@@ -239,7 +239,8 @@ class UninstallAcceptanceTests(unittest.TestCase):
             archive.addfile(info, io.BytesIO(data))
         agent = {"id": "coco", "name": "CoCo", "bin": "coco", "method": "script",
                  "coco_version": coco_version}
-        with mock.patch.object(menu.shutil, "which", return_value=None):
+        with mock.patch.object(menu.shutil, "which", return_value=None), \
+                mock.patch.object(menu, "shim_bin_dir", return_value=str(self.bin_dir)):
             self.assertTrue(menu.coco_offline_install(agent, str(payload)))
         node = self.home / ".coco" / "runtime" / "node" / "bin" / "node"
         self.assertTrue(node.is_file())

@@ -1,5 +1,14 @@
 # 更新日志
 
+## v1.5.1 (2026-10-31)
+
+- 安装后命令立即可用（修复「装完 agentboot / opencode 找不到命令，还要手动 source ~/.bashrc」）：launcher 与 Agent shim 的安装目录从 `~/.local/bin`（默认不在 PATH 上，只能靠写 shell 配置 + 重开终端）改为优先 `/usr/local/bin`——它默认就在所有 shell 的 PATH 上。root 直接写；非 root 但有 passwordless sudo 时经 `sudo -n install` 落盘（绝不弹密码提示）；两者都不满足才退回 `~/.local/bin` + shell 配置兜底。离线安装器同样处理。
+- 安装完成提示按当前 shell 是否已可用分支：PATH 已包含目标目录时明确告知「当前终端直接输入 agentboot 即可，无需 source、无需重开终端」，否则给出来源指引。
+- 版本间目录变化时自动清理另一处位置的旧 launcher（只删内容指向 launch.py 的 AgentBoot 自己的文件，防止旧版挡住新版）。
+- shim 写入保留原有安全保证：拒绝符号链接、临时文件与目标同目录保证 mv 原子替换；新增 sudo 落盘路径（/usr/local/bin 场景）。
+- 新增回归测试：ShimBinDirTests（目录选择三态 + 直接写 + sudo 写 + 双不可写失败）、安装器事务断言更新（符号链接拒绝/原子 mv/sudo install/-n 探测）。测试总数 307 全绿。
+- 全新干净 Linux 机器（InstaBox，非 root + passwordless sudo）实测：一键安装后同一 shell 内 agentboot、ab 直接可用；经菜单安装 opencode 后 opencode 直接可用（默认原版不写模型配置）。
+
 ## v1.5.0 (2026-10-30)
 
 - 模型预置改为可选、默认原版：安装第三方 Agent（opencode / codex / qwen-code / aider / CoCo 等）不再写任何模型配置、不注入环境变量，Agent 保持厂商默认状态，首次运行时由用户自己登录/配置模型。开启方式：`agentboot preset on`、菜单 [4] 里的「安装 Agent 时的模型预置」开关、或一次性 `agentboot install <id> --preset`；环境变量 `AGENTBOOT_PRESET_MODEL=1` 可临时覆盖。安装前会打印一行说明本次是否会预置。内置 ab 的默认模型不受影响（仍可用 `/model` 切换）。

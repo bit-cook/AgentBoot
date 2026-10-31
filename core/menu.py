@@ -726,9 +726,85 @@ def prefix_bin_dirs():
     return [d for d in dirs if os.path.isdir(d)]
 
 
+def shim_bin_dir():
+    """Agent 命令 shim 的安装目录。
+
+    优先 /usr/local/bin：它默认就在所有 shell 的 PATH 上，装完当前终端
+    立即可用，不需要 source ~/.bashrc——一键安装体验的关键。root 直接可写；
+    非 root 但有 passwordless sudo 也行（写入时经 sudo 落盘）。
+    两者都不满足时退回 ~/.agentboot/bin，由 ensure_path_registered 写
+    shell 配置兜底（新终端生效）。Windows 保持 AB_HOME/bin。
+    """
+    if POSIX:
+        candidate = "/usr/local/bin"
+        try:
+            if os.path.isdir(candidate) and (os.access(candidate, os.W_OK)
+                                             or _sudo_usable()):
+                return candidate
+        except OSError:
+            pass
+    return os.path.join(AB_HOME, "bin")
+
+
+def _sudo_usable():
+    """passwordless sudo 是否可用（-n 非交互，绝不弹密码提示）。"""
+    try:
+        return subprocess.run(["sudo", "-n", "true"], capture_output=True,
+                              timeout=10).returncode == 0
+    except Exception:
+        return False
+
+
+def _ensure_bin_dir(bin_dir):
+    """确保 shim 目录存在；/usr/local/bin + sudo 场景下允许创建失败（sudo 侧已存在）。"""
+    try:
+        os.makedirs(bin_dir, exist_ok=True)
+        return True
+    except OSError:
+        return bin_dir == "/usr/local/bin" and _sudo_usable()
+
+
+def _write_executable(path, content):
+    """写一个可执行 shim。目标目录不可写但有 passwordless sudo 时，经
+    sudo install 落盘到 /usr/local/bin（所有 shell 默认在 PATH 上）。
+    返回是否成功。"""
+    dest_dir = os.path.dirname(path)
+    try:
+        if os.access(dest_dir, os.W_OK):
+            with open(path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(content)
+            os.chmod(path, 0o755)
+            return True
+    except OSError:
+        pass
+    if dest_dir == "/usr/local/bin" and _sudo_usable():
+        import tempfile
+        fd, tmp = tempfile.mkstemp(prefix=".agentboot-shim-")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+                f.write(content)
+            result = subprocess.run(["sudo", "-n", "install", "-m", "755", tmp, path],
+                                    capture_output=True, text=True, timeout=60)
+            return result.returncode == 0
+        except Exception:
+            return False
+        finally:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+    return False
+
+
+def shim_bin_dirs():
+    """所有可能的 shim 目录（当前首选 + 历史回落位），供搜索/归属判定用。"""
+    dirs = [shim_bin_dir(), os.path.join(AB_HOME, "bin")]
+    return [d for d in dirs if d]
+
+
 def find_bin(name):
     cands = [name + (".cmd" if not POSIX else "")] if not POSIX else [name]
-    for d in [os.path.join(AB_HOME, "bin")] + prefix_bin_dirs():
+    for d in shim_bin_dirs() + prefix_bin_dirs():
         for c in cands:
             p = os.path.join(d, c)
             if os.path.exists(p):
@@ -768,13 +844,13 @@ def detect_install(a):
     if os.path.isdir(offline_dir):
         return {"status": "legacy", "managed": True, "source": "offline", "entry": {}}
     found = find_bin(a.get("bin") or "")
-    if found and (_inside(found, NPM_PREFIX) or _inside(found, os.path.join(AB_HOME, "bin"))):
+    if found and (_inside(found, NPM_PREFIX) or any(_inside(found, d) for d in shim_bin_dirs())):
         entry = {"executable": found}
         if _inside(found, NPM_PREFIX):
             entry["prefix"] = NPM_PREFIX
         return {"status": "legacy", "managed": True, "source": "online", "entry": entry}
     if a["id"] == "coco" and os.path.isdir(os.path.expanduser("~/.coco")):
-        coco_shim = os.path.join(AB_HOME, "bin", "coco" + ("" if POSIX else ".cmd"))
+        coco_shim = os.path.join(shim_bin_dir(), "coco" + ("" if POSIX else ".cmd"))
         if os.path.exists(coco_shim):
             return {"status": "legacy", "managed": True, "source": "online",
                     "entry": {"executable": coco_shim}}
@@ -785,7 +861,7 @@ def detect_install(a):
             if marker.get("managed_by") == "AgentBoot":
                 return {"status": "legacy", "managed": True, "source": "online",
                         "entry": {"method": "cursor", "executable": os.path.join(
-                            AB_HOME, "bin", "cursor" + ("" if POSIX else ".cmd"))}}
+                          shim_bin_dir(), "cursor" + ("" if POSIX else ".cmd"))}}
         except (OSError, ValueError, TypeError):
             pass
     if found:
@@ -872,12 +948,14 @@ def _extract_tgz_fast(archive, destination):
 def _remove_owned_shims(a, entry):
     candidates = [entry.get("executable")]
     suffix = "" if POSIX else ".cmd"
-    candidates.append(os.path.join(AB_HOME, "bin", (a.get("bin") or "") + suffix))
+    for d in shim_bin_dirs():
+        candidates.append(os.path.join(d, (a.get("bin") or "") + suffix))
     if a["id"] == "coco":
-        candidates += [os.path.join(AB_HOME, "bin", x + suffix) for x in ("web", "coweb")]
+        for d in shim_bin_dirs():
+            candidates += [os.path.join(d, x + suffix) for x in ("web", "coweb")]
     seen = set()
     for path in candidates:
-        if not path or path in seen or not _inside(path, os.path.join(AB_HOME, "bin")):
+        if not path or path in seen or not any(_inside(path, d) for d in shim_bin_dirs()):
             continue
         seen.add(path)
         try:
@@ -1259,7 +1337,7 @@ def install_online(ids, preset=None):
                     log_err(t("menu.install_fail") % a["name"])
                     fail_list.append(aid)
                     continue
-                executable = os.path.join(AB_HOME, "bin", a["bin"] + ("" if POSIX else ".cmd"))
+                executable = os.path.join(shim_bin_dir(), a["bin"] + ("" if POSIX else ".cmd"))
                 record_install(a, "online", executable, NPM_PREFIX if method == "npm" else None)
                 log_ok(t("menu.install_ok") % (a["name"], a["bin"]))
                 ok_list.append(aid)
@@ -1423,20 +1501,21 @@ def _write_cursor_marker(root, final_url, digest):
 
 
 def _write_cursor_shim(executable, app_bundle=None):
-    os.makedirs(os.path.join(AB_HOME, "bin"), exist_ok=True)
+    bin_dir = shim_bin_dir()
+    if not _ensure_bin_dir(bin_dir):
+        raise ValueError("无法创建 shim 目录：%s" % bin_dir)
     if POSIX:
-        path = os.path.join(AB_HOME, "bin", "cursor")
+        path = os.path.join(bin_dir, "cursor")
         if app_bundle:
             cli = os.path.join(app_bundle, "Contents", "Resources", "app", "bin", "cursor")
             body = ('if [ -x "%s" ]; then exec "%s" "$@"; fi\n'
                     'exec open "%s" --args "$@"\n') % (cli, cli, app_bundle)
         else:
             body = 'exec "%s" "$@"\n' % executable
-        with open(path, "w", encoding="utf-8", newline="\n") as output:
-            output.write("#!/bin/sh\n# AgentBoot Cursor launcher\n" + body)
-        os.chmod(path, 0o755)
+        if not _write_executable(path, "#!/bin/sh\n# AgentBoot Cursor launcher\n" + body):
+            raise ValueError("无法写入 shim：%s" % path)
     else:
-        path = os.path.join(AB_HOME, "bin", "cursor.cmd")
+        path = os.path.join(bin_dir, "cursor.cmd")
         with open(path, "w", encoding="utf-8-sig", newline="") as output:
             output.write('@echo off\r\nrem AgentBoot Cursor launcher\r\nstart "" "%s" %%*\r\n' % executable)
     return path
@@ -1579,7 +1658,7 @@ def install_cursor(a):
         log_err("Cursor 安装失败：%s" % error)
         shutil.rmtree(candidate, ignore_errors=True)
         if not os.path.exists(root):
-            shim = os.path.join(AB_HOME, "bin", "cursor" + ("" if POSIX else ".cmd"))
+            shim = os.path.join(shim_bin_dir(), "cursor" + ("" if POSIX else ".cmd"))
             try:
                 with open(shim, "r", encoding="utf-8", errors="ignore") as source:
                     owned = "AgentBoot Cursor launcher" in source.read(256)
@@ -1928,8 +2007,9 @@ def coco_offline_install(a, payload, preset=None):
 
     home = os.path.expanduser("~")
     install_dir = os.path.join(home, ".coco")
-    bin_dir = os.path.join(AB_HOME, "bin")
-    os.makedirs(bin_dir, exist_ok=True)
+    bin_dir = shim_bin_dir()
+    if not _ensure_bin_dir(bin_dir):
+        raise ValueError("无法创建 shim 目录：%s" % bin_dir)
 
     # Node：系统 >=22.19 优先，否则用载荷内置 Node 22.23.2
     def _node_ok(p):
@@ -2032,10 +2112,9 @@ def coco_offline_install(a, payload, preset=None):
     # 命令 shim（AgentBoot 管理的 bin 目录，已在 PATH）
     for name, arg in (("coco", ""), ("web", " web"), ("coweb", " web")):
         shim = os.path.join(bin_dir, name)
-        with open(shim, "w", encoding="utf-8", newline="\n") as f:
-            f.write("#!/bin/sh\n# AgentBoot shim for coco\nexec \"%s\" \"%s\"%s \"$@\"\n" %
-                    (node_bin, os.path.join(install_dir, "bin", "coco"), arg))
-        os.chmod(shim, 0o755)
+        if not _write_executable(shim, "#!/bin/sh\n# AgentBoot shim for coco\nexec \"%s\" \"%s\"%s \"$@\"\n" %
+                                 (node_bin, os.path.join(install_dir, "bin", "coco"), arg)):
+            raise ValueError("无法写入 shim：%s" % shim)
     suffix = "（预置 Agnes 免费模型）" if preset else "（原版安装，首次运行时自选模型）"
     log_ok("%s 离线安装完成，命令：coco / web / coweb%s" % (a["name"], suffix))
     return True
@@ -2125,7 +2204,7 @@ def offline_install(ids, payload_dir=None, preset=None):
                 fail_list.append(aid)
                 continue
             if coco_offline_install(a, plat_payload, preset=preset):
-                record_install(a, "offline", os.path.join(AB_HOME, "bin", "coco"))
+                record_install(a, "offline", os.path.join(shim_bin_dir(), "coco"))
                 ok_list.append(aid)
             else:
                 fail_list.append(aid)
@@ -2186,7 +2265,7 @@ def offline_install(ids, payload_dir=None, preset=None):
         if shim:
             shutil.rmtree(backup, ignore_errors=True)
             record_install(a, "offline", os.path.join(
-                AB_HOME, "bin", a["bin"] + ("" if POSIX else ".cmd")))
+                shim_bin_dir(), a["bin"] + ("" if POSIX else ".cmd")))
             log_ok(t("menu.offline_ok") % (a["name"], a["bin"]))
             ok_list.append(aid)
         else:
@@ -2299,8 +2378,9 @@ def write_shim(a, env_extra=None, args_prefix=None, node_path=None, entry_overri
     node_path = node_path or node_exe()
     try:
         if POSIX:
-            bin_dir = os.path.join(AB_HOME, "bin")
-            os.makedirs(bin_dir, exist_ok=True)
+            bin_dir = shim_bin_dir()
+            if not _ensure_bin_dir(bin_dir):
+                raise ValueError("无法创建 shim 目录：%s" % bin_dir)
             path = os.path.join(bin_dir, bin_)
             if a.get("special_install") == "hermes":
                 venv_py = os.path.join(AGENTS_DIR, "hermes", "node_modules", "hermes-agent",
@@ -2322,11 +2402,11 @@ def write_shim(a, env_extra=None, args_prefix=None, node_path=None, entry_overri
                 else:
                     lines.append('exec "%s"%s "$@"' % (entry, (" " + pre) if pre else ""))
                 body = "\n".join(lines) + "\n"
-            with open(path, "w", encoding="utf-8", newline="\n") as f:
-                f.write("#!/bin/sh\n# AgentBoot shim for %s\nAB_ROOT=\"$HOME/.agentboot\"\n%s" % (aid, body))
-            os.chmod(path, 0o755)
+            shim_text = "#!/bin/sh\n# AgentBoot shim for %s\nAB_ROOT=\"$HOME/.agentboot\"\n%s" % (aid, body)
+            if not _write_executable(path, shim_text):
+                raise ValueError("无法写入 shim：%s" % path)
         else:
-            bin_dir = os.path.join(AB_HOME, "bin")
+            bin_dir = shim_bin_dir()
             os.makedirs(bin_dir, exist_ok=True)
             path = os.path.join(bin_dir, bin_ + ".cmd")
             if a.get("special_install") == "hermes":
@@ -2382,7 +2462,7 @@ def _broadcast_windows_env_change():
 
 def ensure_path_registered():
     """把 AgentBoot 相关目录加入用户 PATH（幂等）。"""
-    targets = [os.path.join(AB_HOME, "bin")] + prefix_bin_dirs()
+    targets = shim_bin_dirs() + prefix_bin_dirs()
     if POSIX:
         block_begin = "# >>> agentboot >>>"
         block_end = "# <<< agentboot <<<"
@@ -2817,8 +2897,10 @@ def write_online_shim(a, found, env_extra, args_prefix=None):
     """在线安装后写包装 shim（注入 Agnes 环境变量并转发到真实命令）。"""
     bin_ = a["bin"]
     args_prefix = args_prefix or []
-    bin_dir = os.path.join(AB_HOME, "bin")
-    os.makedirs(bin_dir, exist_ok=True)
+    bin_dir = shim_bin_dir()
+    if not _ensure_bin_dir(bin_dir):
+        log_err("无法创建 shim 目录：%s" % bin_dir)
+        return False
     try:
         if POSIX:
             p = os.path.join(bin_dir, bin_)
@@ -2826,9 +2908,8 @@ def write_online_shim(a, found, env_extra, args_prefix=None):
             lines += _agnes_env_posix_lines(env_extra or {})
             pre = " ".join('"%s"' % x for x in args_prefix)
             lines.append('exec "%s"%s "$@"' % (found, (" " + pre) if pre else ""))
-            with open(p, "w", encoding="utf-8", newline="\n") as f:
-                f.write("\n".join(lines) + "\n")
-            os.chmod(p, 0o755)
+            if not _write_executable(p, "\n".join(lines) + "\n"):
+                raise OSError("无法写入 %s" % p)
         else:
             p = os.path.join(bin_dir, bin_ + ".cmd")
             lines = ["@echo off", "rem AgentBoot wrapper"]

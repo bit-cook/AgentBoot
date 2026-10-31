@@ -33,11 +33,18 @@ export PATH="%s"
 
 
 def extract_path_block(script_path):
-    """抽出 `case ":$PATH:" in ... esac` 整段（含 PATH 注册注释）。"""
+    """抽出 PATH 注册的 `case ... esac` 整段（含节标题注释）。
+
+    起点必须匹配节标题本身（`# ---------- 4. PATH 注册（幂等）----------`），
+    不能只搜「PATH 注册」——文件头部的目录选择注释里也含这个词。
+    """
     lines = script_path.read_text(encoding="utf-8").splitlines()
     start = None
     for i, line in enumerate(lines):
-        if "PATH 注册" in line or "PATH（幂等写入）" in line:
+        stripped = line.strip()
+        if (stripped.startswith("#") and "PATH 注册" in stripped
+                and "幂等" in stripped) or \
+           (stripped.startswith("#") and "PATH（幂等写入）" in stripped):
             start = i
             break
     if start is None:

@@ -4,6 +4,7 @@
 from pathlib import Path
 import multiprocessing
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -19,6 +20,61 @@ import menu  # noqa: E402
 def _record_worker(index):
     menu.record_install({"id": "agent-%d" % index, "name": "A", "bin": "a-%d" % index,
                          "method": "npm", "npm": "pkg-%d" % index}, "online")
+
+
+
+
+class ShimBinDirTests(unittest.TestCase):
+    """shim 目录选择：/usr/local/bin（PATH 默认包含，装完立即可用）优先，
+    root 直接写、非 root 借 passwordless sudo；都不行退回 AB_HOME/bin。"""
+
+    def test_prefers_usr_local_bin_when_writable(self):
+        with mock.patch.object(menu, "POSIX", True), \
+                mock.patch.object(os.path, "isdir", return_value=True), \
+                mock.patch.object(os, "access", return_value=True), \
+                mock.patch.object(menu, "AB_HOME", "/sandbox/.agentboot"):
+            self.assertEqual(menu.shim_bin_dir(), "/usr/local/bin")
+
+    def test_uses_sudo_when_dir_not_writable_but_sudo_available(self):
+        with mock.patch.object(menu, "POSIX", True), \
+                mock.patch.object(os.path, "isdir", return_value=True), \
+                mock.patch.object(os, "access", return_value=False), \
+                mock.patch.object(menu, "_sudo_usable", return_value=True), \
+                mock.patch.object(menu, "AB_HOME", "/sandbox/.agentboot"):
+            self.assertEqual(menu.shim_bin_dir(), "/usr/local/bin")
+
+    def test_falls_back_to_ab_home_without_write_or_sudo(self):
+        with mock.patch.object(menu, "POSIX", True), \
+                mock.patch.object(os.path, "isdir", return_value=True), \
+                mock.patch.object(os, "access", return_value=False), \
+                mock.patch.object(menu, "_sudo_usable", return_value=False), \
+                mock.patch.object(menu, "AB_HOME", "/sandbox/.agentboot"):
+            self.assertEqual(menu.shim_bin_dir(), "/sandbox/.agentboot/bin")
+
+    def test_write_executable_direct_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, "opencode")
+            self.assertTrue(menu._write_executable(target, "#!/bin/sh\necho hi\n"))
+            self.assertTrue(os.access(target, os.X_OK))
+            self.assertIn("echo hi", open(target, encoding="utf-8").read())
+
+    def test_write_executable_via_sudo_when_dir_not_writable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = "/usr/local/bin/opencode"
+            with mock.patch.object(os, "access", return_value=False), \
+                    mock.patch.object(menu, "_sudo_usable", return_value=True), \
+                    mock.patch.object(menu.subprocess, "run",
+                                      return_value=subprocess.CompletedProcess([], 0)) as run:
+                self.assertTrue(menu._write_executable(target, "#!/bin/sh\necho hi\n"))
+            args = run.call_args.args[0]
+            self.assertEqual(args[:3], ["sudo", "-n", "install"])
+            self.assertEqual(args[-1], target)
+
+    def test_write_executable_fails_without_write_or_sudo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(os, "access", return_value=False), \
+                    mock.patch.object(menu, "_sudo_usable", return_value=False):
+                self.assertFalse(menu._write_executable("/usr/local/bin/opencode", "x"))
 
 
 class InstallTrackingTests(unittest.TestCase):
@@ -101,6 +157,7 @@ class InstallTrackingTests(unittest.TestCase):
             (package / "bin" / "codex.js").write_text("#!/usr/bin/env node\n", encoding="utf-8")
             with mock.patch.object(menu, "AGENTS_DIR", str(root / "agents")), \
                     mock.patch.object(menu, "AB_HOME", str(root)), \
+                    mock.patch.object(menu, "shim_bin_dir", return_value=str(root / "bin")), \
                     mock.patch.object(menu, "POSIX", True):
                 self.assertTrue(menu.write_shim(agent, node_path="/portable/node"))
                 shim = (root / "bin" / "codex").read_text(encoding="utf-8")
@@ -118,6 +175,7 @@ class InstallTrackingTests(unittest.TestCase):
             (package / "bin" / "codex.js").write_text("#!/usr/bin/env node\n", encoding="utf-8")
             with mock.patch.object(menu, "AGENTS_DIR", str(root / "agents")), \
                     mock.patch.object(menu, "AB_HOME", str(root)), \
+                    mock.patch.object(menu, "shim_bin_dir", return_value=str(root / "bin")), \
                     mock.patch.object(menu, "POSIX", False):
                 self.assertTrue(menu.write_shim(agent, node_path="C:\\portable\\node.exe"))
                 shim = (root / "bin" / "codex.cmd").read_text(encoding="utf-8-sig")

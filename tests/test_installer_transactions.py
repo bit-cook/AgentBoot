@@ -51,7 +51,11 @@ class InstallerTransactionTests(unittest.TestCase):
             text = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn('[ -L "$launcher" ]', text, relative)
             self.assertIn('.agentboot.new.', text, relative)
-            self.assertIn('mv -f "$agentboot_tmp"', text, relative)
+            # 临时文件与目标同目录 → mv 原子替换；sudo 场景经 sudo install 落盘
+            self.assertIn('mv -f "$1" "$launcher"', text, relative)
+            self.assertIn('$BIN_SUDO install -m 755 "$1" "$launcher"', text, relative)
+            # /usr/local/bin 优先 + passwordless sudo 探测（-n 非交互）
+            self.assertIn('sudo -n true', text, relative)
         for relative in ("scripts/install.ps1", "scripts/install-offline.ps1"):
             text = (ROOT / relative).read_text(encoding="utf-8-sig")
             self.assertIn("ReparsePoint", text, relative)

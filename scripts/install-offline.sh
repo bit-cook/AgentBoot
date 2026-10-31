@@ -14,7 +14,19 @@ set -eu
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 AB_ROOT="${HOME}/.agentboot"
 APP_DIR="${AB_ROOT}/app"
+# launcher 目录：优先 /usr/local/bin——默认就在所有 shell 的 PATH 上，
+# 装完当前终端立即可用，不需要 source ~/.bashrc。root 直接可写；非 root
+# 但有 passwordless sudo 时借 sudo 落盘（-n 非交互，不弹密码）；两者都
+# 不满足退回 ~/.local/bin，由 PATH 注册写 shell 配置兜底。
 BIN_DIR="${HOME}/.local/bin"
+BIN_SUDO=""
+if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then
+    BIN_DIR="/usr/local/bin"
+elif [ -d /usr/local/bin ] && command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    BIN_DIR="/usr/local/bin"
+    BIN_SUDO="sudo -n"
+fi
+STALE_BIN_DIRS="${HOME}/.local/bin /usr/local/bin"
 
 say()  { printf '%s\n' "$*"; }
 ok()   { printf '✓ %s\n' "$*"; }
@@ -99,9 +111,16 @@ ok "Python：$PY"
 
 # ---------- 4. 命令入口 ----------
 step "创建命令：agentboot（控制台） / ab（内置 Agent）"
-mkdir -p "$BIN_DIR"
-agentboot_tmp="${BIN_DIR}/.agentboot.new.$$"
-ab_tmp="${BIN_DIR}/.ab.new.$$"
+# 临时文件与目标同目录（可写时）——保证 mv 原子替换；sudo 场景用 mktemp + sudo install
+if [ -n "$BIN_SUDO" ]; then
+    TMP_BASE="$(mktemp -d)"
+    trap 'rm -rf "$TMP_BASE"' EXIT
+else
+    mkdir -p "$BIN_DIR"
+    TMP_BASE="$BIN_DIR"
+fi
+agentboot_tmp="${TMP_BASE}/.agentboot.new.$$"
+ab_tmp="${TMP_BASE}/.ab.new.$$"
 rm -f "$agentboot_tmp" "$ab_tmp"
 cat > "$agentboot_tmp" <<EOF
 #!/bin/sh
@@ -116,9 +135,32 @@ PYTHON="\$(command -v python3 || command -v python)"
 exec "\$PYTHON" "\$HOME/.agentboot/app/core/launch.py" agent "\$@"
 EOF
 chmod +x "$agentboot_tmp" "$ab_tmp"
-mv -f "$agentboot_tmp" "${BIN_DIR}/agentboot"
-mv -f "$ab_tmp" "${BIN_DIR}/ab"
+# 落盘：拒绝符号链接；可直接写则同目录 mv（原子）；sudo 场景经 sudo install
+install_launcher() {
+    launcher="${BIN_DIR}/$2"
+    if [ -L "$launcher" ]; then
+        err "拒绝写入：$launcher 是符号链接"
+        return 1
+    fi
+    if [ -n "$BIN_SUDO" ]; then
+        $BIN_SUDO install -m 755 "$1" "$launcher"
+    else
+        mv -f "$1" "$launcher"
+    fi
+}
+install_launcher "$agentboot_tmp" agentboot || { err "写入 launcher 失败：${BIN_DIR}/agentboot"; exit 1; }
+install_launcher "$ab_tmp" ab || { err "写入 launcher 失败：${BIN_DIR}/ab"; exit 1; }
 SWAP_COMMITTED=1
+# 清理另一处位置的旧 launcher（只删 AgentBoot 自己的：内容指向 launch.py）
+for stale_dir in $STALE_BIN_DIRS; do
+    [ "$stale_dir" = "$BIN_DIR" ] && continue
+    for stale_bin in agentboot ab; do
+        stale_path="$stale_dir/$stale_bin"
+        if [ -f "$stale_path" ] && grep -q "launch.py" "$stale_path" 2>/dev/null; then
+            rm -f "$stale_path" 2>/dev/null && say "· 清理旧位置 launcher：$stale_path"
+        fi
+    done
+done
 rm -rf "$OLD_APP"
 
 # PATH（幂等写入）
@@ -175,13 +217,21 @@ say "    控制台菜单 : agentboot   （菜单[3] 可继续离线安装其他 
 say "    内置 Agent : ab          （默认 Agnes 免费模型；联网后可直接用）"
 say "    纯离线用模型：菜单[4] → 配置本地模型（Ollama / LM Studio）"
 say ""
-if grep -q "agentboot" "${HOME}/.bashrc" 2>/dev/null; then
-    say "  PATH 已写入 ~/.bashrc。当前终端立即生效请执行：source ~/.bashrc"
-    say "  或者关掉本终端重开一个（新终端自动生效）。"
-else
-    say "  未能自动写入 shell 配置。当前终端立即生效请执行："
-    say "      export PATH=\"${BIN_DIR}:\$PATH\""
-fi
+case ":$PATH:" in
+    *":${BIN_DIR}:"*)
+        say "  ✓ ${BIN_DIR} 已在 PATH 中——当前终端直接输入 agentboot 即可启动，"
+        say "    无需 source、无需重开终端。"
+        ;;
+    *)
+        if grep -q "agentboot" "${HOME}/.bashrc" 2>/dev/null; then
+            say "  PATH 已写入 ~/.bashrc。当前终端立即生效请执行：source ~/.bashrc"
+            say "  或者关掉本终端重开一个（新终端自动生效）。"
+        else
+            say "  未能自动写入 shell 配置。当前终端立即生效请执行："
+            say "      export PATH=\"${BIN_DIR}:\$PATH\""
+        fi
+        ;;
+esac
 say "=============================================="
 
 if [ -z "$ARGS" ] && [ -e /dev/tty ] && [ -t 2 ]; then
