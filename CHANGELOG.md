@@ -1,5 +1,9 @@
 # 更新日志
 
+## v1.6.2 (2026-10-31)
+
+- 修复 npm 卸载残留空 scope 目录（v1.6.0 深度实测发现）：`npm uninstall -g @scope/pkg --prefix P` 报告成功、bin 也删了，但 `P/lib/node_modules/@scope/` 空目录残留（实测 @qwen-code/、@anthropic-ai/），用户看 node_modules 以为没卸干净。新增 `_clean_npm_prefix_residue()`：npm 卸载后显式删除包目录与空 scope 壳；路径安全校验（只清 AgentBoot 自己 HOME 内或等于 NPM_PREFIX 的 prefix，绝不碰外部 prefix；同一 scope 下还有其他包时保留 scope 目录）。新增 4 个回归测试。测试总数 362 全绿。
+
 ## v1.6.1 (2026-10-31)
 
 - 安装器命令入口落盘加固（新机器模拟实测 3 个失败场景的修复）：原实装在只读 `/usr/local/bin`（root+sudo、非 root+sudo 均复现）、坏 `TMPDIR`（非 root+sudo）下会硬失败并留「应用已装、命令全无」的半安装脏状态。`install.sh` 与 `scripts/install-offline.sh` 同步修复：落盘前 `probe_bin_dir` 真实探写，失败即回落 `~/.local/bin` 重试（不再依赖选择阶段的 `-w`/`sudo -n` 推断）；sudo 分支 `TMP_BASE` 的 `mktemp` 增加 `/tmp` 回退链（对齐下载临时目录既有容错，`set -eu` 下不再瞬死）；launcher 创建失败时 `rollback_install` 回滚（升级恢复旧版/新装撤掉应用）。新增 5 项行为级回归测试（沙箱内真跑探写段、`/proc` 模拟不可写、回滚修复验证转红）。全量 358 测试绿。
