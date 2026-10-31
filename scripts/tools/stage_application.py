@@ -40,6 +40,10 @@ def main():
         target = destination / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, target)
+    # 预编译 core/ 字节码一并打包（v1.7.0 启动性能优化）：离线安装的
+    # 首启也免现场编译；.pyc 带 Python 魔数，版本不匹配自动重编译，无害。
+    import compileall
+    compileall.compile_dir(str(destination / "core"), quiet=2, force=True)
     print("staged explicit application allowlist:", destination)
 
 

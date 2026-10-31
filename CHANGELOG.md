@@ -1,5 +1,28 @@
 # 更新日志
 
+## v1.7.0 (2026-10-31) — 极限性能优化
+
+实测数据（本机 min-of-9，`python3 -c` 冷进程，基线 44.2ms）：
+
+- 惰性模块代理（core/menu.py）：顶层导入的 subprocess/shutil/platform
+  只在安装/卸载/构建/下载路径才需要，菜单渲染与版本查询用不到，却让
+  每次启动多付约 15ms。改为 _LazyModule 代理后首次真正调用才导入：
+  **import menu 67.2ms → 54.8ms（-18%），菜单自身导入开销 -54%**；
+  import agent 保持 49.4ms（+3.5ms，已贴近解释器基线）。代理支持属性
+  读写转发，mock.patch.object(menu, "subprocess") 等测试补丁照旧工作
+  （PEP 562 模块 __getattr__ 管不了模块内部裸名引用，故用代理对象）。
+- 预编译字节码打包（scripts/build-online.py、stage_application.py）：
+  构建时 compileall 并把 __pycache__/*.pyc 一并打包，安装首启免现场
+  编译，**实测首启 56.5ms → 51.4ms（省 5.1ms）**；.pyc 内嵌 Python
+  魔数，目标机版本不匹配时解释器自动忽略并重编译，无害。
+- 新增回归测试：tests/test_lazy_module_imports.py（7 个，锁代理行为：
+  内部引用可用/属性补丁转发/整体替换可用/惰性确实 deferred）、
+  test_release_staging.py +2（在线包与离线 stage 必须带 .pyc）。
+  测试总数 371 全绿。
+- 其它路径复测确认无需优化：i18n 导入≈0、KB 索引 0.7ms 热/1.4ms 冷、
+  doctor 主机探测已并发（ThreadPoolExecutor）、load_config 1.4ms、
+  load_registry 0.26ms、launch.py 已是极简 dispatcher。
+
 ## v1.6.2 (2026-10-31)
 
 - 修复 npm 卸载残留空 scope 目录（v1.6.0 深度实测发现）：`npm uninstall -g @scope/pkg --prefix P` 报告成功、bin 也删了，但 `P/lib/node_modules/@scope/` 空目录残留（实测 @qwen-code/、@anthropic-ai/），用户看 node_modules 以为没卸干净。新增 `_clean_npm_prefix_residue()`：npm 卸载后显式删除包目录与空 scope 壳；路径安全校验（只清 AgentBoot 自己 HOME 内或等于 NPM_PREFIX 的 prefix，绝不碰外部 prefix；同一 scope 下还有其他包时保留 scope 目录）。新增 4 个回归测试。测试总数 362 全绿。

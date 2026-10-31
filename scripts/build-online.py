@@ -22,12 +22,25 @@ TOP_LEVEL = (
     "README.en.md", "install.bat", "install.sh", "安装指南.md",
 )
 DIRECTORIES = ("agents", "core", "docs", "scripts", "tools")
-SKIP_PARTS = {"__pycache__", "node_modules", "payloads", "dist"}
+SKIP_PARTS = {"node_modules", "payloads", "dist"}
 SKIP_FILES = {
     "scripts/benchmark-performance.py",
     "scripts/sync-web-assets.py",
     "scripts/verify-live-release.py",
 }
+
+
+def precompile_bytecode():
+    """预编译 core/ 的字节码（v1.7.0 启动性能优化）。
+
+    安装包带上 __pycache__/*.pyc：用户首次运行省掉现场编译（几十毫秒），
+    后续运行同样命中缓存。.pyc 内嵌 Python 魔数，目标机版本不匹配时
+    解释器自动忽略并重编译，无害。
+    """
+    import compileall
+    core = ROOT / "core"
+    ok = compileall.compile_dir(str(core), quiet=2, force=True)
+    return bool(ok)
 
 
 def package_files():
@@ -40,7 +53,7 @@ def package_files():
         for path in (ROOT / dirname).rglob("*"):
             rel = path.relative_to(ROOT)
             if path.is_file() and not (set(rel.parts) & SKIP_PARTS) and \
-                    rel.as_posix() not in SKIP_FILES and path.suffix != ".pyc":
+                    rel.as_posix() not in SKIP_FILES:
                 files.append(path)
     return sorted(files, key=lambda path: path.relative_to(ROOT).as_posix())
 
@@ -110,6 +123,7 @@ def write_digest(output):
 
 
 def main():
+    precompile_bytecode()   # 先编译，再把 __pycache__ 一起打包（首启免编译）
     files = package_files()
     if not files:
         raise SystemExit("no package files found")

@@ -33,6 +33,30 @@ class ReleaseStagingTests(unittest.TestCase):
             text = (ROOT / relative).read_text(encoding="utf-8-sig")
             self.assertIn("stage_application.py", text, relative)
 
+    def test_online_package_ships_precompiled_bytecode(self):
+        """v1.7.0 启动性能优化：安装包必须带 __pycache__/*.pyc。
+
+        首启免现场编译（实测省 5.1ms）；.pyc 带 Python 魔数，目标机版本
+        不匹配时解释器自动忽略重编译，无害。构建脚本需先预编译再打包，
+        且不得再把 __pycache__/.pyc 排除掉。
+        """
+        source = (ROOT / "scripts" / "build-online.py").read_text(encoding="utf-8")
+        self.assertIn("def precompile_bytecode", source)
+        self.assertIn("precompile_bytecode()", source)
+        self.assertNotIn('"__pycache__"', source.split("SKIP_PARTS = ")[1].split(")")[0])
+        self.assertNotIn('path.suffix != ".pyc"', source)
+
+    def test_staged_application_precompiles_core(self):
+        """离线包 stage 后 core/ 必须带 .pyc（首启同样免编译）。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            stage = Path(tmp) / "stage"
+            subprocess.run([sys.executable, str(STAGER), str(ROOT), str(stage)], check=True)
+            pyc = list((stage / "core" / "__pycache__").glob("*.pyc"))
+            self.assertTrue(pyc, "staged core/ 缺少预编译 .pyc")
+            names = {p.name.split(".")[0] for p in pyc}
+            for module in ("agent", "menu", "i18n", "launch"):
+                self.assertIn(module, names)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

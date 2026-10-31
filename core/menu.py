@@ -21,12 +21,56 @@ from contextlib import contextmanager
 
 import os
 import re
-import shutil
-import subprocess
 import sys
-import platform
 import threading
 import time
+
+# 启动性能（v1.7.0 极限优化）：subprocess/shutil/platform 只在安装、卸载、
+# 构建、下载等路径才需要，菜单渲染与版本查询用不到。顶层导入它们让每次
+# `agentboot` 启动多付约 15ms（实测 import menu ≈ 67ms vs import agent
+# ≈ 50ms，基线 46ms）。用惰性代理：内部裸名引用与外部 patch
+# （mock.patch.object(menu, "subprocess")）都正常工作，首次真正调用时才
+# 导入真模块（PEP 562 的模块 __getattr__ 管不了模块内部的裸名，故用代理）。
+class _LazyModule:
+    """按需加载的模块代理：属性访问触发真导入，之后缓存。"""
+
+    __slots__ = ("_ab_name", "_ab_mod")
+
+    def __init__(self, name):
+        object.__setattr__(self, "_ab_name", name)
+        object.__setattr__(self, "_ab_mod", None)
+
+    def _ab_load(self):
+        mod = object.__getattribute__(self, "_ab_mod")
+        if mod is None:
+            import importlib
+            mod = importlib.import_module(object.__getattribute__(self, "_ab_name"))
+            object.__setattr__(self, "_ab_mod", mod)
+        return mod
+
+    def __getattr__(self, attr):
+        if attr.startswith("_ab_"):
+            raise AttributeError(attr)
+        return getattr(self._ab_load(), attr)
+
+    def __setattr__(self, attr, value):
+        # 转发设置到真模块：mock.patch.object(menu.subprocess, "Popen")
+        # 这类测试补丁才能工作（与惰性化之前直接 patch 真模块语义一致）。
+        if attr.startswith("_ab_"):
+            object.__setattr__(self, attr, value)
+            return
+        setattr(self._ab_load(), attr, value)
+
+    def __delattr__(self, attr):
+        if attr.startswith("_ab_"):
+            object.__delattr__(self, attr)
+            return
+        delattr(self._ab_load(), attr)
+
+
+subprocess = _LazyModule("subprocess")
+shutil = _LazyModule("shutil")
+platform = _LazyModule("platform")
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import agent  # noqa: E402  复用配置与模型能力
