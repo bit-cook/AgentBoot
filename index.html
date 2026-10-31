@@ -10,7 +10,7 @@
   <link rel="canonical" href="https://osome.work/AgentBoot/">
   <link rel="alternate" hreflang="zh-CN" href="https://osome.work/AgentBoot/">
   <link rel="alternate" hreflang="en" href="https://osome.work/AgentBoot/en/">
-  <link rel="icon" href="assets/favicon.svg?v=1.5.1&b=2" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.svg?v=1.5.2&b=2" type="image/svg+xml">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="AgentBoot">
@@ -18,8 +18,8 @@
   <meta property="og:description" content="一条命令按需安装 16 个主流 AI Agent，内置免费模型，支持离线包与中国网络自适应。">
   <meta property="og:image" content="https://boot.ide.pub/assets/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="stylesheet" href="assets/site.css?v=1.5.1&b=3">
-  <script src="assets/site.js?v=1.5.1" defer></script>
+  <link rel="stylesheet" href="assets/site.css?v=1.5.2&b=3">
+  <script src="assets/site.js?v=1.5.2" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到主要内容</a>
@@ -40,7 +40,7 @@
 
   <header class="hero shell" id="top">
     <div>
-      <p class="eyebrow">v1.5.1 · 免费开源 · 三平台可用</p>
+      <p class="eyebrow">v1.5.2 · 免费开源 · 三平台可用</p>
       <h1>一条命令，<br><span class="hero-highlight">Agent 就位</span></h1>
       <p class="hero-copy">把安装、模型、镜像、离线包和安全卸载收进一个清楚的菜单。你选择要用的 AI Agent，AgentBoot 负责把它可靠地装好。</p>
       <div class="hero-actions">
@@ -163,12 +163,12 @@
         <article class="feature-spotlight">
           <p class="kicker">始终可用的起点</p>
           <h3>即使其他 Agent 装不上，<code>ab</code> 也能马上工作</h3>
-          <p>零第三方依赖 Python 核心，默认接入 Agnes 免费模型，并内置离线 Linux 知识库、会话持久化和高危命令拦截。</p>
+          <p>零第三方依赖 Python 核心，默认接入 Groq 极速模型（Agnes 免费模型自动备选），并内置离线 Linux 知识库、会话持久化和高危命令拦截。</p>
         </article>
 
         <ol class="feature-list">
           <li class="feature-row"><span class="feature-index">01</span><div><h3>按需安装，不装全家桶</h3><p>16 个主流 Agent 自由选择：Cursor、Claude Code、Codex、Qwen Code、OpenCode、MiMo、Cline、Pi、CoCo、FreeBuff 等。</p></div></li>
-          <li class="feature-row"><span class="feature-index">02</span><div><h3>模型提供商统一管理</h3><p>Agnes 零配置可用，也支持命名管理任意 OpenAI 兼容接口、Ollama、LM Studio 与故障切换顺序。</p></div></li>
+          <li class="feature-row"><span class="feature-index">02</span><div><h3>模型提供商统一管理</h3><p>Groq 与 Agnes 零配置可用，也支持命名管理任意 OpenAI 兼容接口、Ollama、LM Studio 与故障切换顺序。</p></div></li>
           <li class="feature-row"><span class="feature-index">03</span><div><h3>中国网络自动适配</h3><p>自动选择 npm、Node、PyPI 镜像，Worker、Pages、Release 三源容错，并提供一键代理配置。</p></div></li>
           <li class="feature-row"><span class="feature-index">04</span><div><h3>离线包经过真实验证</h3><p>发布包完成安装、启动、卸载冒烟；菜单 <code>[7]</code> 还能在目标平台按需构建自定义包。</p></div></li>
           <li class="feature-row"><span class="feature-index">05</span><div><h3>卸载知道自己该删什么</h3><p>菜单 <code>[9]</code> 或 <code>uninstall</code> 只清理由 AgentBoot 管理的程序，默认保留配置、认证和会话。</p></div></li>
@@ -234,7 +234,7 @@
           <p class="kicker">模型由你决定</p>
           <h3>开箱即用，也完全允许自定义</h3>
           <ul>
-            <li><strong>Agnes 免费模型：</strong><code>ab</code> 零配置直接用，Codex 与 Qwen 自动接线。</li>
+            <li><strong>Groq（默认）/ Agnes（备选）：</strong><code>ab</code> 零配置直接用，Codex 与 Qwen 可选预置 Agnes。</li>
             <li><strong>自定义提供商：</strong>任意 OpenAI 兼容接口，命名管理、随时切换。</li>
             <li><strong>本地模型：</strong>内置 Ollama 与 LM Studio 预设，也可添加 vLLM。</li>
             <li><strong>故障切换：</strong>设置备用顺序，主模型失败后自动降级。</li>

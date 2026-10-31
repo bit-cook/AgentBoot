@@ -10,7 +10,7 @@
   <link rel="canonical" href="https://osome.work/AgentBoot/en/">
   <link rel="alternate" hreflang="zh-CN" href="https://osome.work/AgentBoot/">
   <link rel="alternate" hreflang="en" href="https://osome.work/AgentBoot/en/">
-  <link rel="icon" href="../assets/favicon.svg?v=1.5.1&b=2" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=1.5.2&b=2" type="image/svg+xml">
   <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="AgentBoot">
@@ -18,8 +18,8 @@
   <meta property="og:description" content="Install any of 16 mainstream AI coding agents with one command. Free built-in model, verified offline packages, China-network auto-adaptation.">
   <meta property="og:image" content="https://boot.ide.pub/assets/og-image-en.png">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="stylesheet" href="../assets/site.css?v=1.5.1&b=3">
-  <script src="../assets/site.js?v=1.5.1" defer></script>
+  <link rel="stylesheet" href="../assets/site.css?v=1.5.2&b=3">
+  <script src="../assets/site.js?v=1.5.2" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -40,7 +40,7 @@
 
   <header class="hero shell" id="top">
     <div>
-      <p class="eyebrow">v1.5.1 · Free and open source · Three platforms</p>
+      <p class="eyebrow">v1.5.2 · Free and open source · Three platforms</p>
       <h1>One command.<br><span class="hero-highlight">Agents ready.</span></h1>
       <p class="hero-copy">Bring installation, models, mirrors, offline packs, and safe uninstall into one clear menu. You choose the AI agents you need; AgentBoot installs them reliably.</p>
       <div class="hero-actions">
@@ -163,12 +163,12 @@
         <article class="feature-spotlight">
           <p class="kicker">A starting point that's always ready</p>
           <h3>Even if other agents won't install, <code>ab</code> works right away</h3>
-          <p>The built-in agent uses a Python core with no third-party dependencies, the free Agnes model by default, an offline Linux knowledge base, persistent sessions, and safeguards against high-risk commands.</p>
+          <p>The built-in agent uses a Python core with no third-party dependencies, the ultra-fast Groq model by default (with the free Agnes model as automatic fallback), an offline Linux knowledge base, persistent sessions, and safeguards against high-risk commands.</p>
         </article>
 
         <ol class="feature-list">
           <li class="feature-row"><span class="feature-index">01</span><div><h3>Install on demand, not as a bundle</h3><p>Choose from 16 mainstream agents, including Cursor, Claude Code, Codex, Qwen Code, OpenCode, MiMo, Cline, Pi, CoCo, and FreeBuff.</p></div></li>
-          <li class="feature-row"><span class="feature-index">02</span><div><h3>Manage model providers in one place</h3><p>Agnes works with zero configuration. You can also name and manage any OpenAI-compatible endpoint, Ollama, or LM Studio, and set a failover order.</p></div></li>
+          <li class="feature-row"><span class="feature-index">02</span><div><h3>Manage model providers in one place</h3><p>Groq and Agnes work with zero configuration. You can also name and manage any OpenAI-compatible endpoint, Ollama, or LM Studio, and set a failover order.</p></div></li>
           <li class="feature-row"><span class="feature-index">03</span><div><h3>Automatically adapt to networks in China</h3><p>AgentBoot selects npm, Node, and PyPI mirrors automatically, fails over across Worker, Pages, and Release sources, and configures a proxy in one step.</p></div></li>
           <li class="feature-row"><span class="feature-index">04</span><div><h3>Offline packs are tested end to end</h3><p>Release packs pass install, launch, and uninstall smoke tests; menu <code>[7]</code> can also build a custom pack on demand on the target platform.</p></div></li>
           <li class="feature-row"><span class="feature-index">05</span><div><h3>Uninstall only what AgentBoot owns</h3><p>Menu <code>[9]</code> or <code>uninstall</code> removes AgentBoot-managed programs while keeping configuration, credentials, and sessions by default.</p></div></li>
@@ -234,7 +234,7 @@
           <p class="kicker">Your models, your choice</p>
           <h3>Ready out of the box and fully customizable</h3>
           <ul>
-            <li><strong>Agnes free model:</strong> use <code>ab</code> with zero setup; Codex and Qwen are configured automatically.</li>
+            <li><strong>Groq (default) / Agnes (fallback):</strong> use <code>ab</code> with zero setup; Codex and Qwen are configured automatically.</li>
             <li><strong>Custom providers:</strong> name, manage, and switch any OpenAI-compatible endpoint.</li>
             <li><strong>Local models:</strong> Ollama and LM Studio presets, with vLLM available as a custom provider.</li>
             <li><strong>Failover:</strong> set a fallback order and switch automatically when the primary fails.</li>
@@ -273,7 +273,7 @@
     <div class="footer-row">
       <div>
         <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span><span>AgentBoot</span></a>
-        <p class="footer-note">The built-in <code>ab</code> agent uses the free Agnes model by default. High-risk commands are blocked by default. MIT License.</p>
+        <p class="footer-note">The built-in <code>ab</code> agent uses Groq by default (Agnes as fallback). High-risk commands are blocked by default. MIT License.</p>
       </div>
       <div class="footer-links">
         <a href="https://github.com/bit-cook/AgentBoot">GitHub</a>
