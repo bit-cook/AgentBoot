@@ -1,5 +1,9 @@
 # 更新日志
 
+## v1.6.1 (2026-10-31)
+
+- 安装器命令入口落盘加固（新机器模拟实测 3 个失败场景的修复）：原实装在只读 `/usr/local/bin`（root+sudo、非 root+sudo 均复现）、坏 `TMPDIR`（非 root+sudo）下会硬失败并留「应用已装、命令全无」的半安装脏状态。`install.sh` 与 `scripts/install-offline.sh` 同步修复：落盘前 `probe_bin_dir` 真实探写，失败即回落 `~/.local/bin` 重试（不再依赖选择阶段的 `-w`/`sudo -n` 推断）；sudo 分支 `TMP_BASE` 的 `mktemp` 增加 `/tmp` 回退链（对齐下载临时目录既有容错，`set -eu` 下不再瞬死）；launcher 创建失败时 `rollback_install` 回滚（升级恢复旧版/新装撤掉应用）。新增 5 项行为级回归测试（沙箱内真跑探写段、`/proc` 模拟不可写、回滚修复验证转红）。全量 358 测试绿。
+
 ## v1.6.0 (2026-10-31)
 
 - 修复卸载删不掉 /usr/local/bin 里的 shim（v1.5.3 全新干净 Linux 机器实测发现）：v1.5.1 起 launcher/shim 优先装 /usr/local/bin（非 root 经 `sudo -n install` 落盘），但卸载路径是裸 `os.remove`——非 root 机器上报 `Permission denied`、卸载判失败、命令仍残留（实测 `agentboot uninstall opencode` 报 Errno 13）。新增 `_remove_owned_file()`：直接删除失败且目标在 /usr/local/bin 时经 `sudo -n rm -f` 对称落盘；`_remove_owned_shims` 与 CoCo 外部启动器清理都切到该助手。新增 4 个回归测试（直接删/sudo 删/无 sudo 重抛/非 /usr/local/bin 不借 sudo）。测试总数 353 全绿。
