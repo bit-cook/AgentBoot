@@ -40,7 +40,6 @@ AB_HOME = agent.AB_HOME
 RUNTIME_DIR = os.path.join(AB_HOME, "runtime")
 AGENTS_DIR = os.path.join(AB_HOME, "agents")
 NPM_PREFIX = os.path.join(AB_HOME, "npm-prefix")
-ENV_JSON = os.path.join(AB_HOME, "env.json")
 APPS_DIR = os.path.join(AB_HOME, "apps")
 
 NODE_VERSION = "v22.23.2"
@@ -141,24 +140,35 @@ def find_python():
     return None
 
 
-_ENV_JSON_CACHE = {"data": None, "mtime": None}
+_ENV_JSON_CACHE = {"path": None, "data": None, "mtime": None}
+
+
+def env_json_path():
+    """env.json 的当前位置：跟随 AB_HOME（含测试里的临时目录），不能冻结成常量。
+
+    v1.5.2 之前这里是一个模块导入时算死的常量，测试 mock AB_HOME 后读写
+    仍落在真实用户目录（曾把测试代理配置写进真实 env.json）。"""
+    return os.path.join(AB_HOME, "env.json")
 
 
 def load_env_json():
-    """读取 env.json（按 mtime 缓存；cn_mode 等高频调用不再反复读盘）。返回浅拷贝。"""
+    """读取 env.json（按 path+mtime 缓存；cn_mode 等高频调用不再反复读盘）。返回浅拷贝。"""
+    path = env_json_path()
     try:
-        mtime = os.path.getmtime(ENV_JSON)
+        mtime = os.path.getmtime(path)
     except OSError:
         mtime = None
     cached = _ENV_JSON_CACHE["data"]
-    if cached is None or _ENV_JSON_CACHE["mtime"] != mtime:
+    if (cached is None or _ENV_JSON_CACHE["path"] != path
+            or _ENV_JSON_CACHE["mtime"] != mtime):
         try:
-            with open(ENV_JSON, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             cached = data if isinstance(data, dict) else {}
         except Exception:
             cached = {}
         _ENV_JSON_CACHE["data"] = cached
+        _ENV_JSON_CACHE["path"] = path
         _ENV_JSON_CACHE["mtime"] = mtime
     data = dict(cached)
     proxy = data.get("proxy")
@@ -169,10 +179,12 @@ def load_env_json():
 
 
 def save_env_json(data):
-    agent._atomic_private_json(ENV_JSON, data)
+    path = env_json_path()
+    agent._atomic_private_json(path, data)
     _ENV_JSON_CACHE["data"] = dict(data)
+    _ENV_JSON_CACHE["path"] = path
     try:
-        _ENV_JSON_CACHE["mtime"] = os.path.getmtime(ENV_JSON)
+        _ENV_JSON_CACHE["mtime"] = os.path.getmtime(path)
     except OSError:
         _ENV_JSON_CACHE["mtime"] = None
 
@@ -202,12 +214,20 @@ def set_mirror_mode(mode):
         data.pop("mirror_mode", None)
     else:
         data["mirror_mode"] = mode
+    # npm 源跟随模式：cn 固定国内镜像，off/auto 恢复自动选路——
+    # 否则 off 后状态栏显示「国际网络」而 npm 仍固定 npmmirror，自相矛盾
+    if mode == "cn":
+        data["npm_registry"] = NPM_MIRROR
+    else:
+        data.pop("npm_registry", None)
     save_env_json(data)
     os.environ.pop("AGENTBOOT_MIRROR", None)
+    if npm_cmd():
+        set_npm_registry(npm_registry(False if mode == "off" else None))
     if mode == "cn":
         log_ok("镜像模式已固定为中国网络（npm 用 %s，GitHub 加速启用）" % NPM_MIRROR)
     elif mode == "off":
-        log_ok("镜像模式已固定为全球直连")
+        log_ok("镜像模式已固定为全球直连（npm 源恢复官方）")
     else:
         log_ok("镜像模式已恢复自动探测")
 
@@ -897,13 +917,19 @@ def shim_bin_dirs():
 
 
 def _shim_exec_target(path):
-    """解析一个 AgentBoot shim 的 exec 目标（POSIX：exec "..." 行）。"""
+    """解析一个 AgentBoot shim 的 exec 目标。
+
+    兼容两种 shim 形态：POSIX 的 `exec "..." "$@"` 行，以及 Windows .cmd 的
+    `"..." %*` 调用行——只认后者会让 Windows 上的重装兜底（沿旧 shim 找真身）
+    永远解析失败。"""
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             text = f.read()
     except OSError:
         return None
     m = re.search(r'^\s*exec\s+"([^"]+)"', text, re.M)
+    if not m:
+        m = re.search(r'^\s*"([^"]+)"\s+%\*\s*$', text, re.M)
     return m.group(1) if m else None
 
 
@@ -1843,7 +1869,7 @@ def _remove_cursor_install():
 
 
 def install_via_pip(a):
-    py = shutil.which("python3") or shutil.which("python")
+    py = find_python()   # 带真实执行校验，避免命中 Windows 商店存根
     if not py:
         log_err("需要 Python 3 与 pip")
         return False
@@ -2607,7 +2633,12 @@ def _broadcast_windows_env_change():
 
 
 def ensure_path_registered():
-    """把 AgentBoot 相关目录加入用户 PATH（幂等）。"""
+    """把 AgentBoot 相关目录加入用户 PATH（幂等）。
+
+    AGENTBOOT_NO_ENV_WRITE=1 时整体跳过：基准测试/自动化用临时 AB_HOME
+    跑安装流程时，不应把临时目录写进用户真实的 PATH（注册表 / shell rc）。"""
+    if os.environ.get("AGENTBOOT_NO_ENV_WRITE", "").strip() == "1":
+        return
     targets = shim_bin_dirs() + prefix_bin_dirs()
     if POSIX:
         block_begin = "# >>> agentboot >>>"
@@ -2765,7 +2796,9 @@ def mirror_status():
 def doctor():
     print("AgentBoot 环境体检 v%s · 平台 %s" % (VERSION, plat_id()))
     print("-" * 52)
-    py = shutil.which("python3") or shutil.which("python")
+    # find_python 带 python_ok 真实执行校验：Windows 上 which("python3") 命中的
+    # 常是商店存根（打印"未找到 Python"却存在），直接展示会误导
+    py = find_python()
     print("Python : %s" % (py or "未安装（Windows 会自动用内置运行时）"))
     node = shutil.which("node") or (node_exe() if os.path.exists(node_exe()) else None)
     print("Node   : %s" % (node or "未安装（安装 Agent 时会自动下载 v22 运行时）"))

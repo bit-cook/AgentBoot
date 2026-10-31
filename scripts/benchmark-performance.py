@@ -156,6 +156,7 @@ def install_metric(root: Path, runs: int) -> float:
     env.update({
         "AGENTBOOT_HOME": str(root / "agentboot-home"),
         "AGENTBOOT_MIRROR": "off",
+        "AGENTBOOT_NO_ENV_WRITE": "1",   # 基准跑在临时 home：不得写真实用户 PATH
         "HOME": str(root / "home"),
         "PATH": str(binary) + os.pathsep + env.get("PATH", ""),
     })
@@ -184,7 +185,8 @@ def measure(runs: int) -> dict[str, float]:
         home = root / "agentboot-home"
         write_config(home)
         env = dict(os.environ)
-        env.update({"AGENTBOOT_HOME": str(home), "AGENTBOOT_MIRROR": "off"})
+        env.update({"AGENTBOOT_HOME": str(home), "AGENTBOOT_MIRROR": "off",
+                    "AGENTBOOT_NO_ENV_WRITE": "1"})
 
         ab_version = median_command([PYTHON, "core/agent.py", "version"], env, runs)
         menu_version = median_command([PYTHON, "core/menu.py", "version"], env, runs)

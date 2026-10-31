@@ -100,7 +100,10 @@ def write_digest(output):
     os.close(fd)
     tmp_sidecar = Path(tmp_name)
     try:
-        tmp_sidecar.write_text("%s  %s\n" % (digest, output.name), encoding="ascii")
+        # newline="" 强制 LF：Windows 上默认会把 \n 写成 \r\n，
+        # sha256sum -c（CI 与安装校验）解析 CRLF 会失败
+        tmp_sidecar.write_text("%s  %s\n" % (digest, output.name),
+                               encoding="ascii", newline="")
         os.replace(tmp_sidecar, sidecar)
     finally:
         tmp_sidecar.unlink(missing_ok=True)

@@ -27,6 +27,7 @@ class AgentLifecycleTests(unittest.TestCase):
         with mock.patch.object(menu, "load_registry", return_value=agents), \
                 mock.patch.object(menu, "npm_install", return_value=True) as install, \
                 mock.patch.object(menu, "resolve_shim_target", side_effect=lambda name: "/managed/" + name), \
+                mock.patch.object(menu, "write_online_shim", return_value=True), \
                 mock.patch.object(menu, "wire_agnes", return_value=({}, [])), \
                 mock.patch.object(menu, "record_install"), \
                 mock.patch.object(menu, "ensure_path_registered"):
@@ -95,6 +96,7 @@ class AgentLifecycleTests(unittest.TestCase):
         with mock.patch.object(menu, "load_registry", return_value=[agent]), \
                 mock.patch.object(menu, "install_aider_venv", return_value=True) as install, \
                 mock.patch.object(menu, "aider_venv_executable", return_value="/managed/aider"), \
+                mock.patch.object(menu, "write_online_shim", return_value=True), \
                 mock.patch.object(menu, "wire_agnes", return_value=({}, [])), \
                 mock.patch.object(menu, "record_install") as record, \
                 mock.patch.object(menu, "ensure_path_registered"):

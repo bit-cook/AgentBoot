@@ -49,7 +49,9 @@ class ShimBinDirTests(unittest.TestCase):
                 mock.patch.object(os, "access", return_value=False), \
                 mock.patch.object(menu, "_sudo_usable", return_value=False), \
                 mock.patch.object(menu, "AB_HOME", "/sandbox/.agentboot"):
-            self.assertEqual(menu.shim_bin_dir(), "/sandbox/.agentboot/bin")
+            # 期望值用 os.path.join 构造：Windows 的 join 产生的分隔符与 POSIX 不同
+            self.assertEqual(menu.shim_bin_dir(),
+                             os.path.join("/sandbox/.agentboot", "bin"))
 
     def test_write_executable_direct_path(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -108,7 +110,9 @@ class InstallTrackingTests(unittest.TestCase):
         # shim 是命令进 PATH 的入口，与是否预置无关：记录 AB_HOME/bin 下的 shim 路径
         self.assertEqual(record.call_args.args[:2], (agent, "online"))
         recorded = record.call_args.args[2]
-        self.assertTrue(recorded.endswith(os.path.join("bin", "codex")), recorded)
+        self.assertTrue(recorded.endswith(
+            os.path.join("bin", "codex") + ("" if menu.POSIX else ".cmd")),
+            recorded)
         self.assertEqual(record.call_args.args[3], "/managed/npm")
 
     def test_offline_success_records_agentboot_payload(self):

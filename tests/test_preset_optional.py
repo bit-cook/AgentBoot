@@ -17,6 +17,8 @@
 import io
 import json
 import os
+import shutil
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -38,16 +40,17 @@ class PresetSettingTests(unittest.TestCase):
         self._env_patch = mock.patch.dict(os.environ)
         self._env_patch.start()
         os.environ.pop("AGENTBOOT_PRESET_MODEL", None)
-        self._env_json = mock.patch.object(menu, "ENV_JSON",
-                                           os.path.join(self.home, "env.json"))
+        self._env_json = mock.patch.object(menu, "AB_HOME", self.home)
         self._env_json.start()
         menu._ENV_JSON_CACHE["data"] = None
+        menu._ENV_JSON_CACHE["path"] = None
         menu._ENV_JSON_CACHE["mtime"] = None
 
     def tearDown(self):
         self._env_json.stop()
         self._env_patch.stop()
         menu._ENV_JSON_CACHE["data"] = None
+        menu._ENV_JSON_CACHE["path"] = None
         menu._ENV_JSON_CACHE["mtime"] = None
         self._tmp.cleanup()
 
@@ -111,8 +114,9 @@ class InstallGateTests(unittest.TestCase):
         # 原版安装也必须写 shim：它是命令进 PATH 的入口（npm prefix 不在 PATH 上）
         shim.assert_called_once()
         recorded_executable = record.call_args.args[2]
-        self.assertTrue(recorded_executable.endswith(os.path.join("bin", "codex")),
-                        recorded_executable)
+        self.assertTrue(recorded_executable.endswith(
+            os.path.join("bin", "codex") + ("" if menu.POSIX else ".cmd")),
+            recorded_executable)
 
     def test_online_preset_flag_wires_agnes(self):
         with mock.patch.object(menu, "load_registry", return_value=[self.AGENT]), \
@@ -198,8 +202,30 @@ class CocoPresetGateTests(unittest.TestCase):
 
     def _run(self, tmp, preset):
         agent = {"id": "coco", "name": "CoCo", "coco_version": "0.8.1"}
+        # 本组测试只验证 preset 门控，平台差异全部隔离掉：
+        #  - shutil.which("node") 返回假路径（Windows 上并无 /usr/bin/node），
+        #    which("tar") 仍走真实查找，保证 tgz 正常解压
+        #  - subprocess.run 只拦截 node --version，tar 解压继续走真实实现
+        #  - Windows 的 expanduser("~") 读 USERPROFILE 而非 HOME，需映射进 tmp
+        real_which = shutil.which
+        real_run = subprocess.run
+
+        def fake_which(name):
+            return "/usr/bin/node" if name == "node" else real_which(name)
+
+        def fake_run(cmd, *a, **kw):
+            if "--version" in (cmd or []):
+                return subprocess.CompletedProcess([], 0, stdout="v22.23.2\n")
+            return real_run(cmd, *a, **kw)
+
+        real_expanduser = os.path.expanduser
+        home = Path(tmp) / "home"
         with mock.patch.object(menu, "AB_HOME", str(Path(tmp) / "ab")), \
-                mock.patch.object(menu.shutil, "which", return_value="/usr/bin/node"):
+                mock.patch.object(menu.shutil, "which", side_effect=fake_which), \
+                mock.patch.object(menu.subprocess, "run", side_effect=fake_run), \
+                mock.patch.object(menu.os.path, "expanduser",
+                                  side_effect=lambda p: str(home) if p == "~"
+                                  else real_expanduser(p)):
             return menu.coco_offline_install(agent, self._payload(tmp), preset=preset)
 
     def test_vanilla_install_writes_no_auth_or_settings(self):

@@ -19,22 +19,28 @@ class MirrorModePersistenceTests(unittest.TestCase):
     def setUp(self):
         import threading
         self._lock = threading.Lock()
-        menu._ENV_JSON_CACHE.update(data=None, mtime=None)
+        menu._ENV_JSON_CACHE.update(path=None, data=None, mtime=None)
 
     def tearDown(self):
-        menu._ENV_JSON_CACHE.update(data=None, mtime=None)
+        menu._ENV_JSON_CACHE.update(path=None, data=None, mtime=None)
 
     def test_set_mirror_mode_persists_and_clears(self):
         with tempfile.TemporaryDirectory() as td:
             old_home = menu.AB_HOME
             menu.AB_HOME = td
             try:
-                menu.set_mirror_mode("cn")
-                self.assertEqual(menu.load_env_json().get("mirror_mode"), "cn")
-                menu.set_mirror_mode("off")
-                self.assertEqual(menu.load_env_json().get("mirror_mode"), "off")
-                menu.set_mirror_mode("auto")
-                self.assertNotIn("mirror_mode", menu.load_env_json())
+                # set_mirror_mode 会同步 npm config：mock 掉避免测试写真实 ~/.npmrc
+                with mock.patch.object(menu, "npm_cmd", return_value=None):
+                    menu.set_mirror_mode("cn")
+                    self.assertEqual(menu.load_env_json().get("mirror_mode"), "cn")
+                    self.assertEqual(menu.load_env_json().get("npm_registry"),
+                                     menu.NPM_MIRROR)
+                    menu.set_mirror_mode("off")
+                    self.assertEqual(menu.load_env_json().get("mirror_mode"), "off")
+                    self.assertNotIn("npm_registry", menu.load_env_json(),
+                                     "off 应解除 npm 源固定，回到自动选路")
+                    menu.set_mirror_mode("auto")
+                    self.assertNotIn("mirror_mode", menu.load_env_json())
             finally:
                 menu.AB_HOME = old_home
 
@@ -43,10 +49,12 @@ class MirrorModePersistenceTests(unittest.TestCase):
             old_home = menu.AB_HOME
             menu.AB_HOME = td
             try:
-                menu.set_mirror_mode("cn")
+                with mock.patch.object(menu, "npm_cmd", return_value=None):
+                    menu.set_mirror_mode("cn")
                 with mock.patch.object(menu, "can_tcp", return_value=True):
                     self.assertTrue(menu.cn_mode())   # 探测可达也尊重固定 cn
-                menu.set_mirror_mode("off")
+                with mock.patch.object(menu, "npm_cmd", return_value=None):
+                    menu.set_mirror_mode("off")
                 with mock.patch.object(menu, "can_tcp", return_value=False):
                     self.assertFalse(menu.cn_mode())  # 探测不通也尊重固定 off
             finally:
@@ -57,7 +65,8 @@ class MirrorModePersistenceTests(unittest.TestCase):
             old_home = menu.AB_HOME
             menu.AB_HOME = td
             try:
-                menu.set_mirror_mode("cn")
+                with mock.patch.object(menu, "npm_cmd", return_value=None):
+                    menu.set_mirror_mode("cn")
                 with mock.patch.dict("os.environ", {"AGENTBOOT_MIRROR": "off"}), \
                         mock.patch.object(menu, "can_tcp", return_value=True):
                     self.assertFalse(menu.cn_mode())
@@ -67,17 +76,20 @@ class MirrorModePersistenceTests(unittest.TestCase):
 
 class EnvJsonCacheTests(unittest.TestCase):
     def setUp(self):
-        menu._ENV_JSON_CACHE.update(data=None, mtime=None)
+        menu._ENV_JSON_CACHE.update(path=None, data=None, mtime=None)
 
     def tearDown(self):
-        menu._ENV_JSON_CACHE.update(data=None, mtime=None)
+        menu._ENV_JSON_CACHE.update(path=None, data=None, mtime=None)
 
     def test_cache_returns_copy_not_alias(self):
         with tempfile.TemporaryDirectory() as td:
             old_home = menu.AB_HOME
             menu.AB_HOME = td
             try:
-                menu.set_proxy("http://127.0.0.1:7890")
+                # set_proxy 会顺手执行 npm config set proxy：必须 mock 掉，
+                # 否则测试把代理写进用户真实的 ~/.npmrc（本机实测踩坑）
+                with mock.patch.object(menu, "npm_cmd", return_value=None):
+                    menu.set_proxy("http://127.0.0.1:7890")
                 first = menu.load_env_json()
                 first["npm_registry"] = "https://mutated.example/"   # 改返回值
                 second = menu.load_env_json()
@@ -116,19 +128,27 @@ class NpmTickerTests(unittest.TestCase):
         process = mock.Mock()
         process.pid = 2 ** 30          # 不可能存在的 PID：绝不误伤真实进程
         process.wait.side_effect = menu.subprocess.TimeoutExpired(cmd="npm", timeout=1)
+        # os.getpgid/getpgrp/killpg 是 POSIX 专属 API，Windows 上连 patch 都会失败，
+        # 因此 POSIX 分支的桩只在 POSIX 下启动
         with mock.patch.object(menu.sys, "stdin", new=mock.Mock(isatty=lambda: False)), \
                 mock.patch.object(menu.subprocess, "Popen", return_value=process), \
-                mock.patch.object(menu.subprocess, "run"), \
-                mock.patch.object(menu.os, "getpgid", return_value=process.pid) as getpgid, \
-                mock.patch.object(menu.os, "getpgrp", return_value=os.getpid()), \
-                mock.patch.object(menu.os, "killpg") as killpg:
-            code, _tail = menu._run_npm_process(["npm", "install", "-g", "x"], {})
+                mock.patch.object(menu.subprocess, "run") as run:
+            if menu.POSIX:
+                with mock.patch.object(menu.os, "getpgid", return_value=process.pid) as getpgid, \
+                        mock.patch.object(menu.os, "getpgrp", return_value=os.getpid()), \
+                        mock.patch.object(menu.os, "killpg") as killpg:
+                    code, _tail = menu._run_npm_process(["npm", "install", "-g", "x"], {})
+            else:
+                code, _tail = menu._run_npm_process(["npm", "install", "-g", "x"], {})
         self.assertIsNone(code)
         if menu.POSIX:
             getpgid.assert_called_once_with(process.pid)
             self.assertGreaterEqual(killpg.call_count, 1)   # 超时后清理进程树
             import signal
             self.assertEqual(killpg.call_args_list[0].args[1], signal.SIGTERM)
+        else:
+            run.assert_called_once()          # Windows: taskkill /PID /T /F
+            self.assertEqual(run.call_args.args[0][:2], ["taskkill", "/PID"])
 
 
 class DoctorPolishTests(unittest.TestCase):

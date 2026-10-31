@@ -4,9 +4,11 @@
 import { mkdtempSync, copyFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+// fileURLToPath 而不是 URL.pathname：Windows 上 pathname 是 "/C:/..."，
+// 直接 join 会拼出 "C:\C:\..." 双盘符路径（ENOENT）
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), "ab-worker-test-"));
 copyFileSync(join(ROOT, "cloudflare/worker.js"), join(dir, "worker.mjs"));
 copyFileSync(join(ROOT, "cloudflare/web-assets.js"), join(dir, "web-assets.mjs"));

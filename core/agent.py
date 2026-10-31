@@ -24,7 +24,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     VERSION = open(os.path.join(APP_DIR, "VERSION"), "r", encoding="ascii").read().strip()
 except OSError:
-    VERSION = "1.5.2"
+    VERSION = "1.5.3"
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
 CONFIG_PATH = os.path.join(AB_HOME, "config.json")
 KB_DIR = os.path.join(APP_DIR, "tools", "linux-kb")
@@ -490,7 +490,9 @@ def chat(cfg, messages, stream_cb=None, reasoning_cb=None, tools=None, max_token
             _drop_pool(scheme, host, port)
             if attempt < 2:
                 time.sleep(1 + attempt)
-    raise ApiError("无法连接模型接口：%s（若需代理，请先设置 HTTP_PROXY/HTTPS_PROXY）" % last_err)
+    raise ApiError("无法连接模型接口：%s（若需代理，请先设置 HTTP_PROXY/HTTPS_PROXY；"
+                   "国内网络偶发瞬时波动也会报连接失败，稍候重试通常可恢复，"
+                   "也可改用备用源：ab model）" % last_err)
 
 
 class _WaitIndicator:
@@ -828,9 +830,22 @@ def bench(cfg):
     linux_help("磁盘满了")
     warm = (time.perf_counter() - t0) * 1000.0
     print(i18n.t("agent.bench_kb") % (cold, warm))
-    t1 = _ttfb(cfg)
-    t2 = _ttfb(cfg)
-    if t1 and t2:
+    # 与 chat_auto 一致地按主源→备选链测量：默认源被地区封锁/限流时
+    # （实测 Groq 对国内 IP 全 403）不至于直接报「测试失败」
+    order = [cfg.get("active") or DEFAULT_ACTIVE]
+    for n in (cfg.get("fallback") or []):
+        if n and n not in order:
+            order.append(n)
+    measured = t1 = t2 = None
+    for name in order:
+        c2 = dict(cfg)
+        c2["active"] = name
+        t1, t2 = _ttfb(c2), _ttfb(c2)
+        if t1 and t2:
+            measured = name
+            break
+    if measured:
+        print(i18n.t("agent.bench_source") % measured)
         print(i18n.t("agent.bench_ttfb") % (t1, t2))
         if t1 > t2:
             print(i18n.t("agent.bench_gain") % (t1 - t2))
@@ -1888,12 +1903,18 @@ def doctor(cfg):
         import shutil
         path = shutil.which(tool)
         print("%-8s : %s" % (tool, path or "未安装（可由菜单安装/自动下载运行时）"))
-    probes = probe_hosts(("registry.npmmirror.com", "api.github.com", "apihub.agnes-ai.com"))
-    for name, host in (("npm镜像(registry.npmmirror.com)", "registry.npmmirror.com"),
-                       ("GitHub(api.github.com)", "api.github.com"),
-                       ("模型(apihub.agnes-ai.com)", "apihub.agnes-ai.com")):
+    # 探测列表跟随实际使用的模型源：默认源换成 Groq 后只盯 agnes 会误报
+    from urllib.parse import urlsplit
+    active_host = urlsplit(p.get("base_url") or "").hostname or ""
+    probe_list = [("npm镜像(registry.npmmirror.com)", "registry.npmmirror.com"),
+                  ("GitHub(api.github.com)", "api.github.com"),
+                  ("模型(%s)" % active_host, active_host)]
+    if p["name"] != "agnes":
+        probe_list.append(("备选(agnes)", "apihub.agnes-ai.com"))
+    probes = probe_hosts(tuple({h for _, h in probe_list}))
+    for name, host in probe_list:
         print("网络     : %s %s" % ("✓" if probes.get(host) else "✗", name if probes.get(host)
-                                    else "%s 不可达" % name))
+                                    else "%s 不可达（模型源波动时稍候重试）" % name))
     print("-" * 46)
     print("启动 Agent：ab   ·   打开控制台菜单：agentboot")
 
@@ -1943,7 +1964,8 @@ def main():
         if not args:
             print("用法: ab run \"你的任务\"")
             return
-        final, _ = agent_loop(cfg, " ".join(args), stream=False)
+        final, history = agent_loop(cfg, " ".join(args), stream=False)
+        save_session(history)   # 一次性任务也进会话：ab -c / /继续 可接着问
         if final:
             print(final)
         return
@@ -1957,11 +1979,15 @@ def main():
         else:
             text = sys.stdin.read().strip()
             if text:
-                final, _ = agent_loop(cfg, text, stream=False)
+                # 管道模式同样支持 -c：此前 resume 在这里被忽略，会话恢复只在交互 REPL 生效
+                history = load_session() if resume else []
+                final, history = agent_loop(cfg, text, history, stream=False)
+                save_session(history)
                 print(final or "")
         return
     # 兜底：把参数当作任务直接执行
-    final, _ = agent_loop(cfg, " ".join([cmd] + args), stream=False)
+    final, history = agent_loop(cfg, " ".join([cmd] + args), stream=False)
+    save_session(history)
     if final:
         print(final)
 

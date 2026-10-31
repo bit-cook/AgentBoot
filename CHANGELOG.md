@@ -1,5 +1,20 @@
 # 更新日志
 
+## v1.5.3 (2026-10-31)
+
+- 会话持久化补全（Windows 实测发现的缺口）：`ab run` 一次性任务此前不写会话，`ab -c` / `/继续` 接不上；且管道模式（`echo 任务 | ab chat -c`）完全忽略 `-c`，会话恢复只在交互 REPL 生效。现在 run / 管道 chat / 兜底任务三条路径统一持久化并支持 `-c` 恢复（实测：run 记住代号 → 管道 chat -c 正确答出）。
+- 镜像语义对称化：`mirror off` 现在同步解除 npm 源固定并切回官方源（此前状态栏显示「国际网络」而 npm 仍固定 npmmirror，自相矛盾）；`mirror cn` 同步固定国内镜像。
+- doctor 的 Python 探测改走 `find_python()`（带真实执行校验），不再把 Windows 商店存根当 Python 展示；`install_via_pip` 同步修复（此前命中存根会让 pip 安装莫名失败）。
+- `ab bench` 模型测速改为与 chat 相同的主源→备选链：默认源被地区封锁时（实测 Groq 对国内 IP 全 403）自动改测备选并标注实测源，不再直接报「测试失败」。
+
+- 修复官网安装页滚动错位：左栏「从这里开始」（`position: sticky` 直接放在 CSS Grid 网格项上）在部分浏览器内核不按网格区域钳制，滚动到命令卡底部后会一直钉在 top:104px，压过第二行的「备用源说明」造成两层文字重叠（Windows 实机复现，Playwright A/B 实测原版在全宽度存在 122px 重叠窗口）。改为「外层占位拉伸 + 内层 sticky」的引擎无关写法：`.install-intro` 改 `align-self: stretch`，新增 `.install-intro-pin` 承载 sticky，≤900px 断点用 `display: contents` 保持移动端两栏布局；`site.css` 缓存参数 b=3→b=4。中英文页面同步修复。
+- 测试套件首次在 Windows 全绿（349 项：336 通过 / 13 跳过 / 0 失败）：shim 目标解析补 Windows `.cmd` 形态与 `"..." %*` 调用行、版本自选与预设门控测试补 `resolve_shim_target` mock、darwin 用例补 `os.name` mock、worker fallback 测试改 `fileURLToPath`（原 `URL.pathname` 在 Windows 拼出 `C:\C:\` 双盘符）、语言状态泄漏修复（`test_language_persistence` 两个用例恢复全局语言）。
+- 修复测试污染真实用户环境（Windows 实测踩坑）：`ENV_JSON` 由模块导入时冻结的常量改为 `env_json_path()` 动态跟随 `AB_HOME`（缓存键加 path 维度）——此前测试 mock `AB_HOME` 后 env.json 读写仍落在真实用户目录，曾把测试代理配置写进真实 `~/.agentboot/env.json`；生命周期测试补 `write_online_shim` mock（不再把 `/managed/...` 假 shim 写进真实 `~/.agentboot/bin`）；`ensure_path_registered` 支持 `AGENTBOOT_NO_ENV_WRITE=1` 逃生阀并在基准脚本启用（临时目录不再写进真实用户 PATH 注册表）。
+- `_shim_exec_target` 兼容 Windows .cmd shim 的 `"..." %*` 调用行：此前只认 POSIX `exec "..."`，Windows 上重装兜底「沿旧 shim 找真身」永远解析失败。
+- doctor 网络探测跟随当前模型源（默认模型切 Groq 后不再只探测 agnes），模型连接失败的错误提示补充国内网络瞬时波动语境（本机实测：Cloudflare 系 API 偶发整段拒连窗口，稍候重试自愈）。
+
+# 更新日志
+
 ## v1.5.2 (2026-10-31)
 
 - 默认模型切换为 Groq：内置 agent `ab` 的默认模型改为 Groq 的 `qwen/qwen3.8-27b`（OpenAI 兼容，Base URL `https://api.groq.com/openai/v1`，约 450 t/s 极速推理；免费层额度 30 RPM / 1K RPD / 8K TPM / 200K TPD，个人使用足够）。Agnes 免费模型不删，作为自动备选——主源失败时 chat_auto 按 `cfg["fallback"]` 自动切换，Groq 不可用（限流/欠费/地区封锁）也不会对话不了。`/model` 与菜单 [4] 的提供商管理器自动列出 Groq（当前）与 Agnes（备选）。

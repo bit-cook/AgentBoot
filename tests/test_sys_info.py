@@ -50,7 +50,9 @@ class SysInfoTests(unittest.TestCase):
     def test_darwin_memory_uses_sysctl_without_name_error(self):
         # 回归：darwin 分支曾因缺少 import subprocess 抛 NameError 被 except 吞掉
         completed = subprocess.CompletedProcess([], 0, stdout="8589934592\n")
+        # os.name 也要一并 mock：Windows 上 _mem_bytes 先命中 os.name == "nt" 分支
         with mock.patch.object(sys, "platform", "darwin"), \
+                mock.patch.object(agent.os, "name", "posix"), \
                 mock.patch("subprocess.run", return_value=completed):
             total, _avail = agent._mem_bytes()
         self.assertEqual(total, 8589934592)
@@ -58,6 +60,7 @@ class SysInfoTests(unittest.TestCase):
     def test_darwin_cpu_model_uses_sysctl_without_name_error(self):
         completed = subprocess.CompletedProcess([], 0, stdout="Apple M2 Pro\n")
         with mock.patch.object(sys, "platform", "darwin"), \
+                mock.patch.object(agent.os, "name", "posix"), \
                 mock.patch("subprocess.run", return_value=completed):
             text = agent.sys_info()
         self.assertIn("CPU model: Apple M2 Pro", text)

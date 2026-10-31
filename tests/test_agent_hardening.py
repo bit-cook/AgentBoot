@@ -283,11 +283,17 @@ class ProcessTreeKillTests(unittest.TestCase):
 
     def test_own_pid_is_never_signaled(self):
         proc = self._proc(pid=os.getpid())
-        with mock.patch.object(menu.os, "killpg") as killpg, \
-                mock.patch.object(menu.os, "getpgid") as getpgid:
-            menu._kill_process_tree(proc)
-        killpg.assert_not_called()
-        getpgid.assert_not_called()
+        if os.name == "nt":
+            # Windows 分支走 taskkill：自己的进程绝不能触发任何清理调用
+            with mock.patch.object(menu.subprocess, "run") as run:
+                menu._kill_process_tree(proc)
+            run.assert_not_called()
+        else:
+            with mock.patch.object(menu.os, "killpg") as killpg, \
+                    mock.patch.object(menu.os, "getpgid") as getpgid:
+                menu._kill_process_tree(proc)
+            killpg.assert_not_called()
+            getpgid.assert_not_called()
         proc.kill.assert_not_called()
 
     @unittest.skipIf(os.name == "nt", "POSIX 专用")

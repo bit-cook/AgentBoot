@@ -13,11 +13,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "core"))
 
 import agent  # noqa: E402
+import i18n  # noqa: E402
 import menu  # noqa: E402
 
 
 class PickAgentFeedbackTests(unittest.TestCase):
     """多选界面输入无法识别的编号/ID 时必须给出反馈，不能静默跳回主菜单。"""
+
+    def setUp(self):
+        # 断言的是中文提示文案：把全局语言钉回默认，屏蔽其他用例的语言泄漏
+        i18n.set_lang("zh")
 
     def _agents(self):
         return [{"id": "codex", "name": "Codex", "method": "npm", "offline": True,

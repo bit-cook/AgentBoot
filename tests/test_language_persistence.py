@@ -17,14 +17,23 @@ import menu  # noqa: E402
 class LanguagePersistenceTests(unittest.TestCase):
     def test_resolve_language_returns_the_loaded_config(self):
         cfg = {"lang": "en"}
-        with mock.patch.object(menu.agent, "load_config", return_value=cfg) as load:
-            self.assertIs(menu.resolve_lang(), cfg)
+        previous = i18n.get_lang()
+        try:
+            with mock.patch.object(menu.agent, "load_config", return_value=cfg) as load:
+                # resolve_lang 会顺手把全局语言切过去，结束后必须恢复
+                self.assertIs(menu.resolve_lang(), cfg)
+        finally:
+            i18n.set_lang(previous)
         load.assert_called_once_with()
 
     def test_language_switch_mutates_live_config(self):
         cfg = agent.default_config()
-        with mock.patch.object(menu.agent, "save_config"):
-            menu.set_lang_persist("en", cfg)
+        previous = i18n.get_lang()
+        try:
+            with mock.patch.object(menu.agent, "save_config"):
+                menu.set_lang_persist("en", cfg)
+        finally:
+            i18n.set_lang(previous)   # 不恢复会泄漏到后续测试，断言中文消息的用例会炸
         self.assertEqual(cfg["lang"], "en")
 
     def test_english_prompt_does_not_order_chinese(self):
