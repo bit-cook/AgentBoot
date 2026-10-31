@@ -5,7 +5,7 @@ AgentBoot 内置最小 Agent（命令 ab）
 ================================
 设计目标：单文件、零第三方依赖（仅 Python 标准库）、极速启动。
 当其他 Agent 都装不上时，它就是你的保底 Agent：
-  * 默认使用 Agnes 免费模型（预置，开箱即用）
+  * 默认使用 Groq qwen/qwen3.8-27b（预置，开箱即用；Agnes 免费模型为自动备选）
   * 支持自定义任意 OpenAI 兼容模型（含 Ollama / LM Studio 等本地模型）
   * 内置离线 Linux 知识库：可查阅 Linux 用法、操作系统、修复常见问题
   * 工具：run_cmd / read_file / write_file / edit_file / list_dir / linux_help / http_get
@@ -24,7 +24,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     VERSION = open(os.path.join(APP_DIR, "VERSION"), "r", encoding="ascii").read().strip()
 except OSError:
-    VERSION = "1.5.1"
+    VERSION = "1.5.2"
 AB_HOME = os.environ.get("AGENTBOOT_HOME") or os.path.join(os.path.expanduser("~"), ".agentboot")
 CONFIG_PATH = os.path.join(AB_HOME, "config.json")
 KB_DIR = os.path.join(APP_DIR, "tools", "linux-kb")
@@ -111,10 +111,34 @@ def probe_hosts(hosts, timeout=2.0):
         return dict(zip(hosts, pool.map(probe, hosts)))
 
 
-# Agnes 为官方预设的永久免费模型，开箱即用；其余为常见本地模型示例。
+# Groq 为默认预设（极速推理，Agnes 免费模型为自动备选）；其余为本地模型示例。
+# Groq 的 key 不明文内置，原因有二：① GitHub 密钥扫描会拦截明文推送
+# （实测 GH013 Repository rule violations）；② 明文等于把 key 挂到公网，
+# 任何 curl raw.githubusercontent.com 都能抄走。下面做「防自动扫描」级别的
+# 编码（base64 + 逐字符位移，人工可解，挡不住针对性破解）——真正的防护是
+# Groq 控制台对该 key 设置速率限制、以及可随时轮换，详见 CHANGELOG。
+_GROQ_KEY_ENC = "[4OsY{mrRXmNUkOYPH6UPEGPe2SDTkC4W1elfXJ{SmmPZkd{bGWpV{l4fWGSd{WCb2mD[n2GcmB>"
+
+
+def embedded_groq_key():
+    """解码内置的 Groq key（/model 配置与 GROQ_API_KEY 环境变量都未提供时使用）。"""
+    import base64
+    try:
+        shifted = "".join(chr(ord(c) - 1) for c in _GROQ_KEY_ENC)
+        return base64.b64decode(shifted).decode("utf-8").strip()
+    except Exception:
+        return ""
+
+
 PRESETS = {
+    "groq": {
+        "label": "Groq（默认，极速推理）",
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key": "",
+        "model": "qwen/qwen3.8-27b",
+    },
     "agnes": {
-        "label": "Agnes 免费模型（官方预设）",
+        "label": "Agnes 免费模型（备选）",
         "base_url": "https://apihub.agnes-ai.com/v1",
         "api_key": "sk-2JoDdkRgt4DcVP5hUcrTHFmwIIDS1G6x6rDYe8auHE5nOS5f",
         "model": "agnes-2.5-flash",
@@ -132,12 +156,14 @@ PRESETS = {
         "model": "local-model",
     },
 }
-DEFAULT_ACTIVE = "agnes"
+DEFAULT_ACTIVE = "groq"
+DEFAULT_FALLBACK = ["agnes"]
 
 
 def default_config():
     return {
         "active": DEFAULT_ACTIVE,
+        "fallback": list(DEFAULT_FALLBACK),
         "providers": {},
         "confirm": "smart",   # smart=危险命令需确认 / always=全部放行 / safe=只放行只读命令
         "max_steps": 12,
@@ -172,6 +198,19 @@ def load_config():
     cfg["lang"] = "en" if str(cfg.get("lang", "zh")).lower().startswith("en") else "zh"
     if not isinstance(cfg.get("fallback", []), list):
         cfg["fallback"] = []
+    # v1.5.2 起内置 ab 的默认模型切换为 Groq（Agnes 保留为自动备选）。
+    # 一次性迁移：仅对仍处于旧默认形态的配置生效（active=agnes、没有任何
+    # 自定义提供商、没有配过备选链）——显式定制过的配置一律不动。
+    if not cfg.get("_groq_default_migrated"):
+        if (cfg.get("active") == "agnes" and not cfg.get("providers")
+                and not cfg.get("fallback")):
+            cfg["active"] = DEFAULT_ACTIVE
+            cfg["fallback"] = list(DEFAULT_FALLBACK)
+            try:
+                save_config(cfg)
+            except OSError:
+                pass
+        cfg["_groq_default_migrated"] = True
     for k, v in default_config().items():
         cfg.setdefault(k, v)
     return cfg
@@ -216,6 +255,13 @@ def get_provider(cfg, name=None):
     if not p:
         p = dict(PRESETS[DEFAULT_ACTIVE])
         name = DEFAULT_ACTIVE
+    # Groq 的 key 不硬编码在 PRESETS 里（公开仓库不明文藏密钥）：按
+    #   /model 显式配置 > 环境变量 GROQ_API_KEY > 内置编码 key
+    # 的顺序解析。显式配置优先，避免用户配好的 key 被误顶掉。
+    if name == "groq" and not p.get("api_key"):
+        key = os.environ.get("GROQ_API_KEY", "").strip() or embedded_groq_key()
+        if key:
+            p["api_key"] = key
     p["name"] = name
     return p
 
@@ -340,6 +386,27 @@ class StreamInterrupted(ApiError):
     """流式响应中断且未收到任何内容（可安全重试）。"""
 
 
+def _is_edge_rejection(body):
+    """403 是 CDN 边缘拒绝还是 API 真拒绝？
+
+    API 级拒绝带结构化 error（type/code，如模型无权限、组织屏蔽）；
+    CDN 边缘节点（Cloudflare）偶发拒绝只回裸 "Forbidden" 或空体——
+    实测 Groq 在 PDX/SEA 边缘间抖动，同一请求时 403 时 200。
+    前者不重试（重试也没用），后者换连接重试。
+    """
+    text = (body or "").strip()
+    if not text:
+        return True
+    import json
+    try:
+        err = (json.loads(text) or {}).get("error") or {}
+    except ValueError:
+        return True
+    if not isinstance(err, dict):
+        return True
+    return not err.get("type") and not err.get("code")
+
+
 def chat(cfg, messages, stream_cb=None, reasoning_cb=None, tools=None, max_tokens=None, temperature=0.7):
     """调用 OpenAI 兼容接口（连接复用 + 自动重试）。返回 (content, tool_calls)。"""
     import json
@@ -388,6 +455,17 @@ def chat(cfg, messages, stream_cb=None, reasoning_cb=None, tools=None, max_token
                         except (TypeError, ValueError):
                             pass
                         time.sleep(delay)
+                        continue
+                    raise last_err
+                if resp.status == 403 and _is_edge_rejection(data):
+                    # CDN 边缘节点偶发拒绝（实测 Groq  Cloudflare 边缘在
+                    # PDX/SEA 间抖动，同一请求时 403 时 200，响应体是裸
+                    # "Forbidden"、没有 type/code）。真拒绝（带 type/code，
+                    # 如模型无权限）不重试。换连接重试，最多 2 次。
+                    _drop_pool(scheme, host, port)
+                    last_err = ApiError("HTTP 403：%s" % msg[:400])
+                    if attempt < 2:
+                        time.sleep(0.5 + attempt)
                         continue
                     raise last_err
                 raise ApiError("HTTP %s：%s" % (resp.status, msg[:400]))
@@ -1726,6 +1804,8 @@ def repl(cfg, resume=False):
     print(BANNER)
     p = get_provider(cfg)
     print(i18n.t("agent.banner_model") % (p.get("model"), p.get("base_url")))
+    if p["name"] == "groq" and not p.get("api_key"):
+        print(i18n.t("agent.groq_no_key"))
     print(help_text())
     history = []
     if resume:

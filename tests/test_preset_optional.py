@@ -100,7 +100,7 @@ class InstallGateTests(unittest.TestCase):
     def test_online_default_does_not_wire_agnes(self):
         with mock.patch.object(menu, "load_registry", return_value=[self.AGENT]), \
                 mock.patch.object(menu, "npm_install", return_value=True), \
-                mock.patch.object(menu, "find_bin", return_value="/managed/bin/codex"), \
+                mock.patch.object(menu, "resolve_shim_target", return_value="/managed/bin/codex"), \
                 mock.patch.object(menu, "write_online_shim", return_value=True) as shim, \
                 mock.patch.object(menu, "wire_agnes") as wire, \
                 mock.patch.object(menu, "record_install") as record, \
@@ -117,7 +117,7 @@ class InstallGateTests(unittest.TestCase):
     def test_online_preset_flag_wires_agnes(self):
         with mock.patch.object(menu, "load_registry", return_value=[self.AGENT]), \
                 mock.patch.object(menu, "npm_install", return_value=True), \
-                mock.patch.object(menu, "find_bin", return_value="/managed/bin/codex"), \
+                mock.patch.object(menu, "resolve_shim_target", return_value="/managed/bin/codex"), \
                 mock.patch.object(menu, "write_online_shim", return_value=True), \
                 mock.patch.object(menu, "wire_agnes",
                                   return_value=({"K": "v"}, [])) as wire, \
@@ -130,7 +130,7 @@ class InstallGateTests(unittest.TestCase):
     def test_online_setting_on_wires_agnes(self):
         with mock.patch.object(menu, "load_registry", return_value=[self.AGENT]), \
                 mock.patch.object(menu, "npm_install", return_value=True), \
-                mock.patch.object(menu, "find_bin", return_value="/managed/bin/codex"), \
+                mock.patch.object(menu, "resolve_shim_target", return_value="/managed/bin/codex"), \
                 mock.patch.object(menu, "write_online_shim", return_value=True), \
                 mock.patch.object(menu, "wire_agnes",
                                   return_value=({"K": "v"}, [])) as wire, \

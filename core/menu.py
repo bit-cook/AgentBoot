@@ -278,6 +278,90 @@ def preset_status_line():
         log_info("原版安装：不预置模型，首次运行时自选（--preset 可改为预置 Agnes）")
 
 
+# ---------------------------------------------------------------- 安装版本选择
+
+def _version_sort_key(v):
+    try:
+        return tuple(int(x) for x in v.split("."))
+    except ValueError:
+        return (0,)
+
+
+def agent_npm_versions(a, count=12):
+    """拉取该 Agent 的可用稳定版本（最新在前）。
+
+    数据源：npm registry 的 packument（国内走 npmmirror，海外走 npmjs），
+    过滤掉预发布/Dev 构建与平台分包（如 0.166.0-linux-x64）。网络失败
+    返回 []——调用方按「用默认（最新）」处理。
+    """
+    spec = a.get("npm") or ""
+    pkg = _npm_package_name_from_spec(spec)
+    if not pkg:
+        return []
+    from urllib.request import Request, urlopen
+    from urllib.parse import quote
+    hosts = (["https://registry.npmmirror.com"] if cn_mode()
+             else ["https://registry.npmjs.org"])
+    hosts.append("https://registry.npmmirror.com" if "npmjs.org" in hosts[0]
+                 else "https://registry.npmjs.org")
+    for host in hosts:
+        try:
+            req = Request("%s/%s" % (host, quote(pkg, safe="")),
+                          headers={"Accept": "application/vnd.npm.install-v1+json",
+                                   "User-Agent": "AgentBoot"})
+            with urlopen(req, timeout=15) as resp:
+                data = json.load(resp)
+            stable = [v for v in (data.get("versions") or {})
+                      if re.fullmatch(r"\d+\.\d+\.\d+", v)]
+            stable.sort(key=_version_sort_key, reverse=True)
+            latest = (data.get("dist-tags") or {}).get("latest")
+            if latest and latest not in stable:
+                stable.insert(0, latest)
+            return stable[:count]
+        except Exception:
+            continue
+    return []
+
+
+def resolve_npm_spec(a, version=None):
+    """按用户选择生成 npm 安装 spec。
+
+    version=None → 用 registry 默认（现在一律不带版本号=最新）；
+    指定了版本 → 替换默认 spec 里的版本（或追加）。
+    """
+    spec = (a.get("npm") or "").strip()
+    if not version:
+        return spec
+    version = str(version).strip().lstrip("v=@")
+    pkg = _npm_package_name_from_spec(spec)
+    if not pkg:
+        return spec
+    return "%s@%s" % (pkg, version)
+
+
+def parse_agent_version_tokens(tokens):
+    """解析 CLI 里的 <id>@<version> 记号，返回 {agent_id: version}。"""
+    versions = {}
+    for tok in tokens:
+        if "@" in tok and not tok.startswith("@"):
+            aid, _, version = tok.partition("@")
+            if aid and version:
+                versions[aid] = version
+    return versions
+
+
+def preset_version_warning(aid, version):
+    """Agnes 预设 + codex 新版的兼容性提醒（0.100+ 移除 chat 协议）。"""
+    if aid != "codex" or not version:
+        return
+    try:
+        if _version_sort_key(version.lstrip("v")) > (0, 90, 0):
+            log_err("注意：codex %s 已移除 chat 协议，与 Agnes 预设不兼容；" % version)
+            log_err("      如使用 Agnes 预设请改装 codex@0.90.0；官方登录不受影响。")
+    except ValueError:
+        pass
+
+
 def npm_registry(cn=None):
     """安装使用的 npm 源：用户固定选择（env.json）优先，其次按网络自动选路。"""
     chosen = (load_env_json().get("npm_registry") or "").strip()
@@ -812,6 +896,51 @@ def shim_bin_dirs():
     return [d for d in dirs if d]
 
 
+def _shim_exec_target(path):
+    """解析一个 AgentBoot shim 的 exec 目标（POSIX：exec "..." 行）。"""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return None
+    m = re.search(r'^\s*exec\s+"([^"]+)"', text, re.M)
+    return m.group(1) if m else None
+
+
+def resolve_shim_target(name):
+    """解析 shim 应指向的「真实可执行文件」。
+
+    绝不返回 AgentBoot 自己写的 shim：find_bin 先搜 shim 目录，重装时会把
+    旧 shim 当真身返回，新 shim 再 exec 旧 shim → 死循环（v1.5.1 实测踩坑）。
+    解析顺序：
+      1) npm prefix bin（在线安装的真身就在这）+ 离线 payload 目录
+      2) PATH 上的其它位置（跳过自身 shim 目录）
+      3) 旧 shim 的 exec 目标（带环保护，目标仍位于 shim 目录则放弃）
+    """
+    cands = [name + (".cmd" if not POSIX else "")] if not POSIX else [name]
+    my_dirs = shim_bin_dirs()
+
+    def _not_mine(p):
+        return bool(p) and not any(_inside(p, d) for d in my_dirs)
+
+    for d in prefix_bin_dirs():
+        for c in cands:
+            p = os.path.join(d, c)
+            if os.path.isfile(p):
+                return p
+    which = shutil.which(name)
+    if _not_mine(which):
+        return which
+    for d in my_dirs:
+        for c in cands:
+            p = os.path.join(d, c)
+            if os.path.isfile(p):
+                target = _shim_exec_target(p)
+                if target and os.path.exists(target) and _not_mine(target):
+                    return target
+    return None
+
+
 def find_bin(name):
     cands = [name + (".cmd" if not POSIX else "")] if not POSIX else [name]
     for d in shim_bin_dirs() + prefix_bin_dirs():
@@ -1275,8 +1404,9 @@ def npm_install(pkg, minimum=None, context=None):
     return False
 
 
-def install_online(ids, preset=None):
+def install_online(ids, preset=None, versions=None):
     preset = _resolve_preset(preset)
+    versions = versions or {}
     agents = load_registry()
     by_id = {a["id"]: a for a in agents}
     ok_list, fail_list = [], []
@@ -1309,7 +1439,7 @@ def install_online(ids, preset=None):
     for minimum, group in npm_groups.items():
         if len(group) < 2:
             continue
-        packages = [a["npm"] for a in group]
+        packages = [resolve_npm_spec(a, versions.get(a["id"])) for a in group]
         log_info("批量安装 %d 个 npm Agent（共用依赖解析与连接）" % len(group))
         if npm_install(packages, minimum, npm_context):
             batched.update(a["id"] for a in group)
@@ -1319,6 +1449,9 @@ def install_online(ids, preset=None):
     for a in ready:
         aid = a["id"]
         method = a.get("method", "npm")
+        version = versions.get(aid)
+        if preset and version:
+            preset_version_warning(aid, version)
         ok = False
         if a.get("special_install") == "hermes":
             log_info("使用 hermes 专用安装流程（自动适配网络）")
@@ -1328,7 +1461,10 @@ def install_online(ids, preset=None):
         elif a.get("special_install") == "cursor":
             ok = install_cursor(a)
         elif method == "npm":
-            ok = aid in batched or npm_install(a["npm"], a.get("node"), npm_context)
+            spec = resolve_npm_spec(a, version)
+            if version:
+                log_info("按指定版本安装：%s" % spec)
+            ok = aid in batched or npm_install(spec, a.get("node"), npm_context)
         elif method == "script":
             ok = install_via_script(a)
         elif method == "pip":
@@ -1336,7 +1472,7 @@ def install_online(ids, preset=None):
         elif method == "venv":
             ok = install_aider_venv(a)
         if ok and a.get("bin"):
-            found = aider_venv_executable() if method == "venv" else find_bin(a["bin"])
+            found = aider_venv_executable() if method == "venv" else resolve_shim_target(a["bin"])
             if found:
                 # 原版安装（默认）：不写任何模型配置、不注入环境变量。
                 # shim 始终写——它是命令进 PATH 的入口（AB_HOME/bin 在 PATH 上，
@@ -2715,6 +2851,27 @@ def pick_installed_agents(agents):
     return sorted(set(ids), key=known.index)
 
 
+def pick_versions(ids):
+    """安装前逐个询问版本（回车=最新）。返回 {agent_id: version}。
+
+    只对 npm 类 Agent 询问；版本列表拉取失败时只提示「默认最新」，
+    用户仍可手动输入版本号。
+    """
+    by_id = {a["id"]: a for a in load_registry()}
+    npm_agents = [aid for aid in ids if by_id.get(aid, {}).get("npm")]
+    if not npm_agents:
+        return {}
+    print("\n" + t("menu.pick_versions_title"))
+    chosen = {}
+    for aid in npm_agents:
+        found = agent_npm_versions(by_id[aid])
+        hint = (" · ".join(found[:6])) if found else t("menu.pick_version_latest")
+        raw = input("  %s [%s] %s" % (aid, hint, t("menu.pick_version_prompt"))).strip()
+        if raw:
+            chosen[aid] = raw.lstrip("v")
+    return chosen
+
+
 def menu_model(cfg):
     """模型配置：ab 提供商管理器 + 安装第三方 Agent 时的预置开关。"""
     agent.choose_model(cfg)
@@ -2907,6 +3064,10 @@ def write_online_shim(a, found, env_extra, args_prefix=None):
     """在线安装后写包装 shim（注入 Agnes 环境变量并转发到真实命令）。"""
     bin_ = a["bin"]
     args_prefix = args_prefix or []
+    if any(_inside(found, d) for d in shim_bin_dirs()):
+        log_err("拒绝写入 shim：解析目标 %s 是 AgentBoot 自己的 shim，"
+                "会形成 exec 死循环" % found)
+        return False
     bin_dir = shim_bin_dir()
     if not _ensure_bin_dir(bin_dir):
         log_err("无法创建 shim 目录：%s" % bin_dir)
@@ -3057,7 +3218,8 @@ def main_menu(cfg=None):
         elif c == "2":
             ids = pick_agents(agents, t("menu.pick2_title"), allow_custom=True)
             if ids:
-                install_online(ids)
+                versions = pick_versions(ids)
+                install_online(ids, versions=versions)
                 input(t("menu.enter_back"))
         elif c == "3":
             ids = pick_agents([a for a in agents if a.get("offline")], t("menu.pick3_title"))
@@ -3107,14 +3269,51 @@ def main():
         doctor()
     elif cmd == "install":
         preset = _preset_flag(argv[1:])
-        ids = [t for t in re.split(r"[,\s]+", " ".join(argv[1:])) if t and not t.startswith("-")]
+        raw_tokens = [t for t in re.split(r"[,\s]+", " ".join(argv[1:]))
+                      if t and not t.startswith("-")]
+        ids = [t.split("@", 1)[0] if "@" in t and not t.startswith("@") else t
+               for t in raw_tokens]
+        versions = parse_agent_version_tokens(raw_tokens)
+        # --version X：单 agent 时生效，多 agent 时报错（避免误指定）
+        if "--version" in argv:
+            vi = argv.index("--version")
+            want = argv[vi + 1] if vi + 1 < len(argv) else ""
+            if len(ids) == 1 and want:
+                versions[ids[0]] = want
+            elif want:
+                log_err("--version 只能配合单个 Agent；多 agent 请用 <id>@<version> 记号")
+                raise SystemExit(2)
         if ids:
             preset_status_line()
-            failures = install_online(ids, preset=preset)
+            failures = install_online(ids, preset=preset, versions=versions)
             if failures:
                 raise SystemExit(1)
         else:
-            print("用法: menu.py install [--preset|--no-preset] claude-code qwen-code")
+            print("用法: menu.py install [--preset|--no-preset] [<id>[@<版本>] ...]")
+            print("示例: menu.py install opencode@1.19.5 codex@0.90.0")
+            print("      menu.py install opencode --version 1.19.5")
+            print("查询可用版本: menu.py versions <id>")
+    elif cmd == "versions":
+        if len(argv) < 2:
+            print("用法: menu.py versions <agent-id>")
+            raise SystemExit(2)
+        lookup = {a["id"]: a for a in load_registry()}
+        target = lookup.get(argv[1])
+        if not target:
+            log_err("未知 Agent：%s" % argv[1])
+            raise SystemExit(1)
+        spec = target.get("npm") or ""
+        print("%s（%s）" % (target["name"], spec or target.get("method")))
+        if not spec:
+            print("  该 Agent 不走 npm，无版本列表。")
+        else:
+            found = agent_npm_versions(target)
+            if not found:
+                log_err("拉取版本列表失败（网络问题）；默认始终安装最新版。")
+            else:
+                print("  最近稳定版本（最新在前，安装时默认最新，可用 <id>@<版本> 指定）：")
+                for v in found:
+                    print("    %s%s" % (v, "  ← 最新" if v == found[0] else ""))
     elif cmd == "offline":
         payload = None
         if "--payload" in argv:

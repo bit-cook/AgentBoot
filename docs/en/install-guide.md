@@ -1,6 +1,6 @@
 # AgentBoot Installation Guide
 
-> **v1.5.1** · Linux / macOS / Windows · CLI UI in Chinese by default (switchable to English: `agentboot lang en`)
+> **v1.5.2** · Linux / macOS / Windows · CLI UI in Chinese by default (switchable to English: `agentboot lang en`)
 > AgentBoot is a minimal, fast, ready-to-run AI Agent launcher: it ships a built-in fallback agent while Cursor, OpenCode, Claude Code, Codex, FreeBuff and the other agents are installed from a menu of your choice. Cursor, Aider, and FreeBuff are online-only; OpenCode uses pinned official native binaries in verified offline packs.
 
 **目录 / Table of contents**: [One-command online install](#one-command-online-install) · [One-command offline install](#one-command-offline-install) · [Custom agents](#custom-agents-beyond-the-registry) · [Custom offline packages](#custom-offline-packages-slim) · [China network](#china-network-adaptive) · [Model providers](#model-providers) · [Built-in agent](#built-in-agent-ab) · [Upgrade & uninstall](#upgrade--uninstall) · [Troubleshooting](#online-install-troubleshooting) · [FAQ](#faq)
@@ -51,7 +51,7 @@ The installer itself uses project-controlled origins only: `boot.ide.pub` → Gi
 | Command | Purpose |
 |---|---|
 | `agentboot` | Chinese console menu: install agents / models / mirrors / custom offline builds |
-| `ab` | Built-in fallback agent — **free Agnes model, works immediately** |
+| `ab` | Built-in fallback agent — **Groq qwen/qwen3.8-27b by default (free Agnes auto-fallback), works immediately** |
 
 > On Windows, newly installed commands need a **new terminal window** to appear in PATH.
 >
@@ -66,9 +66,9 @@ Three steps: **① get an offline package → ② copy & extract → ③ run the
 ### Step 1 — Get an offline package
 
 - **Option A**: download from [Releases](https://github.com/bit-cook/AgentBoot/releases)
-  - `AgentBoot-offline-v1.5.1-win-x64-codex.zip` (Windows x64)
-  - `AgentBoot-offline-v1.5.1-linux-x64-codex.tar.gz` (Linux x64)
-  - `AgentBoot-offline-v1.5.1-linux-x64-codex-sfx.sh` (Linux x64 self-extracting file)
+  - `AgentBoot-offline-v1.5.2-win-x64-codex.zip` (Windows x64)
+  - `AgentBoot-offline-v1.5.2-linux-x64-codex.tar.gz` (Linux x64)
+  - `AgentBoot-offline-v1.5.2-linux-x64-codex-sfx.sh` (Linux x64 self-extracting file)
 - **Option B — build your own slim package** (recommended; see [Custom offline packages](#custom-offline-packages-slim)):
   pick platforms and agents, output goes to `dist/`.
 
@@ -77,9 +77,9 @@ Three steps: **① get an offline package → ② copy & extract → ③ run the
 | Target machine | How |
 |---|---|
 | Windows (any) | Right-click the ZIP → Extract All (built into Explorer) |
-| Windows 10/11 (CLI) | `tar -xf AgentBoot-offline-v1.5.1-win-x64-codex.zip` |
-| Linux x64 | `tar -xzf AgentBoot-offline-v1.5.1-linux-x64-codex.tar.gz -C ~` |
-| Minimal Linux x64 | `sh AgentBoot-offline-v1.5.1-linux-x64-codex-sfx.sh` |
+| Windows 10/11 (CLI) | `tar -xf AgentBoot-offline-v1.5.2-win-x64-codex.zip` |
+| Linux x64 | `tar -xzf AgentBoot-offline-v1.5.2-linux-x64-codex.tar.gz -C ~` |
+| Minimal Linux x64 | `sh AgentBoot-offline-v1.5.2-linux-x64-codex-sfx.sh` |
 
 ### Step 3 — Run the offline installer
 
@@ -111,7 +111,7 @@ The target verifies every payload file against the bundled `PAYLOAD_SHA256SUMS.t
 4. Node: deploys the bundled Node 22 runtime when the system has none;
 5. Copies the selected agents' payloads directly (no npm), generates command shims;
 6. Registers `~/.local/bin` (Windows: `%LOCALAPPDATA%\AgentBoot\bin`) into the user PATH (idempotent);
-7. `ab` works immediately: Agnes free model online; local models (Ollama / LM Studio) for fully-offline machines.
+7. `ab` works immediately: Groq online (free Agnes auto-fallback); local models (Ollama / LM Studio) for fully-offline machines.
 
 ### Offline package layout
 
@@ -188,15 +188,18 @@ Custom packs use the same structure and install flow as Release packs. Size depe
 
 ```
 ---- Model Providers ----
-  [1] agnes     agnes-2.5-flash  (https://apihub.agnes-ai.com/v1) ← current
+  [1] groq      qwen/qwen3.8-27b  (https://api.groq.com/openai/v1) ← current
+  [2] agnes     agnes-2.5-flash   (https://apihub.agnes-ai.com/v1) ← fallback
   [s] Switch   [a] Add provider   [d] Remove provider
   [f] Failover order   [t] Test current   [0] Done
 ```
 
-- **Agnes free model** (built-in preset): zero config, first run works;
+- **Groq (default)** (built-in preset): ultra-fast inference, zero config, first run works;
+- **Agnes free model (fallback)** (built-in preset): switches automatically when the primary fails;
 - **Custom providers**: any OpenAI-compatible endpoint, named, switchable, removable;
 - **Local models (fully offline)**: built-in Ollama (11434) and LM Studio (1234) presets; add vLLM as a custom OpenAI-compatible provider;
-- **Failover order**: primary failure switches automatically (e.g. `agnes → ollama`);
+- **Failover order**: defaults to `groq → agnes`; set any order (e.g. `groq → ollama`);
+- **Groq key management**: a default key is built in (encoded, scanner-resistant). To use your own: set `GROQ_API_KEY=gsk_...`, or `/model` → `[a] add` (provider name `groq`) — explicit config beats the env var and the built-in key. Rotate the built-in key in the Groq console if it is ever abused;
 - Config file: `~/.agentboot/config.json`.
 
 **Which agents talk to Agnes out of the box?** Codex and Qwen Code are auto-wired (config.toml / OPENAI_* env) after install; OpenCode gets an `opencode.json`; Claude Code (Anthropic protocol) and Gemini CLI (Google protocol) need their own accounts.
@@ -254,10 +257,10 @@ You can also choose menu `[9] Uninstall Agents`. AgentBoot records ownership in 
 ## ❓ FAQ
 
 **Which agents work with the free Agnes model right after install?**
-Codex and Qwen Code are auto-wired; OpenCode gets an `opencode.json`; the built-in `ab` always defaults to Agnes. Claude Code (Anthropic protocol) and Gemini CLI (Google protocol) need their own accounts.
+Codex and Qwen Code are auto-wired; OpenCode gets an `opencode.json`; the built-in `ab` defaults to Groq and auto-falls-back to Agnes. Claude Code (Anthropic protocol) and Gemini CLI (Google protocol) need their own accounts.
 
-**Why is codex pinned to 0.90.0?**
-0.100+ removed the chat wire protocol and 0.15x sends private tool types that OpenAI-compatible gateways reject. The pin keeps Agnes working out of the box; upgrade and use official login if you prefer.
+**Why does the Agnes preset suggest codex 0.90.0?**
+0.100+ removed the chat wire protocol and is incompatible with the Agnes preset. Defaults always install the latest (official login unaffected); pick the older version for the Agnes preset: `agentboot install codex@0.90.0`.
 
 **Release pack or custom pack?**
 Slim when the target machine needs 1–2 agents (e.g. 89MB win-x64 + Pi); full when unsure. Missing agents in a slim package are reported clearly during install.

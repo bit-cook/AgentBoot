@@ -9,7 +9,7 @@ $ProgressPreference = 'SilentlyContinue'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $Repo      = 'bit-cook/AgentBoot'
-$Tag       = 'v1.5.1'
+$Tag       = 'v1.5.2'
 $ZipName   = "agentboot-online-$Tag.zip"
 $BootBase  = 'https://boot.ide.pub'
 $GH        = "https://github.com/$Repo/releases/download/$Tag"
@@ -284,7 +284,7 @@ Write-Ok  'AgentBoot 安装完成！'
 Write-Host ''
 Write-Host '  如何启动：'
 Write-Host '    控制台菜单 : agentboot        （装/卸 Agent、镜像、模型配置）'
-Write-Host '    内置 Agent : ab              （直接对话，默认 Agnes 免费模型）'
+Write-Host '    内置 Agent : ab              （直接对话，默认 Groq qwen/qwen3.8-27b）'
 Write-Host '    安装其他 Agent：运行 agentboot → 选 [2] 在线安装'
 Write-Host ''
 Write-Host '  用户 PATH 已更新，新开终端自动生效。当前窗口立即生效请执行：'

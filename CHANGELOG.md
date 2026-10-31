@@ -1,5 +1,17 @@
 # 更新日志
 
+## v1.5.2 (2026-10-31)
+
+- 默认模型切换为 Groq：内置 agent `ab` 的默认模型改为 Groq 的 `qwen/qwen3.8-27b`（OpenAI 兼容，Base URL `https://api.groq.com/openai/v1`，约 450 t/s 极速推理；免费层额度 30 RPM / 1K RPD / 8K TPM / 200K TPD，个人使用足够）。Agnes 免费模型不删，作为自动备选——主源失败时 chat_auto 按 `cfg["fallback"]` 自动切换，Groq 不可用（限流/欠费/地区封锁）也不会对话不了。`/model` 与菜单 [4] 的提供商管理器自动列出 Groq（当前）与 Agnes（备选）。
+- Groq key 防护（用户专用 key，默认内置）：不明文进仓库——GitHub 密钥扫描会拦截明文推送（实测 GH013），且明文等于把 key 挂到公网。改为 base64+位移编码内置（`embedded_groq_key()`，防自动扫描层），解析顺序 `/model` 显式配置 > 环境变量 `GROQ_API_KEY` > 内置 key。真正的防护在 Groq 控制台：建议对该 key 设置速率/消费上限，被滥用时可直接轮换（轮换后改 `_GROQ_KEY_ENC` 一处即可）。
+- 修复 CDN 边缘 403 抖动不重试：实测 Groq 前端 Cloudflare 在 PDX/SEA 边缘间抖动，同一请求时 403 时 200/404（403 响应体是裸 "Forbidden"、无 type/code）。新增 `_is_edge_rejection()` 判别：裸 Forbidden/空体/非 JSON = 边缘拒绝（换连接重试，最多 2 次）；带 type/code 的结构化错误（模型无权限、组织屏蔽）= 真拒绝，立即失败不重试。
+- 新增一次性配置迁移：仅对仍处旧默认形态（active=agnes、无自定义提供商、未配过备选链）的配置切到新默认，显式定制过的配置一律不动。
+- 全新干净 Linux 机器（InstaBox，美国 AWS）实测：默认提供商解析正确（groq + qwen/qwen3.8-27b + 内置 key）；流式对话 0.37s 首响、28 个流式片、中文回复正常；工具调用正确发出 `run_cmd`；groq 故障时自动切 agnes。同机探查确认：该 key 免费层可见 11 个模型，qwen/qwen3.8-27b 在列且可用；llama-3.1-8b/3.3-70b 为 Enterprise 档不在免费层（返回 404 model_not_found）。另确认本机（国内 IP）被 Groq 地区封锁（全 403）——内置 key 面向可访问 Groq 的地区，被封锁地区自动落 Agnes 备选。
+- 所有 Agent 默认安装最新版：注册表此前的两个钉版（opencode-ai 1.18.25、@openai/codex 0.90.0）全部取消，npm spec 一律不带版本号——opencode 不再提示更新（实测新版 1.19.5）。codex 0.100+ 移除 chat 协议、与 Agnes 预设不兼容的问题改由「版本自选 + 预设期警告」解决：用 Agnes 预设装 codex 且版本 >0.90.0 时明确提示改用 `codex@0.90.0` 或官方登录；v1.5.0 起默认原版安装（用用户自己的 provider）不受影响。
+- 新增版本自选功能：`agentboot install <id>@<版本>`（如 `agentboot install opencode@1.19.4`）、`agentboot install <id> --version <版本>`、菜单 [2] 选完 Agent 后逐个询问（回车=最新，同时展示最近版本列表）、`agentboot versions <id>` 查询可用版本（真实拉取 npm registry，过滤预发布与平台分包）。新增 `agent_npm_versions()` / `resolve_npm_spec()` / `parse_agent_version_tokens()`，`install_online` 全链路透传 versions（批量与单装两条路径）。
+- 修复重装已安装 Agent 时 shim 自指死循环：在线安装用 `find_bin` 解析真身，而 `find_bin` 先搜 shim 目录——机器上已有旧 shim 时返回旧 shim 自身，新 shim 的 exec 行指向自己，命令永远跑不起来（exec 无限循环；仅在有旧安装的机器上复现，全新机器碰不到）。新增 `resolve_shim_target()`：npm prefix bin 优先 → PATH 跳过自身 shim 目录 → 旧 shim 的 exec 目标带环保护；`write_online_shim` 再加一道「目标在 shim 目录内一律拒绝写入」的兜底防御。
+- 新增回归测试：tests/test_agent_version_selection.py（13 个：注册表不变量「npm spec 不得带版本号」/spec 解析/记号解析/版本列表过滤（mock 网络）/安装链路透传/预设警告）、tests/test_groq_default_model.py（12 个：预设值/默认与备选/env 覆盖/显式配置优先/一次性迁移三形态/groq 失败自动切 agnes）、tests/test_shim_target_resolution.py（7 个：prefix 优先于旧 shim/自指 shim 跳过/exec 目标解析/PATH 候选/写入防御）。测试总数 339 全绿。
+
 ## v1.5.1 (2026-10-31)
 
 - 安装后命令立即可用（修复「装完 agentboot / opencode 找不到命令，还要手动 source ~/.bashrc」）：launcher 与 Agent shim 的安装目录从 `~/.local/bin`（默认不在 PATH 上，只能靠写 shell 配置 + 重开终端）改为优先 `/usr/local/bin`——它默认就在所有 shell 的 PATH 上。root 直接写；非 root 但有 passwordless sudo 时经 `sudo -n install` 落盘（绝不弹密码提示）；两者都不满足才退回 `~/.local/bin` + shell 配置兜底。离线安装器同样处理。

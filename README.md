@@ -29,6 +29,12 @@
 
 ```bash
 curl -fsSL https://boot.ide.pub/install.sh | sh
+
+所有 Agent 默认安装最新版；也可自选版本：
+  agentboot versions opencode          # 查看可用版本
+  agentboot install opencode@1.19.4    # 安装指定版本
+  菜单 [2] 选完 Agent 后逐个询问（回车=最新）
+
 ```
 
 **Windows（PowerShell）**

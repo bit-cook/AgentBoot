@@ -97,7 +97,7 @@ class InstallTrackingTests(unittest.TestCase):
                  "method": "npm", "npm": "@openai/codex@0.90.0"}
         with mock.patch.object(menu, "load_registry", return_value=[agent]), \
                 mock.patch.object(menu, "npm_install", return_value=True), \
-                mock.patch.object(menu, "find_bin", return_value="/managed/npm/bin/codex"), \
+                mock.patch.object(menu, "resolve_shim_target", return_value="/managed/npm/bin/codex"), \
                 mock.patch.object(menu, "wire_agnes", return_value=({}, [])), \
                 mock.patch.object(menu, "write_online_shim", return_value=True), \
                 mock.patch.object(menu, "NPM_PREFIX", "/managed/npm"), \

@@ -26,7 +26,7 @@ class AgentLifecycleTests(unittest.TestCase):
         ]
         with mock.patch.object(menu, "load_registry", return_value=agents), \
                 mock.patch.object(menu, "npm_install", return_value=True) as install, \
-                mock.patch.object(menu, "find_bin", side_effect=lambda name: "/managed/" + name), \
+                mock.patch.object(menu, "resolve_shim_target", side_effect=lambda name: "/managed/" + name), \
                 mock.patch.object(menu, "wire_agnes", return_value=({}, [])), \
                 mock.patch.object(menu, "record_install"), \
                 mock.patch.object(menu, "ensure_path_registered"):
@@ -54,7 +54,8 @@ class AgentLifecycleTests(unittest.TestCase):
         registry = json.loads((ROOT / "agents/registry.json").read_text(encoding="utf-8"))
         opencode = next(agent for agent in registry["agents"] if agent["id"] == "opencode")
         self.assertTrue(opencode["offline"])
-        self.assertEqual(opencode["npm"], "opencode-ai@1.18.25")
+        # 默认一律装最新：npm spec 不带版本号（用户可自选版本安装）
+        self.assertEqual(opencode["npm"], "opencode-ai")
         self.assertEqual(opencode["offline_binary_packages"]["linux-x64"],
                          ["opencode-linux-x64", "opencode-linux-x64-baseline"])
 

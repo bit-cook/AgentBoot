@@ -9,7 +9,7 @@
 set -eu
 
 REPO="bit-cook/AgentBoot"
-TAG="v1.5.1"
+TAG="v1.5.2"
 TARBALL="agentboot-online-${TAG}.tar.gz"
 BOOT_BASE="https://boot.ide.pub"
 GH="https://github.com/${REPO}/releases/download/${TAG}"
@@ -289,8 +289,11 @@ ok  "AgentBoot 安装完成！"
 say ""
 say "  如何启动："
 say "    控制台菜单 : agentboot        （装/卸 Agent、镜像、模型配置）"
-say "    内置 Agent : ab              （直接对话，默认 Agnes 免费模型）"
+say "    内置 Agent : ab              （直接对话，默认 Groq qwen/qwen3.8-27b）"
 say "    安装其他 Agent：运行 agentboot → 选 [2] 在线安装"
+say ""
+say "  模型说明：ab 默认用 Groq（qwen/qwen3.8-27b，极速推理）；未配置 Groq"
+say "  API Key 时自动改用 Agnes 免费模型备选，两种方式都能直接对话。"
 say ""
 case ":$PATH:" in
     *":${BIN_DIR}:"*)

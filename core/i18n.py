@@ -8,7 +8,7 @@
 _LANG = "zh"
 
 ZH = {
-    "menu.tagline": "极简 · 极速 · 开箱即用的 AI Agent 启动器（默认 Agnes 免费模型）",
+    "menu.tagline": "极简 · 极速 · 开箱即用的 AI Agent 启动器（默认 Groq，Agnes 备选）",
     "menu.m1": "环境体检（推荐先跑一次）",
     "menu.m2": "在线安装 Agent（菜单多选）",
     "menu.m3": "离线安装 Agent（需离线安装包）",
@@ -27,6 +27,9 @@ ZH = {
     "menu.pick_none": "（未识别任何有效编号或 Agent ID，已返回上级菜单）",
     "menu.pick_all": "  [ a] 全选 npm 类 · [ 0] 返回",
     "menu.pick_all_a": "全选 npm 类",
+    "menu.pick_versions_title": "---- 安装版本（回车=最新）----",
+    "menu.pick_version_latest": "默认最新",
+    "menu.pick_version_prompt": "版本（回车=最新）: ",
     "menu.preset_title": "---- 安装 Agent 时的模型预置 ----",
     "menu.preset_state": "当前：[%s]",
     "menu.preset_on": "开（安装即写入 Agnes 免费模型）",
@@ -124,7 +127,7 @@ ZH = {
     "menu.pick_offline_agents": "选择要打入离线包的 Agent（可多选；回车 = 全选）：",
     "menu.build_plan": "即将构建：平台 %s · Agent %s",
     "menu.build_yn": "确认开始? [Y/n] ",
-    "agent.banner_model": "模型: %s @ %s（Agnes 官方免费预设，可用 /model 切换）",
+    "agent.banner_model": "模型: %s @ %s（可用 /model 切换提供商）",
     "agent.banner_resume": "↩ 已恢复上次会话（%d 条对话记忆，/继续 可随时恢复）",
     "agent.prompt": "\n你 › ",
     "agent.bye_saved": "\n再见！（会话已保存，下次 ab -c 可继续）",
@@ -134,6 +137,7 @@ ZH = {
     "agent.cleared": "已清空对话历史。",
     "agent.interrupted": "\n（已中断本条任务）",
     "agent.mm_title": "---- 模型提供商管理 ----",
+    "agent.groq_no_key": "提示：Groq 尚未配置 API Key——设环境变量 GROQ_API_KEY，或用 /model 添加（[a] 添加，提供商名填 groq）；未配置时自动使用 Agnes 免费备选。",
     "agent.mm_current": " ← 当前",
     "agent.mm_fallback": " · 备用",
     "agent.mm_menu": "  [s] 切换当前模型源   [a] 添加自定义提供商   [d] 删除自定义提供商",
@@ -181,7 +185,7 @@ ZH = {
 }
 
 EN = {
-    "menu.tagline": "Minimal, fast, ready-to-run AI Agent launcher (Agnes free model by default)",
+    "menu.tagline": "Minimal, fast, ready-to-run AI Agent launcher (Groq by default, Agnes as fallback)",
     "menu.m1": "Environment check (recommended first)",
     "menu.m2": "Install Agents online (multi-select)",
     "menu.m3": "Install Agents offline (needs offline package)",
@@ -200,6 +204,9 @@ EN = {
     "menu.pick_none": "(No valid number or agent ID recognized, returning to the previous menu)",
     "menu.pick_all": "  [ a] Select all npm agents · [ 0] Back",
     "menu.pick_all_a": "select all npm agents",
+    "menu.pick_versions_title": "---- Install version (Enter = latest) ----",
+    "menu.pick_version_latest": "latest by default",
+    "menu.pick_version_prompt": "version (Enter = latest): ",
     "menu.preset_title": "---- Model preset when installing Agents ----",
     "menu.preset_state": "Current: [%s]",
     "menu.preset_on": "ON (installs pre-wire the free Agnes model)",
@@ -297,7 +304,7 @@ EN = {
     "menu.pick_offline_agents": "Pick agents to include (multi-select; Enter = all):",
     "menu.build_plan": "About to build: platforms %s · agents %s",
     "menu.build_yn": "Start? [Y/n] ",
-    "agent.banner_model": "Model: %s @ %s (Agnes free preset, /model to switch)",
+    "agent.banner_model": "Model: %s @ %s (/model to switch providers)",
     "agent.banner_resume": "↩ Restored last session (%d messages, /继续 to restore again)",
     "agent.prompt": "\nyou › ",
     "agent.bye_saved": "\nBye! (session saved — run ab -c to continue)",
@@ -307,6 +314,7 @@ EN = {
     "agent.cleared": "History cleared.",
     "agent.interrupted": "\n(task interrupted)",
     "agent.mm_title": "---- Model Providers ----",
+    "agent.groq_no_key": "Note: Groq has no API key yet — set GROQ_API_KEY or add one via /model ([a] add, provider name groq). Without a key the free Agnes fallback is used automatically.",
     "agent.mm_current": " ← current",
     "agent.mm_fallback": " · fallback",
     "agent.mm_menu": "  [s] Switch active    [a] Add provider       [d] Remove provider",

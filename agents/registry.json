@@ -23,7 +23,7 @@
       "desc": "开源终端 AI 编码 Agent（TUI）",
       "bin": "opencode",
       "method": "npm",
-      "npm": "opencode-ai@1.18.25",
+      "npm": "opencode-ai",
       "node": ">=18",
       "offline": true,
       "npm_install_flags": ["--ignore-scripts"],
@@ -117,10 +117,10 @@
       "desc": "OpenAI 官方终端编码智能体",
       "bin": "codex",
       "method": "npm",
-      "npm": "@openai/codex@0.90.0",
+      "npm": "@openai/codex",
       "node": ">=16",
       "offline": true,
-      "notes": ["模型：默认原版安装不预置（首次运行时自选）；agentboot preset on 后安装即写入 Agnes", "钉住 0.90.0：0.100+ 移除了 chat 协议，且新版私有工具类型与 OpenAI 兼容网关不兼容", "如需官方 ChatGPT 登录，可自行升级 codex 后用官方方式配置"]
+      "notes": ["模型：默认原版安装不预置（首次运行时自选）；agentboot preset on 后安装即写入 Agnes", "默认安装最新版；注意 0.100+ 移除了 chat 协议——用 Agnes 预设（agentboot preset on）时请自选 <=0.90.0（agentboot install codex@0.90.0），官方登录不受影响", "如需官方 ChatGPT 登录，可自行升级 codex 后用官方方式配置"]
     },
     {
       "id": "qwen-code",
