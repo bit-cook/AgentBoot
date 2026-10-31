@@ -129,8 +129,12 @@ class UninstallAcceptanceTests(unittest.TestCase):
             ok, _message = menu.uninstall_one(self.npm_agent())
 
         self.assertTrue(ok)
-        command = run.call_args.args[0]
-        self.assertEqual(command[:4], ["npm", "uninstall", "-g", "@openai/codex"])
+        # 断言「任意一次」subprocess 调用：卸载链路里可能有 sudo -n 探测
+        # （非 root 机器上 shim 目录选择会触发），不能只盯最后一次
+        commands = [call.args[0] for call in run.call_args_list]
+        npm_calls = [c for c in commands if c and c[0] == "npm"]
+        self.assertTrue(npm_calls, commands)
+        self.assertEqual(npm_calls[0][:4], ["npm", "uninstall", "-g", "@openai/codex"])
         self.assertFalse(wrapper.exists())
 
     def test_managed_uninstall_prefers_recorded_package_over_changed_registry(self):
@@ -143,8 +147,11 @@ class UninstallAcceptanceTests(unittest.TestCase):
                 mock.patch.object(menu.subprocess, "run", return_value=completed) as run:
             ok, _message = menu.uninstall_one(current)
         self.assertTrue(ok)
-        self.assertIn("old-package", run.call_args.args[0])
-        self.assertNotIn("new-package", run.call_args.args[0])
+        commands = [str(call.args[0]) for call in run.call_args_list]
+        npm_calls = [c for c in commands if "npm" in c]
+        self.assertTrue(npm_calls, commands)
+        self.assertIn("old-package", npm_calls[0])
+        self.assertNotIn("new-package", npm_calls[0])
 
     def test_online_pip_uninstall_uses_noninteractive_mode(self):
         agent = {"id": "aider", "name": "Aider", "bin": "aider",
@@ -158,7 +165,10 @@ class UninstallAcceptanceTests(unittest.TestCase):
             ok, _message = menu.uninstall_one(agent)
 
         self.assertTrue(ok)
-        self.assertEqual(run.call_args.args[0],
+        commands = [call.args[0] for call in run.call_args_list]
+        pip_calls = [c for c in commands if c and "pip" in c]
+        self.assertTrue(pip_calls, commands)
+        self.assertEqual(pip_calls[0],
                          ["python3", "-m", "pip", "uninstall", "-y", "aider-install"])
 
     def test_coco_uninstall_preserves_user_agent_data_by_default(self):

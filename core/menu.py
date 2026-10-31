@@ -746,13 +746,23 @@ def shim_bin_dir():
     return os.path.join(AB_HOME, "bin")
 
 
+_SUDO_CACHE = {"checked": None}
+
+
 def _sudo_usable():
-    """passwordless sudo 是否可用（-n 非交互，绝不弹密码提示）。"""
-    try:
-        return subprocess.run(["sudo", "-n", "true"], capture_output=True,
-                              timeout=10).returncode == 0
-    except Exception:
-        return False
+    """passwordless sudo 是否可用（-n 非交互，绝不弹密码提示）。
+
+    结果按进程缓存：sudo  availability 不会在一次运行内变化，而 shim 目录
+    选择在安装/卸载链路里会被多次问到，不缓存会反复 spawn sudo 进程。
+    """
+    if _SUDO_CACHE["checked"] is None:
+        try:
+            _SUDO_CACHE["checked"] = subprocess.run(
+                ["sudo", "-n", "true"], capture_output=True,
+                timeout=10).returncode == 0
+        except Exception:
+            _SUDO_CACHE["checked"] = False
+    return _SUDO_CACHE["checked"]
 
 
 def _ensure_bin_dir(bin_dir):
