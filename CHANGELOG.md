@@ -1,5 +1,11 @@
 # 更新日志
 
+## v1.6.0 (2026-10-31)
+
+- 修复卸载删不掉 /usr/local/bin 里的 shim（v1.5.3 全新干净 Linux 机器实测发现）：v1.5.1 起 launcher/shim 优先装 /usr/local/bin（非 root 经 `sudo -n install` 落盘），但卸载路径是裸 `os.remove`——非 root 机器上报 `Permission denied`、卸载判失败、命令仍残留（实测 `agentboot uninstall opencode` 报 Errno 13）。新增 `_remove_owned_file()`：直接删除失败且目标在 /usr/local/bin 时经 `sudo -n rm -f` 对称落盘；`_remove_owned_shims` 与 CoCo 外部启动器清理都切到该助手。新增 4 个回归测试（直接删/sudo 删/无 sudo 重抛/非 /usr/local/bin 不借 sudo）。测试总数 353 全绿。
+- 全新干净 Linux 机器（InstaBox，美国 AWS，非 root + passwordless sudo）全功能遍历实测（v1.5.3 基线）：一键安装同 shell 立即可用；ab 的 help/version/sys/linux/doctor/bench 全过（bench：知识库冷 0.7ms、首字 101ms/复用 43ms）；Groq 流式对话、工具调用、groq→agnes 故障切换全部真实通过；run_cmd 安全分级 6/6（只读放行/高危拦截/写操作拒写/always 放行/safe 策略）；http_get SSRF 5/5 拦截（回环/云元数据/::1/10 段/192.168 段）；pty 实测高危命令、写文件、改文件三条交互确认路径（y 后真实落盘）；菜单 10 项渲染与 dispatch；版本查询/默认装最新（1.19.5）/指定版本（1.19.4）/重装后 shim 目标正确（自指死循环修复复验）/卸载/镜像探测/语言切换/add-agent 增删；离线包 227MB 载荷 SHA-256 校验 + codex 离线安装；sfx 自解压 303MB 安装；边界（损坏 config 后正常启动、重复安装幂等 bashrc 不重复）；官网零控制台错误、移动端无横向溢出、404 页正常。
+- 已知外部问题（非本仓可控）：自定义域名 osome.work 的 Pages 镜像缓存陈旧（实测仍服务 V1.4.3，而 gh-pages 分支已是最新 v1.5.3）——该域名不在项目 Cloudflare 账号内，需域名方清理或在 GitHub Pages 设置中摘除自定义域名恢复 bit-cook.github.io 直出。
+
 ## v1.5.3 (2026-10-31)
 
 - 会话持久化补全（Windows 实测发现的缺口）：`ab run` 一次性任务此前不写会话，`ab -c` / `/继续` 接不上；且管道模式（`echo 任务 | ab chat -c`）完全忽略 `-c`，会话恢复只在交互 REPL 生效。现在 run / 管道 chat / 兜底任务三条路径统一持久化并支持 `-c` 恢复（实测：run 记住代号 → 管道 chat -c 正确答出）。

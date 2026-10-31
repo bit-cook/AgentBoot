@@ -1042,6 +1042,27 @@ def _remove_path(path):
         os.remove(path)
 
 
+def _remove_owned_file(path):
+    """删除 AgentBoot 自己写的 shim/启动器，兼容 /usr/local/bin + sudo 场景。
+
+    v1.5.1 起 shim 优先装 /usr/local/bin（非 root 经 sudo -n install 落盘）；
+    卸载必须对称——直接 os.remove 在非 root 下抛 PermissionError，
+    导致卸载失败且命令残留（实测 opencode 卸载报
+    Errno 13 Permission denied: /usr/local/bin/opencode）。
+    """
+    try:
+        _remove_path(path)
+        return
+    except PermissionError:
+        pass
+    if os.path.dirname(os.path.abspath(path)) == "/usr/local/bin" and _sudo_usable():
+        result = subprocess.run(["sudo", "-n", "rm", "-f", path],
+                                capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            return
+    _remove_path(path)  # 再抛一次，让调用方的错误处理原样 surfaced
+
+
 def _safe_extract_tar(archive, destination):
     """Extract after rejecting traversal, device nodes, and escaping links."""
     import tarfile
@@ -1129,7 +1150,7 @@ def _remove_owned_shims(a, entry):
             if "AgentBoot" not in marker:
                 log_info(t("menu.uninstall_shim_changed") % path)
                 continue
-            _remove_path(path)
+            _remove_owned_file(path)
         except (FileNotFoundError, IsADirectoryError):
             pass
 
@@ -1176,7 +1197,7 @@ def _remove_coco_external_launchers(entry):
             except OSError:
                 pass
         if owned:
-            os.remove(path)
+            _remove_owned_file(path)
 
 
 def uninstall_one(a, purge=False):

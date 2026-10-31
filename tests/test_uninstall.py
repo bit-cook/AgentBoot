@@ -320,5 +320,61 @@ class UninstallAcceptanceTests(unittest.TestCase):
         self.assertIn("--purge", (ROOT / "README.en.md").read_text(encoding="utf-8"))
 
 
+class RemoveOwnedFileTests(unittest.TestCase):
+    """卸载删除自家 shim：/usr/local/bin + sudo 场景必须对称于安装的 sudo 落盘。
+
+    背景（v1.5.3 全新机器实测）：v1.5.1 起 shim 优先装 /usr/local/bin
+    （非 root 经 sudo -n install 落盘），但卸载路径裸 os.remove——
+    非 root 机器上报 Permission denied、卸载失败且命令残留。
+    """
+
+    def test_direct_removal_when_writable(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d) / "opencode"
+            target.write_text("#!/bin/sh\n# AgentBoot wrapper\n")
+            menu._remove_owned_file(str(target))
+            self.assertFalse(target.exists())
+
+    def test_permission_denied_in_usr_local_bin_uses_sudo(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d) / "opencode"
+            target.write_text("x")
+            with mock.patch.object(menu, "_remove_path",
+                                   side_effect=PermissionError("denied")) as rp, \
+                    mock.patch.object(menu, "_sudo_usable", return_value=True), \
+                    mock.patch.object(menu.os.path, "dirname",
+                                      return_value="/usr/local/bin"), \
+                    mock.patch.object(menu.subprocess, "run",
+                                      return_value=subprocess.CompletedProcess([], 0)) as run:
+                menu._remove_owned_file(str(target))
+            self.assertEqual(run.call_args.args[0][:3], ["sudo", "-n", "rm"])
+            self.assertIn(str(target), run.call_args.args[0])
+            self.assertEqual(rp.call_count, 1)  # 不再重抛
+
+    def test_permission_denied_without_sudo_reraises(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d) / "opencode"
+            target.write_text("x")
+            with mock.patch.object(menu, "_remove_path",
+                                   side_effect=PermissionError("denied")), \
+                    mock.patch.object(menu, "_sudo_usable", return_value=False), \
+                    mock.patch.object(menu.os.path, "dirname",
+                                      return_value="/usr/local/bin"):
+                with self.assertRaises(PermissionError):
+                    menu._remove_owned_file(str(target))
+
+    def test_permission_denied_outside_usr_local_bin_reraises(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d) / "opencode"
+            target.write_text("x")
+            with mock.patch.object(menu, "_remove_path",
+                                   side_effect=PermissionError("denied")), \
+                    mock.patch.object(menu, "_sudo_usable", return_value=True), \
+                    mock.patch.object(menu.subprocess, "run") as run:
+                with self.assertRaises(PermissionError):
+                    menu._remove_owned_file(str(target))
+            run.assert_not_called()  # 不在 /usr/local/bin 不借 sudo
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
