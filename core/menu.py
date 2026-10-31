@@ -1200,6 +1200,32 @@ def _remove_coco_external_launchers(entry):
             _remove_owned_file(path)
 
 
+def _clean_npm_prefix_residue(prefix, package):
+    """清掉 npm uninstall 在 AgentBoot prefix 里的残留：包目录 + 空 scope 壳。
+
+    实测 npm uninstall -g @scope/pkg --prefix P 删掉包本身后，会留下空的
+    scope 父目录（@qwen-code/、@anthropic-ai/），用户看 node_modules
+    以为没卸干净。只清理 prefix 位于 AgentBoot 自己 HOME 内（或等于
+    NPM_PREFIX）时的目标包目录，绝不碰外部 prefix。
+    """
+    if not prefix or not package:
+        return
+    if not (_inside(prefix, AB_HOME) or prefix == NPM_PREFIX):
+        return
+    root = os.path.join(prefix, "lib", "node_modules")
+    pkg_dir = os.path.join(root, package)
+    if not os.path.realpath(pkg_dir).startswith(os.path.realpath(root) + os.sep):
+        return
+    shutil.rmtree(pkg_dir, ignore_errors=True)
+    if package.startswith("@"):
+        scope_dir = os.path.dirname(pkg_dir)
+        try:
+            if os.path.isdir(scope_dir) and not os.listdir(scope_dir):
+                os.rmdir(scope_dir)
+        except OSError:
+            pass
+
+
 def uninstall_one(a, purge=False):
     """安全卸载一个 Agent；返回 (成功, 面向用户的说明)。"""
     if not _valid_agent_id(a.get("id")) or not _valid_bin_name(a.get("bin")):
@@ -1243,6 +1269,11 @@ def uninstall_one(a, purge=False):
         log_info("$ %s" % " ".join(cmd))
         if subprocess.run(cmd, env=child_env()).returncode != 0:
             return False, t("menu.uninstall_command_failed") % package
+        # npm uninstall 对 @scope/pkg 只删包本身，会留下空的 scope 父目录
+        # （实测 @qwen-code/、@anthropic-ai/ 残留，用户看 node_modules
+        # 以为没卸干净）：显式清理包目录与空 scope 壳，只动 AgentBoot
+        # 自己的 prefix。
+        _clean_npm_prefix_residue(prefix, package)
     elif method == "pip":
         py = find_python()
         package = entry.get("package") or a.get("pip")

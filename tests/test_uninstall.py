@@ -376,5 +376,58 @@ class RemoveOwnedFileTests(unittest.TestCase):
             run.assert_not_called()  # 不在 /usr/local/bin 不借 sudo
 
 
+class NpmPrefixResidueTests(unittest.TestCase):
+    """npm uninstall 对 @scope/pkg 留空 scope 壳——卸载后必须显式清干净。
+
+    背景（v1.6.0 深度实测）：`npm uninstall -g @qwen-code/qwen-code
+    --prefix P` 报告成功、bin 也删了，但 P/lib/node_modules/@qwen-code/
+    空目录残留，用户看 node_modules 以为没卸干净。
+    """
+
+    def _fake_prefix(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "lib/node_modules/@qwen-code/qwen-code/bin").mkdir(parents=True)
+        (root / "lib/node_modules/@qwen-code/qwen-code/package.json").write_text("{}")
+        (root / "lib/node_modules/opencode-ai").mkdir(parents=True)
+        (root / "lib/node_modules/opencode-ai/package.json").write_text("{}")
+        return root
+
+    def test_scoped_package_and_empty_scope_dir_removed(self):
+        root = self._fake_prefix()
+        with mock.patch.object(menu, "AB_HOME", str(root)), \
+                mock.patch.object(menu, "NPM_PREFIX", str(root)):
+            menu._clean_npm_prefix_residue(str(root), "@qwen-code/qwen-code")
+        self.assertFalse((root / "lib/node_modules/@qwen-code").exists())
+        # 同 prefix 的其它包不受影响
+        self.assertTrue((root / "lib/node_modules/opencode-ai").is_dir())
+
+    def test_unscoped_package_removed(self):
+        root = self._fake_prefix()
+        with mock.patch.object(menu, "AB_HOME", str(root)), \
+                mock.patch.object(menu, "NPM_PREFIX", str(root)):
+            menu._clean_npm_prefix_residue(str(root), "opencode-ai")
+        self.assertFalse((root / "lib/node_modules/opencode-ai").exists())
+
+    def test_scope_dir_with_other_packages_kept(self):
+        root = self._fake_prefix()
+        (root / "lib/node_modules/@qwen-code/other-pkg").mkdir(parents=True)
+        with mock.patch.object(menu, "AB_HOME", str(root)), \
+                mock.patch.object(menu, "NPM_PREFIX", str(root)):
+            menu._clean_npm_prefix_residue(str(root), "@qwen-code/qwen-code")
+        self.assertTrue((root / "lib/node_modules/@qwen-code/other-pkg").is_dir())
+
+    def test_external_prefix_never_touched(self):
+        root = self._fake_prefix()
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(outside, ignore_errors=True))
+        (outside / "lib/node_modules/@qwen-code/qwen-code").mkdir(parents=True)
+        with mock.patch.object(menu, "AB_HOME", str(root)), \
+                mock.patch.object(menu, "NPM_PREFIX", str(root)):
+            menu._clean_npm_prefix_residue(str(outside), "@qwen-code/qwen-code")
+        self.assertTrue((outside / "lib/node_modules/@qwen-code/qwen-code").is_dir())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
