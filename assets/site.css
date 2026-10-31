@@ -511,6 +511,13 @@ h2 {
 }
 
 .install-intro {
+  /* 拉伸到整个第一行的高度，为内层 .install-intro-pin 提供完整的粘性滚动区间。
+     sticky 不直接放在 grid item 上：各引擎对 sticky 网格区域的钳制行为不一致，
+     不钳制的内核会让左栏一直钉在 top:104px，压过第二行的 .mirror-note 造成文字重叠。 */
+  align-self: stretch;
+}
+
+.install-intro-pin {
   position: sticky;
   top: 104px;
 }
@@ -1218,8 +1225,14 @@ h2 {
   }
 
   .install-intro,
+  .install-intro-pin,
   .feature-spotlight {
     position: static;
+  }
+
+  /* 单列布局下取消 pin 容器，让 .install-intro 的两栏网格直接作用到原有子元素 */
+  .install-intro-pin {
+    display: contents;
   }
 
   .install-intro {
