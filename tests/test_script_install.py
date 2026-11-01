@@ -32,8 +32,13 @@ class ScriptInstallTests(unittest.TestCase):
                 mock.patch.object(menu.subprocess, "run", return_value=completed) as run, \
                 mock.patch.object(menu.os, "remove"):
             self.assertTrue(menu.install_via_script(self.agent("https://example.test/install.sh")))
-        self.assertEqual(run.call_args.args[0], ["sh", "/tmp/agent;touch-pwned.sh"])
-        self.assertNotIn("-c", run.call_args.args[0])
+        command = run.call_args.args[0]
+        # 安全意图：路径作为独立 argv 元素传递，不经 shell 字符串拼接
+        # （解释器优先 bash、缺失回落 sh，v1.7.2 起不再一律 sh）
+        self.assertEqual(len(command), 2)
+        self.assertIn(command[0], ("bash", "sh"))
+        self.assertEqual(command[1], "/tmp/agent;touch-pwned.sh")
+        self.assertNotIn("-c", command)
 
     def test_windows_uses_file_argument_not_iex(self):
         completed = subprocess.CompletedProcess([], 0)

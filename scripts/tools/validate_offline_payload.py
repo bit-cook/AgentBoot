@@ -37,9 +37,10 @@ def check_npm(stage, agent, platform_id):
         return "Hermes runtime was not completed on %s" % platform_id
     if agent["id"] == "opencode":
         binary = "opencode.exe" if platform_id.startswith("win-") else "opencode"
+        npm_package = agent.get("npm") or ""
         for package_name in (agent.get("offline_binary_packages") or {}).get(platform_id, []):
             candidates = (
-                root / "node_modules" / "opencode-ai" / "node_modules" / package_name / "bin" / binary,
+                root / "node_modules" / npm_package / "node_modules" / package_name / "bin" / binary,
                 root / "node_modules" / package_name / "bin" / binary,
             )
             if not any(path.is_file() and path.stat().st_size > 10 * 1024 * 1024 for path in candidates):

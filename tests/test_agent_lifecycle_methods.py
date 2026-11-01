@@ -56,20 +56,21 @@ class AgentLifecycleTests(unittest.TestCase):
         opencode = next(agent for agent in registry["agents"] if agent["id"] == "opencode")
         self.assertTrue(opencode["offline"])
         # 默认一律装最新：npm spec 不带版本号（用户可自选版本安装）
-        self.assertEqual(opencode["npm"], "opencode-ai")
+        self.assertEqual(opencode["npm"], "@opencode/cli")
         self.assertEqual(opencode["offline_binary_packages"]["linux-x64"],
-                         ["opencode-linux-x64", "opencode-linux-x64-baseline"])
+                         ["@opencode/cli-linux-x64", "@opencode/cli-linux-x64-musl"])
 
     def test_opencode_selects_first_native_binary_that_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            regular = root / "node_modules/opencode-ai/node_modules/opencode-linux-x64/bin/opencode"
-            baseline = root / "node_modules/opencode-ai/node_modules/opencode-linux-x64-baseline/bin/opencode"
+            regular = root / "node_modules/@opencode/cli/node_modules/@opencode/cli-linux-x64/bin/opencode"
+            baseline = root / "node_modules/@opencode/cli/node_modules/@opencode/cli-linux-x64-musl/bin/opencode"
             for path in (regular, baseline):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(b"x" * (10 * 1024 * 1024 + 1))
-            agent = {"offline_binary_packages": {"linux-x64":
-                     ["opencode-linux-x64", "opencode-linux-x64-baseline"]}}
+            agent = {"npm": "@opencode/cli",
+                     "offline_binary_packages": {"linux-x64":
+                     ["@opencode/cli-linux-x64", "@opencode/cli-linux-x64-musl"]}}
             failed = subprocess.CompletedProcess([], 1)
             passed = subprocess.CompletedProcess([], 0)
             with mock.patch.object(menu.subprocess, "run", side_effect=[failed, passed]) as run:

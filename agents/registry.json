@@ -10,11 +10,11 @@
       "bin": "coco",
       "method": "script",
       "script": "https://bit-cook.github.io/coco/install.sh",
-      "coco_version": "0.8.1",
+      "coco_version": "0.8.2",
       "node": null,
       "os": ["linux", "darwin"],
       "offline": true,
-      "notes": ["官方安装脚本来自 github.com/bit-cook/coco（当前 v0.8.1，安装提速：运行时复用/缓存/并行下载），自动适配国内镜像（npmmirror / gh-proxy，COCO_MIRROR=off 可关）", "官方支持 Linux / macOS，Windows 无官方安装器", "离线安装由 AgentBoot 复刻官方安装步骤（载荷内置发行包 + Node 22.23 运行时；Agnes 密钥仅在开启预置时写入）"]
+      "notes": ["官方安装脚本来自 github.com/bit-cook/coco（当前 v0.8.2，安装提速：运行时复用/缓存/并行下载），自动适配国内镜像（npmmirror / gh-proxy，COCO_MIRROR=off 可关）", "官方支持 Linux / macOS，Windows 无官方安装器", "离线安装由 AgentBoot 复刻官方安装步骤（载荷内置发行包 + Node 22.23 运行时；Agnes 密钥仅在开启预置时写入）"]
     },
     {
       "id": "opencode",
@@ -23,19 +23,19 @@
       "desc": "开源终端 AI 编码 Agent（TUI）",
       "bin": "opencode",
       "method": "npm",
-      "npm": "opencode-ai",
+      "npm": "@opencode/cli",
       "node": ">=18",
       "offline": true,
       "npm_install_flags": ["--ignore-scripts"],
       "offline_binary_packages": {
-        "linux-x64": ["opencode-linux-x64", "opencode-linux-x64-baseline"],
-        "linux-arm64": ["opencode-linux-arm64"],
-        "darwin-x64": ["opencode-darwin-x64", "opencode-darwin-x64-baseline"],
-        "darwin-arm64": ["opencode-darwin-arm64"],
-        "win-x64": ["opencode-windows-x64", "opencode-windows-x64-baseline"]
+        "linux-x64": ["@opencode/cli-linux-x64", "@opencode/cli-linux-x64-musl"],
+        "linux-arm64": ["@opencode/cli-linux-arm64", "@opencode/cli-linux-arm64-musl"],
+        "darwin-x64": ["@opencode/cli-darwin-x64"],
+        "darwin-arm64": ["@opencode/cli-darwin-arm64"],
+        "win-x64": ["@opencode/cli-windows-x64", "@opencode/cli-windows-arm64"]
       },
       "script": "https://opencode.ai/install",
-      "notes": ["模型：默认原版安装不预置（首次运行时自选）；agentboot preset on 后安装即写入 Agnes", "离线包同时携带官方原生 binary 与 x64 baseline 兼容包"]
+      "notes": ["模型：默认原版安装不预置（首次运行时自选）；agentboot preset on 后安装即写入 Agnes", "离线包同时携带官方原生 binary 与 musl 变体（覆盖 Alpine）"]
     },
     {
       "id": "cursor",

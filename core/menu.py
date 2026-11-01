@@ -1646,6 +1646,18 @@ def _script_fallback_urls(url):
     return []
 
 
+def _script_interpreter():
+    """执行下载的安装脚本所用的解释器：优先 bash，缺失才回落 sh。
+
+    历史 bug：本函数曾一律用 sh 执行，而多数官方安装脚本（coco 等）是
+    bash 脚本（数组/[[ ]]/process substitution），sh（dash）在第一个 bash
+    专用语法处即 Syntax error，安装必败。按脚本 shebang 的本意执行；
+    Alpine 等无 bash 的环境自动回落 sh。
+    """
+    from shutil import which
+    return "bash" if which("bash") else "sh"
+
+
 def install_via_script(a):
     from urllib.parse import urlsplit
     url = a.get("script")
@@ -1661,7 +1673,7 @@ def install_via_script(a):
         path = None
         try:
             path = _download_script(u, ".sh" if POSIX else ".ps1")
-            cmd = (["sh", path] if POSIX else
+            cmd = ([_script_interpreter(), path] if POSIX else
                    ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path])
             log_info("执行已下载脚本：%s" % u)
             if subprocess.run(cmd, env=child_env()).returncode == 0:
@@ -2599,8 +2611,9 @@ def opencode_binary_candidates(a, root, platform_id):
     """Return pinned official OpenCode native binaries bundled for one target."""
     result = []
     binary = "opencode.exe" if platform_id.startswith("win-") else "opencode"
+    npm_package = a.get("npm") or ""
     for package in (a.get("offline_binary_packages") or {}).get(platform_id, []):
-        for base in (os.path.join(root, "node_modules", "opencode-ai", "node_modules"),
+        for base in (os.path.join(root, "node_modules", npm_package, "node_modules"),
                      os.path.join(root, "node_modules")):
             path = os.path.join(base, package, "bin", binary)
             if os.path.isfile(path) and os.path.getsize(path) > 10 * 1024 * 1024:

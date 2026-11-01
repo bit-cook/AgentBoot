@@ -6,7 +6,7 @@
 import { WEB_ASSETS } from "./web-assets.js";
 
 const REPO = "bit-cook/AgentBoot";
-const TAG = "v1.7.1";
+const TAG = "v1.7.2";
 const GH_REL = `https://github.com/${REPO}/releases/download/${TAG}`;
 // 在线包/安装器在 Pages CDN（jsDelivr 镜像 gh-pages 分支）有同一份。
 // GitHub Release CDN 对 Cloudflare Worker 间歇返回 618（直连却正常），

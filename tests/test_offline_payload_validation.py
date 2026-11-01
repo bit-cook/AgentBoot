@@ -20,9 +20,9 @@ class OfflinePayloadValidationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             stage = Path(tmp)
             shutil.copytree(ROOT / "agents", stage / "agents")
-            package = stage / "payloads/agents/opencode/linux-x64/node_modules/opencode-ai"
+            package = stage / "payloads/agents/opencode/linux-x64/node_modules/@opencode/cli"
             (package / "bin").mkdir(parents=True)
-            metadata = {"name": "opencode-ai", "bin": {"opencode": "bin/opencode.exe"}}
+            metadata = {"name": "@opencode/cli", "bin": {"opencode": "bin/opencode.exe"}}
             (package / "package.json").write_text(json.dumps(metadata), encoding="utf-8")
             (package / "bin/opencode.exe").write_text("placeholder", encoding="utf-8")
             result = subprocess.run([sys.executable, str(VALIDATOR), str(stage),

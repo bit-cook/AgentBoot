@@ -1,5 +1,21 @@
 # 更新日志
 
+## v1.7.2 (2026-11-01) — opencode 升级 v2 线 + 安装脚本执行加固
+
+- opencode 切到 v2 发布线：npm 包 `opencode-ai`（旧线，latest 1.19.5，永远
+  不会有 2.x）→ `@opencode/cli`（v2 线，实测 latest 2.2.5，44 个 2.x 版本）。
+  官方 changelog（opencode.ai）与站点均已 v2，AgentBoot 此前装的一直是旧线。
+  离线二进制包同步切换为 `@opencode/cli-*` 系列，并新增 musl 变体
+  （linux-x64-musl / linux-arm64-musl，覆盖 Alpine）与 windows-arm64。
+  全局配置路径仍是 ~/.config/opencode/opencode.json，预置路径不受影响。
+- 安装脚本执行加固：下载的官方安装脚本此前一律用 `sh` 执行，而 coco 等官方
+  脚本是 bash 脚本（数组/[[ ]]/process substitution），dash 在第一个 bash
+  专用语法处即 Syntax error、安装必败。改为优先 bash（缺失才回落 sh），
+  与脚本 shebang 本意一致；新增 4 个回归测试锁住该行为。
+- coco 版本备注同步至 v0.8.2（官方安装器四连修的发布版）。
+- 离线载荷校验器与菜单的 opencode 父包路径改为从注册表动态推导，兼容
+  v1/v2 两种包名布局。测试总数 376 全绿。
+
 ## v1.7.1 (2026-11-01) — 发布基建修复（应用代码无变化）
 
 - 发布管线端点等待改为超时警告：boot.ide.pub 的 Worker 部署是流水线外手动
