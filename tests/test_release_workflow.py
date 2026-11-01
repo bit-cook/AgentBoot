@@ -96,6 +96,17 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('"name": "boot"', text)
         self.assertIn('"pattern": "boot.ide.pub/*"', text)
 
+    def test_pages_deploy_requests_legacy_build(self):
+        """gh-pages 推送后必须显式请求 Pages 构建（legacy 构建防冻结）。
+
+        历史事故：Pages build_type=workflow 时本工作流只推 gh-pages、从不上传
+        artifact，GitHub 永远等不到 Actions 部署，站点冻结近 6 周（v1.4.3）。
+        改 legacy 后仍需推送后请求构建，确保线上刷新。
+        """
+        text = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
+        self.assertIn("Request Pages build", text)
+        self.assertIn("/pages/builds", text)
+
     def test_pages_workflow_pins_actions_and_drops_checkout_credentials(self):
         text = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
         self.assertNotIn("actions/checkout@v4", text)

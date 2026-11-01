@@ -60,6 +60,7 @@ jobs:
     runs-on: self-hosted
     permissions:
       contents: write
+      pages: write
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -85,3 +86,14 @@ jobs:
           git add -A
           git diff --cached --quiet || git commit -m "pages: deploy ${GITHUB_SHA}"
           git push origin HEAD:gh-pages
+      - name: Request Pages build
+        # Pages 构建类型为 legacy（直接服务 gh-pages 分支）：推送后显式请求
+        # 一次构建，确保线上立即刷新。历史事故：build_type=workflow 时本
+        # 工作流只推 gh-pages、从不上传 artifact，GitHub 永远等不到 Actions
+        # 部署，站点冻结近 6 周（v1.4.3）。
+        run: |
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds" \
+            && echo "已请求 Pages 构建" || echo "::warning::Pages 构建请求失败（不影响 gh-pages 内容）"

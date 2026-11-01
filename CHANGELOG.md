@@ -1,5 +1,22 @@
 # 更新日志
 
+## v1.7.1 (2026-11-01) — 发布基建修复（应用代码无变化）
+
+- 发布管线端点等待改为超时警告：boot.ide.pub 的 Worker 部署是流水线外手动
+  步骤（需 CF 凭据），原逻辑轮询 10 分钟不绿即 exit 1，导致每次发版
+  publish 必红（v1.6.1 实测复现）。Release 资产与晋升不再被端点阻塞，
+  端点就绪由手动执行 cloudflare/deploy.sh 后复验。
+- Pages 部署防冻结（根因修复）：本站 Pages 构建类型为 legacy（直接服务
+  gh-pages 分支），deploy-pages 工作流在推送 gh-pages 后显式请求一次
+  Pages 构建，确保线上立即刷新。历史事故：build_type=workflow 时期本
+  工作流只推 gh-pages、从不上传 artifact，GitHub 永远等不到 Actions
+  部署，bit-cook.github.io/AgentBoot 与 osome.work 镜像冻结在 v1.4.3
+  近 6 周。新增测试守卫 test_pages_deploy_requests_legacy_build。
+- GitHub 账户侧 Pages 配置已切换为 legacy 构建（用户站 + 项目站），
+  osome.work/AgentBoot 与 bit-cook.github.io 均已实测恢复 v1.7.1 内容。
+- 清理：pages/VERSION 自 v1.4.0 起遗漏的刷新已修正；删除无 release 的
+  悬空 v1.6.2 tag。测试总数 372 全绿。
+
 ## v1.7.0 (2026-10-31) — 极限性能优化
 
 实测数据（本机 min-of-9，`python3 -c` 冷进程，基线 44.2ms）：
