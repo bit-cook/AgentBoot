@@ -58,6 +58,12 @@ jobs:
   offline-linux:
     runs-on: self-hosted
     steps:
+      - name: Use runner temp as TMPDIR
+        shell: bash
+        # runner.temp 不能用于 job 级 env（上下文不合法）；经 GITHUB_ENV 注入后续步骤。
+        # 离线烟测的 mktemp -d 必须落在 RUNNER_TEMP：落在 /tmp 时每次泄漏约
+        # 835MB 且从不清理，多次运行后撑爆 tmpfs（ENOSPC，v1.7.1 实测复发）。
+        run: echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
