@@ -9,7 +9,7 @@
 set -eu
 
 REPO="bit-cook/AgentBoot"
-TAG="v1.5.1"
+TAG="v1.7.0"
 TARBALL="agentboot-online-${TAG}.tar.gz"
 BOOT_BASE="https://boot.ide.pub"
 GH="https://github.com/${REPO}/releases/download/${TAG}"
@@ -189,12 +189,39 @@ chmod +x "${APP_DIR}/install.sh" 2>/dev/null || true
 
 # ---------- 3. 生成命令行入口 ----------
 step "创建命令：agentboot（控制台） / ab（内置 Agent）"
+# 落盘前探写：BIN_DIR 选择阶段的 -w / sudo -n 推断可能失灵（只读挂载、
+# immutable 目录、LSM 拦截等），探写失败即回落到 ~/.local/bin，
+# 绝不在应用已落盘后卡死在"创建命令"这一步（半安装脏状态）。
+probe_bin_dir() {
+    _probe="${BIN_DIR}/.ab_probe.$$"
+    if [ -n "$BIN_SUDO" ]; then
+        $BIN_SUDO touch "$_probe" 2>/dev/null || return 1
+        $BIN_SUDO rm -f "$_probe" 2>/dev/null || true
+    else
+        touch "$_probe" 2>/dev/null || return 1
+        rm -f "$_probe" 2>/dev/null || true
+    fi
+    return 0
+}
+if ! probe_bin_dir; then
+    if [ "$BIN_DIR" != "${HOME}/.local/bin" ]; then
+        err "无法写入 ${BIN_DIR}，回落到 ~/.local/bin"
+        BIN_DIR="${HOME}/.local/bin"
+        BIN_SUDO=""
+    fi
+    mkdir -p "$BIN_DIR" || { err "无法创建 ${BIN_DIR}，请手动安装"; exit 1; }
+    if ! probe_bin_dir; then
+        err "无法写入 ${BIN_DIR}，请检查权限后重试"
+        exit 1
+    fi
+    ok "命令入口将安装到 ${BIN_DIR}"
+fi
 # 临时文件与目标同目录（可写时）——保证 mv 原子替换；sudo 场景用 mktemp + sudo install
+# mktemp 尊重 $TMPDIR，其不可写时回退 /tmp（与下载临时目录同款容错）
 if [ -n "$BIN_SUDO" ]; then
-    TMP_BASE="$(mktemp -d)"
+    TMP_BASE="$(mktemp -d 2>/dev/null || mktemp -d -p /tmp 2>/dev/null || echo "/tmp/agentboot-launcher-$$")"
     trap 'rm -rf "$TMP_BASE"' EXIT
 else
-    mkdir -p "$BIN_DIR"
     TMP_BASE="$BIN_DIR"
 fi
 agentboot_tmp="${TMP_BASE}/.agentboot.new.$$"
@@ -226,8 +253,18 @@ install_launcher() {
         mv -f "$1" "$launcher"
     fi
 }
-install_launcher "$agentboot_tmp" agentboot || { err "写入 launcher 失败：${BIN_DIR}/agentboot"; exit 1; }
-install_launcher "$ab_tmp" ab || { err "写入 launcher 失败：${BIN_DIR}/ab"; exit 1; }
+# 命令入口创建失败时回滚：升级则恢复旧版，新装则撤掉刚落地的应用，
+# 杜绝"应用在、命令无"的半安装脏状态（重跑安装器即可自愈）
+rollback_install() {
+    if [ -d "$OLD_APP" ]; then
+        rm -rf "$APP_DIR"
+        mv "$OLD_APP" "$APP_DIR"
+    elif [ "${SWAP_COMMITTED:-0}" != "1" ]; then
+        rm -rf "$APP_DIR"
+    fi
+}
+install_launcher "$agentboot_tmp" agentboot || { rollback_install; err "写入 launcher 失败：${BIN_DIR}/agentboot"; exit 1; }
+install_launcher "$ab_tmp" ab || { rollback_install; err "写入 launcher 失败：${BIN_DIR}/ab"; exit 1; }
 SWAP_COMMITTED=1
 rm -rf "$OLD_APP"
 # 清理另一处位置的旧 launcher（只删 AgentBoot 自己的：内容指向 launch.py）
@@ -289,8 +326,11 @@ ok  "AgentBoot 安装完成！"
 say ""
 say "  如何启动："
 say "    控制台菜单 : agentboot        （装/卸 Agent、镜像、模型配置）"
-say "    内置 Agent : ab              （直接对话，默认 Agnes 免费模型）"
+say "    内置 Agent : ab              （直接对话，默认 Groq qwen/qwen3.8-27b）"
 say "    安装其他 Agent：运行 agentboot → 选 [2] 在线安装"
+say ""
+say "  模型说明：ab 默认用 Groq（qwen/qwen3.8-27b，极速推理）；未配置 Groq"
+say "  API Key 时自动改用 Agnes 免费模型备选，两种方式都能直接对话。"
 say ""
 case ":$PATH:" in
     *":${BIN_DIR}:"*)
