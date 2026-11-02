@@ -78,7 +78,7 @@ Two commands after install:
 | # | Agent | Command | Vendor | Offline |
 |---|---|---|---|---|
 | 1 | CoCo Agent | `coco` | BitCook | Linux/macOS |
-| 2 | OpenCode | `opencode` | opencode.ai | ✓ (pinned native binary; x64 baseline fallback) |
+| 2 | OpenCode | `opencode` | opencode.ai | ✓ (v2 native binary from `@opencode/cli`; x64 baseline fallback) |
 | 3 | Hermes Agent | `hermes` | Hermes | ✓ (needs Git) |
 | 4 | Cline CLI | `cline` | Cline | ✓ |
 | 5 | CodeBuddy CLI | `codebuddy` | Tencent | ✓ |

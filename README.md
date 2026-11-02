@@ -32,7 +32,7 @@ curl -fsSL https://boot.ide.pub/install.sh | sh
 
 所有 Agent 默认安装最新版；也可自选版本：
   agentboot versions opencode          # 查看可用版本
-  agentboot install opencode@1.19.4    # 安装指定版本
+  agentboot install opencode@2.2.5      # 安装指定版本
   菜单 [2] 选完 Agent 后逐个询问（回车=最新）
 
 ```
@@ -84,7 +84,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | # | Agent | 命令 | 厂商 | 离线 | 备注 |
 |---|---|---|---|---|---|
 | 1 | CoCo Agent | `coco` | BitCook | Linux/macOS | 官方脚本安装 |
-| 2 | OpenCode | `opencode` | opencode.ai | ✓ | 固定官方 native binary；x64 含 baseline 兼容包 |
+| 2 | OpenCode | `opencode` | opencode.ai | ✓ | v2 官方 native binary（`@opencode/cli`）；x64 含 baseline 兼容包 |
 | 3 | Hermes Agent | `hermes` | Hermes | ✓ | 需 Git；国内自动镜像 |
 | 4 | Cline CLI | `cline` | Cline | ✓ | |
 | 5 | CodeBuddy CLI | `codebuddy` | Tencent | ✓ | |

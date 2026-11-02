@@ -1,5 +1,17 @@
 # 更新日志
 
+## v1.7.3 (2026-11-02) — coco 版本同步 v0.8.3 + 文档与实际发布物对齐
+
+- coco 注册表版本与菜单 fallback 同步至 v0.8.3（官方安装器四连修 + 21 个历史存量
+  测试全修 + task-logs 索引 O(1) 优化的发布版）。
+- 文档修正（全面审查结果）：
+  - README 示例 `opencode@1.19.4` → `opencode@2.2.5`（v1.7.2 注册表已切 v2 线，
+    示例还停在旧线）；中英 opencode 备注补充 v2 线（`@opencode/cli`）说明。
+  - 安装指南离线包清单对齐真实 release 资产：原写 win-x64-codex.zip 等三个包
+    并不存在（Windows/macOS 离线包按需构建，不随每次发布上传），改为实际的
+    linux-x64 codex/opencode 四个资产 + 按需构建说明。
+- 测试 376 全绿（含 opencode v2 布局与卸载残留回归）。
+
 ## v1.7.2 (2026-11-01) — opencode 升级 v2 线 + 安装脚本执行加固
 
 - opencode 切到 v2 发布线：npm 包 `opencode-ai`（旧线，latest 1.19.5，永远

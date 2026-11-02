@@ -2264,7 +2264,7 @@ def coco_offline_install(a, payload, preset=None):
     preset = _resolve_preset(preset)
     import hashlib
     import tarfile
-    coco_version = str(a.get("coco_version") or "0.8.1")
+    coco_version = str(a.get("coco_version") or "0.8.3")
     tgz = os.path.join(payload, "coco-%s.tgz" % coco_version)
     side = tgz + ".sha256"
     key_file = os.path.join(payload, "agnes.key")
