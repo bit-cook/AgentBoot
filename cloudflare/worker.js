@@ -61,8 +61,8 @@ export default {
     }
     if (path === "/") return webResponse(request, "/index.html", PAGE_CACHE);
     if (path === "/en") return webResponse(request, "/en/index.html", PAGE_CACHE);
-    if (path.startsWith("/assets/") && WEB_ASSETS[path]) {
-      return webResponse(request, path, ASSET_CACHE);
+    if ((path.startsWith("/assets/") || path.startsWith("/docs/")) && WEB_ASSETS[path]) {
+      return webResponse(request, path, path.endsWith(".css") ? ASSET_CACHE : PAGE_CACHE);
     }
     return webResponse(request, "/404.html", "no-store", 404);
   },
