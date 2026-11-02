@@ -1,0 +1,18 @@
+/* Documentation pages: typography for rendered markdown. */
+.doc-page { padding: 2.5rem 0 4rem; max-width: 56rem; }
+.doc-page h1 { font-size: 2.1rem; line-height: 1.2; margin: 0 0 1.2rem; }
+.doc-page h2 { font-size: 1.45rem; margin: 2.4rem 0 0.9rem; padding-top: 1.2rem; border-top: 1px solid var(--line); }
+.doc-page h3 { font-size: 1.15rem; margin: 1.8rem 0 0.6rem; }
+.doc-page h4 { font-size: 1rem; margin: 1.4rem 0 0.5rem; }
+.doc-page p { margin: 0 0 1rem; line-height: 1.75; }
+.doc-page ul, .doc-page ol { margin: 0 0 1.1rem; padding-left: 1.4rem; line-height: 1.75; }
+.doc-page li { margin: 0.3rem 0; }
+.doc-page blockquote { margin: 0 0 1.1rem; padding: 0.8rem 1.1rem; background: var(--soft); border-left: 3px solid var(--green); border-radius: 0 var(--radius, 10px) var(--radius, 10px) 0; }
+.doc-page blockquote p { margin: 0; }
+.doc-page pre { margin: 0 0 1.2rem; padding: 1rem 1.1rem; background: #10231b; color: #e7f5ec; border-radius: 12px; overflow-x: auto; font-size: 0.86rem; line-height: 1.6; }
+.doc-page pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+.doc-page code { background: var(--green-soft); color: var(--green-dark); padding: 0.1rem 0.35rem; border-radius: 6px; font-size: 0.88em; }
+.doc-page a { color: var(--green-dark); }
+.doc-page hr { border: none; border-top: 1px solid var(--line); margin: 2rem 0; }
+.doc-page .table-scroll { margin: 0 0 1.2rem; }
+.doc-page table { width: 100%; }
