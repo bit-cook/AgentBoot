@@ -90,8 +90,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.Web
 | 5 | CodeBuddy CLI | `codebuddy` | Tencent | ✓ | |
 | 6 | Pi Coding Agent | `pi` | Earendil Works | ✓ | pi.dev 同源包 |
 | 7 | Claude Code | `claude` | Anthropic | ✓ | Anthropic 协议，需官方账号 |
-| 8 | OpenAI Codex CLI | `codex` | OpenAI | ✓ | 可选预置 Agnes；钉 0.90.0 |
-| 9 | Qwen Code | `qwen` | Alibaba | ✓ | 可选预置 Agnes |
+| 8 | OpenAI Codex CLI | `codex` | OpenAI | ✓ | 可选预设模型；钉 0.90.0 |
+| 9 | Qwen Code | `qwen` | Alibaba | ✓ | 可选预设模型 |
 | 10 | MiMo Code | `mimo` | Xiaomi | ✓ | |
 | 11 | OpenClaw | `openclaw` | OpenClaw | ✓ | |
 | 12 | Gemini CLI | `gemini` | Google | ✓ | |

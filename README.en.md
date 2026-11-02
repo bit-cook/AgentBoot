@@ -84,8 +84,8 @@ Two commands after install:
 | 5 | CodeBuddy CLI | `codebuddy` | Tencent | ✓ |
 | 6 | Pi Coding Agent | `pi` | Earendil Works | ✓ |
 | 7 | Claude Code | `claude` | Anthropic | ✓ |
-| 8 | OpenAI Codex CLI | `codex` | OpenAI | ✓ (Agnes preset) |
-| 9 | Qwen Code | `qwen` | Alibaba | ✓ (Agnes preset) |
+| 8 | OpenAI Codex CLI | `codex` | OpenAI | ✓ (optional preset model) |
+| 9 | Qwen Code | `qwen` | Alibaba | ✓ (optional preset model) |
 | 10 | MiMo Code | `mimo` | Xiaomi | ✓ |
 | 11 | OpenClaw | `openclaw` | OpenClaw | ✓ |
 | 12 | Gemini CLI | `gemini` | Google | ✓ |
