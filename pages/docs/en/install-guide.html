@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="One-command install · offline deployment · custom builds · models · troubleshooting" />
+    <meta name="theme-color" content="#fffdf5" />
+    <meta name="color-scheme" content="light" />
+    <title>Install Guide · AgentBoot</title>
+    <link rel="canonical" href="https://osome.work/AgentBoot/docs/en/install-guide.html" />
+    <link rel="icon" href="../assets/favicon.svg?v=1.7.3&b=2" type="image/svg+xml" />
+    <link rel="stylesheet" href="../assets/site.css?v=1.7.3&b=4" />
+    <link rel="stylesheet" href="../assets/docs.css?v=1.7.3" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+    <nav class="site-nav shell" aria-label="主导航">
+      <a class="brand" href="../index.html" aria-label="AgentBoot">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>AgentBoot</span>
+      </a>
+      <div class="nav-links"><a class="nav-link" href="../index.html">Home</a><a class="nav-link" href="install-guide.html">Install Guide</a><a class="nav-link" href="readme.html">Project README</a><a class="nav-link" href="../install-guide.html">中文</a></div>
+    </nav>
+    <main id="main" class="shell doc-page">
+<h1 id="agentboot-installation-guide">AgentBoot Installation Guide</h1>
+<blockquote><strong>v1.7.3</strong> · Linux / macOS / Windows · CLI UI in Chinese by default (switchable to English: <code>agentboot lang en</code>) AgentBoot is a minimal, fast, ready-to-run AI Agent launcher: it ships a built-in fallback agent while Cursor, OpenCode, Claude Code, Codex, FreeBuff and the other agents are installed from a menu of your choice. Cursor, Aider, and FreeBuff are online-only; OpenCode uses pinned official native binaries in verified offline packs.</blockquote>
+<p><strong>目录 / Table of contents</strong>: <a href="#one-command-online-install">One-command online install</a> · <a href="#one-command-offline-install">One-command offline install</a> · <a href="#custom-agents-beyond-the-registry">Custom agents</a> · <a href="#custom-offline-packages-slim">Custom offline packages</a> · <a href="#china-network-adaptive">China network</a> · <a href="#model-providers">Model providers</a> · <a href="#built-in-agent-ab">Built-in agent</a> · <a href="#upgrade--uninstall">Upgrade &amp; uninstall</a> · <a href="#online-install-troubleshooting">Troubleshooting</a> · <a href="#faq">FAQ</a></p>
+<hr>
+<h2 id="⚡-one-command-online-install-recommended">⚡ One-command online install (recommended)</h2>
+<p><strong>Linux / macOS</strong></p>
+<pre><code>curl -fsSL https://boot.ide.pub/install.sh | sh</code></pre>
+<p><strong>Windows (PowerShell / CMD)</strong></p>
+<pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</code></pre>
+<p><strong>Fallback entry (GitHub Pages)</strong> — when <code>ide.pub</code> is unavailable or its domain expires; both <code>/AgentBoot/</code> and <code>/agentboot/</code> spellings work (case-insensitive alias):</p>
+<pre><code># Linux / macOS (both /AgentBoot/ and /agentboot/ spellings work)
+curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh</code></pre>
+<pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://bit-cook.github.io/AgentBoot/install.ps1'))"</code></pre>
+<p><strong>Final fallback (GitHub Releases, no custom domains required)</strong> — works even if <code>ide.pub</code>, <code>osome.work</code>, and every other custom domain has expired:</p>
+<pre><code>curl -fsSL https://github.com/bit-cook/AgentBoot/releases/latest/download/install.sh | sh</code></pre>
+<pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://github.com/bit-cook/AgentBoot/releases/latest/download/install.ps1'))"</code></pre>
+<blockquote>Maintainer note: <code>bit-cook.github.io</code> currently 301-redirects to the custom domain <code>osome.work</code>; if that domain ever expires, remove the custom domain under Settings → Pages of the <code>bit-cook.github.io</code> repo and <code>bit-cook.github.io</code> serves directly again. The jsDelivr mirror (<code>cdn.jsdelivr.net/gh/bit-cook/AgentBoot@main/install.sh</code>) depends on no GitHub Pages configuration at all.</blockquote>
+<p>The installer itself uses project-controlled origins only: <code>boot.ide.pub</code> → GitHub Pages → jsDelivr mirror → GitHub Releases, with same-origin SHA-256 enforcement.</p>
+<p><strong>After install</strong></p>
+<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>Command</th><th>Purpose</th></tr></thead><tbody><tr><td><code>agentboot</code></td><td>Chinese console menu: install agents / models / mirrors / custom offline builds</td></tr><tr><td><code>ab</code></td><td>Built-in fallback agent — <strong>Groq qwen/qwen3.8-27b by default (free Agnes auto-fallback), works immediately</strong></td></tr></tbody></table></div>
+<blockquote>On Windows, newly installed commands need a <strong>new terminal window</strong> to appear in PATH.  The online installer fetches and enforces a same-origin <code>.sha256</code> sidecar, then atomically switches the complete app directory. A corrupt download or failed upgrade does not overwrite the current version.</blockquote>
+<hr>
+<h2 id="📦-one-command-offline-install-no-internet-needed">📦 One-command offline install (no internet needed)</h2>
+<p>Three steps: <strong>① get an offline package → ② copy &amp; extract → ③ run the offline installer</strong>. No internet and no unzip software required on the target machine.</p>
+<h3 id="step-1-—-get-an-offline-package">Step 1 — Get an offline package</h3>
+<ul><li><strong>Option A</strong>: download from <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a></li><li><code>AgentBoot-offline-v1.7.3-win-x64-codex.zip</code> (Windows x64)</li><li><code>AgentBoot-offline-v1.7.3-linux-x64-codex.tar.gz</code> (Linux x64)</li><li><code>AgentBoot-offline-v1.7.3-linux-x64-codex-sfx.sh</code> (Linux x64 self-extracting file)</li><li><strong>Option B — build your own slim package</strong> (recommended; see <a href="#custom-offline-packages-slim">Custom offline packages</a>): pick platforms and agents, output goes to <code>dist/</code>.</li></ul>
+<h3 id="step-2-—-extract-no-unzip-software-needed">Step 2 — Extract (no unzip software needed)</h3>
+<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>Target machine</th><th>How</th></tr></thead><tbody><tr><td>Windows (any)</td><td>Right-click the ZIP → Extract All (built into Explorer)</td></tr><tr><td>Windows 10/11 (CLI)</td><td><code>tar -xf AgentBoot-offline-v1.7.3-win-x64-codex.zip</code></td></tr><tr><td>Linux x64</td><td><code>tar -xzf AgentBoot-offline-v1.7.3-linux-x64-codex.tar.gz -C ~</code></td></tr><tr><td>Minimal Linux x64</td><td><code>sh AgentBoot-offline-v1.7.3-linux-x64-codex-sfx.sh</code></td></tr></tbody></table></div>
+<h3 id="step-3-—-run-the-offline-installer">Step 3 — Run the offline installer</h3>
+<p><strong>Linux / macOS</strong></p>
+<pre><code>cd ~/AgentBoot
+sh install-offline.sh                     # install + open console menu
+sh install-offline.sh --all               # install every offline-capable agent
+sh install-offline.sh claude-code qwen-code   # specific agents only</code></pre>
+<p><strong>Windows</strong></p>
+<pre><code>cd AgentBoot
+powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1          # install + menu
+powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1 -All     # all agents
+powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1 -Agents claude-code,qwen-code</code></pre>
+<h3 id="what-the-offline-installer-does">What the offline installer does</h3>
+<p>The target verifies every payload file against the bundled <code>PAYLOAD_SHA256SUMS.txt</code>; missing or mismatched bytes stop installation. <code>--all</code> installs only the Agents listed by that pack's <code>MANIFEST.txt</code>.</p>
+<ol><li>Verifies the <code>payloads/</code> bundle integrity;</li><li>Installs the AgentBoot app itself;</li><li>Python: system python3 on Linux/macOS; on Windows deploys a <strong>portable Python</strong> from the package (no admin);</li><li>Node: deploys the bundled Node 22 runtime when the system has none;</li><li>Copies the selected agents' payloads directly (no npm), generates command shims;</li><li>Registers <code>~/.local/bin</code> (Windows: <code>%LOCALAPPDATA%\AgentBoot\bin</code>) into the user PATH (idempotent);</li><li><code>ab</code> works immediately: Groq online (free Agnes auto-fallback); local models (Ollama / LM Studio) for fully-offline machines.</li></ol>
+<h3 id="offline-package-layout">Offline package layout</h3>
+<pre><code>AgentBoot/
+├── install-offline.sh / .ps1
+├── MANIFEST.txt
+├── core/ agents/ tools/ scripts/ ...
+└── payloads/
+    ├── python/win-embed.zip
+    ├── node/&lt;linux-x64|win-x64|darwin-arm64&gt;/
+    └── agents/&lt;agent-id&gt;/&lt;platform&gt;/node_modules/</code></pre>
+<h3 id="offline-troubleshooting">Offline troubleshooting</h3>
+<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>Symptom</th><th>Fix</th></tr></thead><tbody><tr><td>"payloads/ not found"</td><td>Run from the extracted package root, or pass <code>--payload &lt;path></code></td></tr><tr><td>No python3 on Linux</td><td><code>apt install python3</code> / <code>dnf install python3</code> / <code>apk add python3</code>, then re-run</td></tr><tr><td>Command not found after install</td><td>Reopen the terminal; or <code>export PATH="$HOME/.local/bin:$PATH"</code></td></tr><tr><td>Missing payload for an agent</td><td>The selected pack does not contain it — rebuild on the target platform with menu [7]</td></tr><tr><td><code>ab</code> can't reach the model</td><td>Expected fully offline — configure a local model in menu [4]</td></tr></tbody></table></div>
+<hr>
+<h2 id="🧩-custom-agents-beyond-the-registry">🧩 Custom agents (beyond the registry)</h2>
+<p><strong>Menu wizard</strong>: <code>agentboot</code> → <code>[2]</code> → <code>+</code> → pick method (npm / pip / install-script URL), name and command → save &amp; optionally install. Appears in the list with a ★.</p>
+<p><strong>Command line</strong></p>
+<pre><code>python core/menu.py add-agent myagent npm @scope/some-agent some-cmd
+python core/menu.py add-agent myagent pip some-agent-pkg some-cmd
+python core/menu.py add-agent myagent script "https://example.com/install.sh" some-cmd
+python core/menu.py add-agent --list
+python core/menu.py add-agent --del myagent</code></pre>
+<p>Stored in <code>~/.agentboot/custom-agents.json</code> — survives upgrades. Same install pipeline as built-ins (mirrors included).</p>
+<blockquote>Hermes' offline payload contains a platform-specific Python venv and must be built on its target platform (for example, Windows on Windows and darwin-arm64 on Apple Silicon). The builder explicitly drops cross-target Hermes partial payloads instead of shipping a package that cannot run. Other npm Agents still support cross-target <code>--os/--cpu</code> packaging.</blockquote>
+<h2 id="📦-custom-offline-packages-slim">📦 Custom offline packages (slim)</h2>
+<p>The v1.3 Release provides verified Codex and OpenCode slim packs. Build a target-platform pack with only what you need:</p>
+<p><strong>Menu</strong>: <code>agentboot</code> → <code>[7] Build custom offline package</code> → pick platforms → pick agents → build.</p>
+<p><strong>CLI</strong></p>
+<pre><code>python core/menu.py build-offline win-x64 claude-code,pi
+python core/menu.py build-offline linux-x64,darwin-arm64 coco,pi,hermes</code></pre>
+<p>Custom packs use the same structure and install flow as Release packs. Size depends on the selected Agents and runtimes. The build machine needs internet; Hermes also requires Git and must be built natively on the target platform.</p>
+<h2 id="🌏-china-network-adaptive">🌏 China network adaptive</h2>
+<ul><li>Auto-detects <code>registry.npmjs.org</code> reachability and enables mirror mode;</li><li>npm registries (switchable): npmmirror / Tencent Cloud / Huawei Cloud / official, applied to npm-based agent installs automatically;</li><li>Node runtimes: npmmirror → Huawei Cloud → Tencent Cloud binary mirrors in order (nodejs.org as final fallback);</li><li>GitHub acceleration (switchable): gh-proxy.com / ghfast.top / ghproxy.net, probe-ordered, can be pinned or disabled (direct);</li><li>pip → Tsinghua mirror;</li><li>Multi-source downloads: project-controlled <code>boot.ide.pub</code> → GitHub Pages → jsDelivr → GitHub Releases, each with same-origin SHA-256;</li><li>Proxy: menu <code>[5]</code>, stored for npm and AgentBoot downloads;</li><li>Switch in menu <code>[5]</code>, or via CLI: <code>agentboot mirror npm [registry-url]</code>, <code>agentboot mirror gh [auto|off|prefix-url]</code>; force mirror mode with <code>AGENTBOOT_MIRROR=cn|off</code>.</li></ul>
+<h2 id="🧠-model-providers">🧠 Model providers</h2>
+<p><code>ab</code> → <code>/model</code>, or menu <code>[4]</code> — both open the <strong>model provider manager</strong>:</p>
+<pre><code>---- Model Providers ----
+  [1] groq      qwen/qwen3.8-27b  (https://api.groq.com/openai/v1) ← current
+  [2] agnes     agnes-2.5-flash   (https://apihub.agnes-ai.com/v1) ← fallback
+  [s] Switch   [a] Add provider   [d] Remove provider
+  [f] Failover order   [t] Test current   [0] Done</code></pre>
+<ul><li><strong>Groq (default)</strong> (built-in preset): ultra-fast inference, zero config, first run works;</li><li><strong>Agnes free model (fallback)</strong> (built-in preset): switches automatically when the primary fails;</li><li><strong>Custom providers</strong>: any OpenAI-compatible endpoint, named, switchable, removable;</li><li><strong>Local models (fully offline)</strong>: built-in Ollama (11434) and LM Studio (1234) presets; add vLLM as a custom OpenAI-compatible provider;</li><li><strong>Failover order</strong>: defaults to <code>groq → agnes</code>; set any order (e.g. <code>groq → ollama</code>);</li><li><strong>Groq key management</strong>: a default key is built in (encoded, scanner-resistant). To use your own: set <code>GROQ_API_KEY=gsk_...</code>, or <code>/model</code> → <code>[a] add</code> (provider name <code>groq</code>) — explicit config beats the env var and the built-in key. Rotate the built-in key in the Groq console if it is ever abused;</li><li>Config file: <code>~/.agentboot/config.json</code>.</li></ul>
+<p><strong>Which agents talk to Agnes out of the box?</strong> Codex and Qwen Code are auto-wired (config.toml / OPENAI_* env) after install; OpenCode gets an <code>opencode.json</code>; Claude Code (Anthropic protocol) and Gemini CLI (Google protocol) need their own accounts.</p>
+<h2 id="🧰-built-in-agent-ab">🧰 Built-in agent (ab)</h2>
+<p>Single file, zero third-party dependencies (Python stdlib only), sub-second startup:</p>
+<ul><li>Tools: run commands (dangerous ones blocked/confirmed), read/write/edit files, list dirs, <code>search_files</code>, fetch web pages;</li><li>Offline Linux knowledge base (9 topics, 60+ sections) — usage lookups, operations, fixing common problems;</li><li>Streaming output, session persistence (<code>ab -c</code>, <code>/继续</code>), context auto-trimming, <code>/bench</code> benchmark;</li></ul>
+<pre><code>ab                                  # interactive
+ab run "check disk usage"           # one-shot task
+ab linux 查看端口占用                # query the knowledge base
+ab doctor                           # environment check
+ab bench                            # performance benchmark</code></pre>
+<h2 id="🔧-upgrade-&-uninstall">🔧 Upgrade &amp; uninstall</h2>
+<pre><code># upgrade: re-run the online one-liner (config preserved)
+curl -fsSL https://boot.ide.pub/install.sh | sh
+
+# uninstall one or more Agents (keeps config, credentials, and sessions)
+agentboot uninstall codex
+agentboot uninstall codex,qwen-code
+
+# remove CoCo and its user data (irreversible)
+agentboot uninstall coco --purge
+
+# uninstall AgentBoot itself (also removes AgentBoot config)
+rm -rf ~/.agentboot ~/.local/bin/agentboot ~/.local/bin/ab        # Linux/macOS
+rmdir /s /q "%USERPROFILE%\.agentboot" &amp; rmdir /s /q "%LOCALAPPDATA%\AgentBoot"   # Windows</code></pre>
+<p>For a complete POSIX uninstall, also remove the block from <code># >>> agentboot >>></code> through <code># &lt;&lt;&lt; agentboot &lt;&lt;&lt;</code> in <code>.bashrc</code>, <code>.profile</code>, and <code>.zshrc</code>. On Windows, remove the two AgentBoot bin entries from the user <code>Path</code>.</p>
+<p>Before extraction, download the Release's <code>SHA256SUMS.txt</code> and run <code>sha256sum -c SHA256SUMS.txt --ignore-missing</code>. The bundled <code>PAYLOAD_SHA256SUMS.txt</code> performs a second, per-file check after extraction.</p>
+<p>You can also choose menu <code>[9] Uninstall Agents</code>. AgentBoot records ownership in <code>~/.agentboot/installed-agents.json</code>, so an unrelated command with the same name is never removed. Normal uninstall preserves every Agent's config and sessions; <code>--purge</code> currently has a defined data-removal boundary for CoCo only. Legacy installs are cleaned automatically only when ownership can be proven from an AgentBoot payload directory or marked shim; otherwise the command stops with manual removal guidance.</p>
+<h2 id="❓-online-install-troubleshooting">❓ Online install troubleshooting</h2>
+<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>Symptom</th><th>Fix</th></tr></thead><tbody><tr><td><code>curl</code> missing</td><td>`wget -qO- https://boot.ide.pub/install.sh \</td><td>sh`, or install curl</td></tr><tr><td>All sources fail</td><td>Use the offline package, or set a proxy first</td></tr><tr><td>Windows "scripts disabled"</td><td>Use the <code>-ExecutionPolicy Bypass</code> command from the docs</td></tr><tr><td>python3 auto-install failed</td><td>Install Python manually, then re-run</td></tr><tr><td><code>agentboot</code> not found</td><td>Reopen terminal / <code>source ~/.bashrc</code>; on Windows open a new terminal</td></tr></tbody></table></div>
+<h2 id="❓-faq">❓ FAQ</h2>
+<p><strong>Which agents work with the free Agnes model right after install?</strong> Codex and Qwen Code are auto-wired; OpenCode gets an <code>opencode.json</code>; the built-in <code>ab</code> defaults to Groq and auto-falls-back to Agnes. Claude Code (Anthropic protocol) and Gemini CLI (Google protocol) need their own accounts.</p>
+<p><strong>Why does the Agnes preset suggest codex 0.90.0?</strong> 0.100+ removed the chat wire protocol and is incompatible with the Agnes preset. Defaults always install the latest (official login unaffected); pick the older version for the Agnes preset: <code>agentboot install codex@0.90.0</code>.</p>
+<p><strong>Release pack or custom pack?</strong> Slim when the target machine needs 1–2 agents (e.g. 89MB win-x64 + Pi); full when unsure. Missing agents in a slim package are reported clearly during install.</p>
+<p><strong>How do I verify performance?</strong> <code>ab bench</code> — KB query latency (cold/warm), model first-token latency with and without TLS handshake.</p>
+    </main>
+    <footer class="site-footer shell">
+      <div class="footer-row">
+        <div>
+          <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true"></span><span>AgentBoot</span></a>
+          <p class="footer-note">MIT License · <a href="https://github.com/bit-cook/AgentBoot">GitHub</a> · <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a></p>
+        </div>
+        <div class="footer-links">
+          <a href="https://boot.ide.pub/health">健康检查</a>
+          <a href="https://bit-cook.github.io/AgentBoot/">Pages 镜像</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

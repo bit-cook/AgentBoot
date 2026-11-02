@@ -72,6 +72,37 @@ class DocumentationConsistencyTests(unittest.TestCase):
         for fact in (TAG, "Codex", "OpenCode", "Cursor", "uninstall", "site.css", "site.js"):
             self.assertIn(fact, assets)
 
+    def test_docs_pages_render_inside_the_site(self):
+        """Docs must be readable on-site; only Releases may link out to GitHub."""
+        pages = {
+            "pages/docs/install-guide.html": ["一键在线安装", "离线", "agentboot uninstall", "<table", "<pre>"],
+            "pages/docs/readme.html": ["AgentBoot", "支持的 Agent", "MIT"],
+            "pages/docs/en/install-guide.html": ["One-command", "offline", "<table", "<pre>"],
+            "pages/docs/en/readme.html": ["AgentBoot", "MIT"],
+        }
+        for relative, facts in pages.items():
+            page = (ROOT / relative).read_text(encoding="utf-8")
+            for fact in facts:
+                self.assertIn(fact, page, "%s missing %s" % (relative, fact))
+            self.assertIn('class="shell doc-page"', page, relative)
+            self.assertIn("site.css", page, relative)
+        css = (ROOT / "pages/docs/assets/docs.css").read_text(encoding="utf-8")
+        for fact in (".doc-page h1", ".doc-page pre", ".doc-page table"):
+            self.assertIn(fact, css, fact)
+
+    def test_homepage_docs_links_stay_on_site(self):
+        for home in ("pages/index.html", "pages/en/index.html"):
+            page = (ROOT / home).read_text(encoding="utf-8")
+            self.assertNotIn("blob/main/安装指南.md", page, home)
+            self.assertNotIn("blob/main/README.en.md", page, home)
+            self.assertNotIn("blob/main/docs/en/install-guide.md", page, home)
+            self.assertIn("docs/install-guide.html" if home.endswith("index.html") and "en/" not in home
+                          else "../docs/en/install-guide.html" if "en/" in home else "docs/install-guide.html",
+                          page, home)
+        # Releases stays external: downloads must come from GitHub.
+        self.assertIn("github.com/bit-cook/AgentBoot/releases",
+                      (ROOT / "pages/index.html").read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
