@@ -1,105 +1,850 @@
 <!doctype html>
-<html lang="en">
-  <head>
+<html lang="en" class="ab-page">
+<head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Feature overview · supported agents · built-in fallback agent · uninstall and security notes" />
-    <meta name="theme-color" content="#fffdf5" />
-    <meta name="color-scheme" content="light" />
-    <title>Project README · AgentBoot</title>
-    <link rel="canonical" href="https://osome.work/AgentBoot/docs/en/install-guide.html" />
-    <link rel="icon" href="../assets/favicon.svg?v=1.7.4&b=2" type="image/svg+xml" />
-    <link rel="stylesheet" href="../assets/site.css?v=1.7.4&b=4" />
-    <link rel="stylesheet" href="../assets/docs.css?v=1.7.4" />
-  </head>
-  <body>
-    <a class="skip-link" href="#main">跳到主要内容</a>
-    <nav class="site-nav shell" aria-label="主导航">
-      <a class="brand" href="../index.html" aria-label="AgentBoot">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>AgentBoot</span>
-      </a>
-      <div class="nav-links"><a class="nav-link" href="../index.html">Home</a><a class="nav-link" href="install-guide.html">Install Guide</a><a class="nav-link" href="readme.html">Project README</a><a class="nav-link" href="../install-guide.html">中文</a></div>
+    <meta name="description" content="AgentBoot overview: one-command install, 16 selectable agents, built-in fallback agent, verified offline packages, model providers, safe uninstall." />
+    <meta name="theme-color" content="#070a12" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Overview · AgentBoot</title>
+    <link rel="canonical" href="https://boot.ide.pub/docs/en/readme.html" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpath d='M18 22l10 10-10 10M34 44h12' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../assets/site.css?v=1.7.4&b=5" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+<div id="ab-readme" data-theme="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-term" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></symbol>
+    <symbol id="i-buoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+    <symbol id="i-drive" viewBox="0 0 24 24"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 13 10 13 2"/></symbol>
+    <symbol id="i-mon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></symbol>
+    <symbol id="i-gh" viewBox="0 0 24 24"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.17c-3.2.7-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.66.41.35.78 1.05.78 2.12v3.14c0 .31.21.68.8.56A10.52 10.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+    <symbol id="i-dl" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M12 15l3.5-3.5"/><path d="M20.3 18a10 10 0 1 0-16.6 0"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/></symbol>
+    <symbol id="i-lan" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="12" rx="2"/><path d="M7 20h10M12 16v4"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#main">跳到主要内容</a>
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="../../index.html"><span class="logo">&gt;_</span><span class="brand-t">AgentBoot</span></a>
+    <nav class="links" aria-label="Main navigation">
+      <a href="../../index.html">Home</a>
+      <a href="install-guide.html">Install Guide</a>
+      <a class="cur" href="readme.html" aria-current="page">Overview</a>
+      <a href="../readme.html">中文</a>
     </nav>
-    <header class="doc-hero">
-      <div class="shell">
-        <nav class="doc-crumb" aria-label="Breadcrumb"><a href="../index.html">Home</a><span class="crumb-sep">/</span><span class="crumb-current">Docs</span></nav>
-        <h1 class="doc-title">Project README</h1>
-        <p class="doc-intro">Everything you need to install, configure, and troubleshoot AgentBoot.</p>
+    <a class="nav-gh" href="https://github.com/bit-cook/AgentBoot" aria-label="GitHub repository"><svg class="ic ic-f" aria-hidden="true"><use href="#i-gh"/></svg></a>
+    <button class="theme-btn" id="ab-theme-btn" type="button" aria-label="Toggle light / dark theme">
+      <svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"/></svg>
+      <svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+    </button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-in">
+    <div class="chips rv">
+      <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-mon"/></svg>Linux · macOS · Windows</span>
+      <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>16 agents, menu-select</span>
+      <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-spark"/></svg>free model</span>
+      <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>MIT License</span>
+    </div>
+    <h1 class="rv">AgentBoot</h1>
+    <p class="tagline rv">Minimal · Fast · Ready-to-run</p>
+    <p class="lede rv">One command to install, mainstream agents to <strong>choose from a menu</strong> (not a bundle); a <strong>built-in fallback agent</strong> that always works; <strong>verified slim offline</strong> and <strong>custom-built</strong> packages; China-network adaptive out of the box. CLI UI in Chinese by default, English switchable.</p>
+    <div class="cta rv">
+      <a class="btn-p" href="#one-command-install"><svg class="ic" aria-hidden="true"><use href="#i-term"/></svg>One-command install</a>
+      <a class="btn-g" href="https://github.com/bit-cook/AgentBoot"><svg class="ic ic-f" aria-hidden="true"><use href="#i-gh"/></svg>GitHub</a>
+    </div>
+    <p class="entries rv"><strong>Primary entry</strong>: <a href="https://boot.ide.pub">https://boot.ide.pub</a>　·　<strong>Mirror</strong>: <a href="https://bit-cook.github.io/AgentBoot/">GitHub Pages</a>　·　<strong>Language</strong>: <a href="../readme.html">中文</a> | English (this page)　·　<strong>Source</strong>: <a href="https://github.com/bit-cook/AgentBoot/blob/main/README.en.md">README.en.md</a></p>
+
+    <div class="term rv">
+      <div class="term-h">
+        <span class="dots"><i></i><i></i><i></i></span>
+        <span class="term-t">sh — AgentBoot</span>
+        <button class="copy" type="button" data-copy="curl -fsSL https://boot.ide.pub/install.sh | sh" aria-label="Copy install command"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>Copy</button>
       </div>
-    </header>
-    <main id="main" class="shell doc-layout">
-<aside class="doc-toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li class="toc-item toc-h2"><a href="#one-command-install">One-command install</a></li><li class="toc-item toc-h2"><a href="#features">Features</a></li><li class="toc-item toc-h2"><a href="#supported-agents-16">Supported agents (16)</a></li><li class="toc-item toc-h2"><a href="#built-in-fallback-agent-ab">Built-in fallback agent (ab)</a></li><li class="toc-item toc-h2"><a href="#offline-packages">Offline packages</a></li><li class="toc-item toc-h2"><a href="#models">Models</a></li><li class="toc-item toc-h2"><a href="#uninstall-agents">Uninstall Agents</a></li><li class="toc-item toc-h2"><a href="#performance-measured-via-ab-bench">Performance (measured via ab bench)</a></li><li class="toc-item toc-h2"><a href="#links">Links</a></li><li class="toc-item toc-h2"><a href="#security">Security</a></li><li class="toc-item toc-h2"><a href="#license">License</a></li></ul></aside>
-      <article class="doc-content">
-<div align="center">
-<p>&lt;img src="pages/assets/banner-en.svg" alt="AgentBoot — One command. Agent ready." width="880"&gt;</p>
-<h1 id="agentboot">AgentBoot</h1>
-<p><strong>Minimal, fast, ready-to-run AI Agent launcher</strong></p>
-<p><a href="https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue">![Platform</a>](#one-command-install) <a href="https://img.shields.io/badge/Agents-16_indigo">![Agents</a>](#supported-agents) <a href="https://img.shields.io/badge/Default_model-Agnes_free-orange">![Model</a>](#models) <a href="https://img.shields.io/badge/License-MIT-green">![License</a>](LICENSE)</p>
-<p>One command to install, mainstream agents to <strong>choose from a menu</strong> (not a bundle); a <strong>built-in fallback agent</strong> that always works; <strong>verified slim offline</strong> and <strong>custom-built</strong> packages; China-network adaptive out of the box. CLI UI in Chinese by default, English switchable.</p>
-<p><strong>Primary entry</strong>: <a href="https://boot.ide.pub">boot.ide.pub</a> · <strong>Mirror</strong>: <a href="https://bit-cook.github.io/AgentBoot/">GitHub Pages</a></p>
-<p><strong>语言 / Language</strong>: <a href="README.md">中文 README</a> | <strong>English (this file)</strong></p>
+      <div class="term-b">
+        <div class="tl"><span class="pp">$</span><span id="ab-cmd">curl -fsSL https://boot.ide.pub/install.sh | sh</span><span class="cur" id="ab-cur" aria-hidden="true"></span></div>
+        <div class="tout" id="ab-out"><div><span class="ok">✓</span> Platform detected · mirror adaptive</div><div><span class="ok">✓</span> AgentBoot installed</div><div class="dim">Ready: agentboot · ab</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="shell doc-layout">
+  <aside class="toc" aria-label="On this page">
+    <p class="toc-t">On this page</p>
+    <nav class="toc-l">
+      <a href="#one-command-install">One-command install</a>
+      <a href="#features">Features</a>
+      <a href="#supported-agents">Supported agents (16)</a>
+      <a href="#built-in-fallback-agent-ab">Built-in fallback agent (ab)</a>
+      <a href="#offline-packages">Offline packages</a>
+      <a href="#models">Models</a>
+      <a href="#uninstall-agents">Uninstall agents</a>
+      <a href="#performance-measured-via-ab-bench">Performance</a>
+      <a href="#links">Links</a>
+      <a href="#security">Security</a>
+      <a href="#license">License</a>
+    </nav>
+  </aside>
+
+  <main id="main" class="content">
+
+    <section class="sec" id="one-command-install">
+      <p class="eyebrow">01 · INSTALL</p>
+      <h2>One-command install<a class="ha" href="#one-command-install" aria-label="Permalink">#</a></h2>
+      <div class="tabs" role="tablist" aria-label="Choose install platform">
+        <button class="tab on" id="tab-nix" role="tab" aria-controls="pane-nix" aria-selected="true" type="button">Linux / macOS</button>
+        <button class="tab" id="tab-win" role="tab" aria-controls="pane-win" aria-selected="false" type="button">Windows (PowerShell)</button>
+        <button class="tab" id="tab-alt" role="tab" aria-controls="pane-alt" aria-selected="false" type="button">Fallback source</button>
+      </div>
+      <div class="tabpanel" id="pane-nix" role="tabpanel" aria-labelledby="tab-nix">
+        <div class="code">
+          <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="Copy command"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>Copy</button></div>
+          <pre><code>curl -fsSL https://boot.ide.pub/install.sh | sh</code></pre>
+        </div>
+      </div>
+      <div class="tabpanel" id="pane-win" role="tabpanel" aria-labelledby="tab-win" hidden>
+        <div class="code">
+          <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">powershell</span><button class="copy" type="button" aria-label="Copy command"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>Copy</button></div>
+          <pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</code></pre>
+        </div>
+      </div>
+      <div class="tabpanel" id="pane-alt" role="tabpanel" aria-labelledby="tab-alt" hidden>
+        <div class="code">
+          <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="Copy command"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>Copy</button></div>
+          <pre><code>curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh</code></pre>
+        </div>
+        <div class="code">
+          <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">powershell</span><button class="copy" type="button" aria-label="Copy command"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>Copy</button></div>
+          <pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://bit-cook.github.io/AgentBoot/install.ps1'))"</code></pre>
+        </div>
+      </div>
+      <div class="note rv">
+        <svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>
+        <p>The fallback source is published from the same tree as the primary entry (both <code>/AgentBoot/</code> and <code>/agentboot/</code> spellings work); the installer falls back across Worker → Pages → jsDelivr mirror → GitHub Release download sources, so any single domain going away still completes the install. If every custom domain expires, this domain-free entry still works: <code>curl -fsSL https://github.com/bit-cook/AgentBoot/releases/latest/download/install.sh | sh</code>.</p>
+      </div>
+      <p class="lead-in">Two commands after install:</p>
+      <div class="duo rv">
+        <div class="cmd-card">
+          <div class="cmd-top"><svg class="ic" aria-hidden="true"><use href="#i-term"/></svg><span class="cmd-k">agentboot</span></div>
+          <p>Console menu (install/uninstall agents, models, mirrors, offline builds) — Chinese UI, English switchable via <code>agentboot lang en</code></p>
+        </div>
+        <div class="cmd-card hl">
+          <div class="cmd-top"><svg class="ic" aria-hidden="true"><use href="#i-spark"/></svg><span class="cmd-k">ab</span></div>
+          <p><strong>Built-in fallback agent</strong> — free model, zero config</p>
+        </div>
+      </div>
+      <div class="note warn rv">
+        <svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>
+        <p>The one-liner installs <strong>AgentBoot itself only</strong> — which third-party agents to install is always your choice in the menu.</p>
+      </div>
+    </section>
+
+    <section class="sec" id="features">
+      <p class="eyebrow">02 · FEATURES</p>
+      <h2>Features<a class="ha" href="#features" aria-label="Permalink">#</a></h2>
+      <div class="feat-grid rv">
+        <div class="feat c1"><span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg></span><h3>Choose what to install</h3><p>16 mainstream agents, multi-select in the menu</p></div>
+        <div class="feat c2"><span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-buoy"/></svg></span><h3>Built-in fallback agent</h3><p><code>ab</code>: zero third-party dependencies, Agnes by default, offline Linux knowledge base, tool calling, host spec query (<code>ab sys</code>), session persistence</p></div>
+        <div class="feat c3"><span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-cpu"/></svg></span><h3>Model provider manager</h3><p>Named custom providers, Ollama/LM Studio presets, failover order, connectivity test</p></div>
+        <div class="feat c4"><span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg></span><h3>China network adaptive</h3><p>Switchable npm mirrors (npmmirror/Tencent/Huawei) &amp; GitHub accelerators (gh-proxy etc.); multi-mirror Node runtimes; Tsinghua PyPI; four-source fallback; proxy support</p></div>
+        <div class="feat c5"><span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-drive"/></svg></span><h3>Verified offline packages</h3><p>Releases provide Codex and OpenCode slim packs tested through install/run/uninstall; menu <code>[7]</code> builds other Agents on their target platform</p></div>
+        <div class="feat c1"><span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></span><h3>Custom agents</h3><p>Add anything beyond the registry (npm / pip / script), stored in your home dir</p></div>
+        <div class="feat c2"><span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-eraser"/></svg></span><h3>Safe uninstall</h3><p>Menu <code>[9]</code> or <code>agentboot uninstall &lt;id&gt;</code>; removes owned program files and preserves user data by default</p></div>
+        <div class="feat c3"><span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span><h3>Verified install</h3><p>Enforced SHA-256, atomic app switching, rollback; custom scripts require HTTPS and avoid shell interpolation</p></div>
+        <div class="feat c4"><span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-zap"/></svg></span><h3>Measured performance</h3><p>TLS connection reuse, pre-indexed KB, and an on-device <code>/bench</code> for current network/model conditions</p></div>
+      </div>
+    </section>
+
+    <section class="sec" id="supported-agents">
+      <p class="eyebrow">03 · AGENTS</p>
+      <h2>Supported agents (16)<a class="ha" href="#supported-agents" aria-label="Permalink">#</a></h2>
+      <p class="tbl-cap">Package names verified on the npm registry. <span class="pill pill-ok">✓ offline</span> = offline payload bundled.</p>
+      <div class="tbl-scroll rv" role="region" tabindex="0" aria-label="Supported agents">
+        <table class="tbl">
+          <thead><tr><th class="n">#</th><th>Agent</th><th>Command</th><th>Vendor</th><th>Offline</th></tr></thead>
+          <tbody>
+            <tr><td class="n">1</td><td>CoCo Agent</td><td><code>coco</code></td><td>BitCook</td><td><span class="pill pill-pl">Linux/macOS</span></td></tr>
+            <tr><td class="n">2</td><td>OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td><span class="pill pill-ok">✓</span> <span class="tbl-note">v2 native binary from <code>@opencode/cli</code>; x64 baseline fallback</span></td></tr>
+            <tr><td class="n">3</td><td>Hermes Agent</td><td><code>hermes</code></td><td>Hermes</td><td><span class="pill pill-ok">✓</span> <span class="tbl-note">needs Git</span></td></tr>
+            <tr><td class="n">4</td><td>Cline CLI</td><td><code>cline</code></td><td>Cline</td><td><span class="pill pill-ok">✓</span></td></tr>
+            <tr><td class="n">5</td><td>CodeBuddy CLI</td><td><code>codebuddy</code></td><td>Tencent</td><td><span class="pill pill-ok">✓</span></td></tr>
+            <tr><td class="n">6</td><td>Pi Coding Agent</td><td><code>pi</code></td><td>Earendil Works</td><td><span class="pill pill-ok">✓</span></td></tr>
+            <tr><td class="n">7</td><td>Claude Code</td><td><code>claude</code></td><td>Anthropic</td><td><span class="pill pill-ok">✓</span></td></tr>
+            <tr><td class="n">8</td><td>OpenAI Codex CLI</td><td><code>codex</code></td><td>OpenAI</td><td><span class="pill pill-ok">✓</span> <span class="tbl-note">optional preset model configuration</span></td></tr>
+            <tr><td class="n">9</td><td>Qwen Code</td><td><code>qwen</code></td><td>Alibaba</td><td><span class="pill pill-ok">✓</span> <span class="tbl-note">optional preset model configuration</span></td></tr>
+            <tr><td class="n">10</td><td>MiMo Code</td><td><code>mimo</code></td><td>Xiaomi</td><td><span class="pill pill-ok">✓</span></td></tr>
+            <tr><td class="n">11</td><td>OpenClaw</td><td><code>openclaw</code></td><td>OpenClaw</td><td><span class="pill pill-ok">✓</span></td></tr>
+            <tr><td class="n">12</td><td>Gemini CLI</td><td><code>gemini</code></td><td>Google</td><td><span class="pill pill-ok">✓</span></td></tr>
+            <tr><td class="n">13</td><td>iFlow CLI</td><td><code>iflow</code></td><td>iFlow</td><td><span class="pill pill-ok">✓</span></td></tr>
+            <tr><td class="n">14</td><td>Aider</td><td><code>aider</code></td><td>Aider AI</td><td><span class="pill pill-on">online only</span> <span class="tbl-note">pip</span></td></tr>
+            <tr><td class="n">15</td><td>Cursor</td><td><code>cursor</code></td><td>Anysphere</td><td><span class="pill pill-on">online only</span> <span class="tbl-note">official signed desktop app in an AgentBoot-owned user directory</span></td></tr>
+            <tr><td class="n">16</td><td>FreeBuff</td><td><code>freebuff</code></td><td>FreeBuff</td><td><span class="pill pill-on">online only</span> <span class="tbl-note">free ad-supported coding agent; npm launcher fetches its binary on first run</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sec" id="built-in-fallback-agent-ab">
+      <p class="eyebrow">04 · BUILT-IN</p>
+      <h2>Built-in fallback agent (ab)<a class="ha" href="#built-in-fallback-agent-ab" aria-label="Permalink">#</a></h2>
+      <p class="lead-in">Works when everything else fails — a Python standard-library core shipped with i18n and knowledge-base resources:</p>
+      <div class="ab-grid rv">
+        <ul class="blist">
+          <li>Tools: run commands (dangerous blocked/confirmed), read/write/edit files, <code>search_files</code>, fetch pages;</li>
+          <li>Offline Linux knowledge base: 9 topics — usage / operations / troubleshooting;</li>
+          <li>Session persistence (<code>ab -c</code>), streaming output, context auto-trimming.</li>
+        </ul>
+        <div class="code">
+          <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">ab — quick start</span><button class="copy" type="button" aria-label="Copy commands"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>Copy</button></div>
+          <pre><code>ab                                  <span class="cm"># interactive (free model by default)</span>
+ab run "check disk usage"           <span class="cm"># one-shot task</span>
+ab linux 查看端口占用                <span class="cm"># query offline Linux knowledge base</span>
+ab doctor                           <span class="cm"># environment check</span>
+ab bench                            <span class="cm"># performance benchmark</span>
+ab model                            <span class="cm"># provider manager</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="offline-packages">
+      <p class="eyebrow">05 · OFFLINE</p>
+      <h2>Offline packages<a class="ha" href="#offline-packages" aria-label="Permalink">#</a></h2>
+      <p>Download a platform-and-Agent-specific verified pack from GitHub <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a>. The pipeline runs on a self-hosted runner and verifies install, <code>--version</code>, and uninstall on Linux before uploading; Windows/macOS packs are built on demand via the release-platforms workflow. Build other Agents on their target platform with menu <code>[7]</code> or:</p>
+      <div class="code rv">
+        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="Copy command"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>Copy</button></div>
+        <pre><code>python core/menu.py build-offline win-x64 claude-code,pi</code></pre>
+      </div>
+      <p class="lead-in"><strong>Details: <a href="install-guide.html">Installation Guide (EN)</a> · <a href="../install-guide.html">安装指南 (中文)</a>.</strong></p>
+    </section>
+
+    <section class="sec" id="models">
+      <p class="eyebrow">06 · MODELS</p>
+      <h2>Models<a class="ha" href="#models" aria-label="Permalink">#</a></h2>
+      <ul class="blist wide">
+        <li><strong>Free model</strong> (<code>agnes-2.5-flash</code>) built-in — zero config;</li>
+        <li>Custom OpenAI-compatible providers (named), local models (Ollama / LM Studio), failover order;</li>
+        <li>Config: <code>~/.agentboot/config.json</code>; switch language: <code>agentboot lang en</code>.</li>
+      </ul>
+    </section>
+
+    <section class="sec" id="uninstall-agents">
+      <p class="eyebrow">07 · UNINSTALL</p>
+      <h2>Uninstall agents<a class="ha" href="#uninstall-agents" aria-label="Permalink">#</a></h2>
+      <p>Open <code>agentboot</code> and choose <code>[9] Uninstall Agents</code>, or use the CLI:</p>
+      <div class="code rv">
+        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="Copy commands"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>Copy</button></div>
+        <pre><code>agentboot uninstall codex
+agentboot uninstall codex,qwen-code       <span class="cm"># batch uninstall</span>
+agentboot uninstall coco --purge          <span class="cm"># also remove CoCo user data</span></code></pre>
+      </div>
+      <p class="mut-p">AgentBoot records install ownership and will not remove an unrelated command merely because it has the same name. Normal uninstall removes the program, offline payload, and AgentBoot-owned shim while keeping model config, credentials, and sessions. <code>--purge</code> currently applies to CoCo and removes its user data as well; AgentBoot does not guess at other projects' data directories. Legacy v1.0.0 installs are removed automatically only when their AgentBoot ownership can be proven.</p>
+    </section>
+
+    <section class="sec" id="performance-measured-via-ab-bench">
+      <p class="eyebrow">08 · BENCHMARK</p>
+      <h2>Performance (measured via <code>ab bench</code>)<a class="ha" href="#performance-measured-via-ab-bench" aria-label="Permalink">#</a></h2>
+      <div class="note rv">
+        <svg class="ic" aria-hidden="true"><use href="#i-gauge"/></svg>
+        <p><code>ab bench</code> measures KB cold/warm queries and first-token latency for a fresh TLS connection versus a reused connection on the current machine and provider. Results vary by network, model, and region and are not a fixed product guarantee.</p>
+      </div>
+    </section>
+
+    <section class="sec" id="links">
+      <p class="eyebrow">09 · LINKS</p>
+      <h2>Links<a class="ha" href="#links" aria-label="Permalink">#</a></h2>
+      <div class="lgrid rv">
+        <a class="lcard" href="install-guide.html">
+          <span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-book"/></svg></span>
+          <span class="lc-t">Installation Guide (EN)<span class="arr">→</span></span>
+          <span class="lc-d">One-command install / offline deployment / custom builds / model providers / troubleshooting</span>
+        </a>
+        <a class="lcard" href="https://github.com/bit-cook/AgentBoot/releases">
+          <span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-dl"/></svg></span>
+          <span class="lc-t">Releases<span class="arr">→</span></span>
+          <span class="lc-d">Online packages / verified Linux &amp; Windows Codex offline packs / source archives</span>
+        </a>
+        <div class="lcard">
+          <span class="fic"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg></span>
+          <span class="lc-t">Entry points</span>
+          <span class="lc-d"><a href="https://boot.ide.pub">boot.ide.pub</a> (Cloudflare) · <a href="https://bit-cook.github.io/AgentBoot/">GitHub Pages</a></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="security">
+      <p class="eyebrow">10 · SECURITY</p>
+      <h2>Security<a class="ha" href="#security" aria-label="Permalink">#</a></h2>
+      <ol class="slist rv">
+        <li>The free model credentials are built in by design; remove <code>PRESETS["agnes"]["api_key"]</code> in <code>core/agent.py</code> if you fork;</li>
+        <li><code>smart</code> inspects every command-chain segment, blocks dangerous operations, and requires interactive confirmation for ordinary mutations; non-interactive runs never silently approve writes;</li>
+        <li><code>safe</code> permits read-only commands/tools only. Automation that intentionally mutates the machine must explicitly set <code>confirm=always</code>.</li>
+        <li>Online tar/zip archives are fetched with same-origin <code>.sha256</code> sidecars and verified before an atomic app-directory switch; failed upgrades preserve or restore the previous version.</li>
+      </ol>
+    </section>
+
+    <section class="sec" id="license">
+      <p class="eyebrow">11 · LICENSE</p>
+      <h2>License<a class="ha" href="#license" aria-label="Permalink">#</a></h2>
+      <p>MIT</p>
+    </section>
+
+    <div class="src-note rv">
+      <svg class="ic ic-f" aria-hidden="true"><use href="#i-gh"/></svg>
+      <p><strong>Source</strong>: <a href="https://github.com/bit-cook/AgentBoot/blob/main/README.en.md">README.en.md</a> (English) · <a href="https://github.com/bit-cook/AgentBoot/blob/main/README.md">README.md</a> (中文) · Installation guide source: <a href="https://github.com/bit-cook/AgentBoot/blob/main/docs/en/install-guide.md">docs/en/install-guide.md</a> — issues &amp; PRs welcome on <a href="https://github.com/bit-cook/AgentBoot">GitHub</a>.</p>
+    </div>
+
+  </main>
 </div>
-<hr>
-<h2 id="one-command-install">One-command install<a class="heading-anchor" href="#one-command-install" aria-label="Permalink">#</a></h2>
-<p><strong>Linux / macOS</strong></p>
-<pre><code>curl -fsSL https://boot.ide.pub/install.sh | sh</code></pre>
-<p><strong>Windows (PowerShell)</strong></p>
-<pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</code></pre>
-<p><strong>Fallback source (GitHub Pages, when ide.pub is unavailable)</strong></p>
-<pre><code>curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh</code></pre>
-<pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://bit-cook.github.io/AgentBoot/install.ps1'))"</code></pre>
-<blockquote>The fallback source is published from the same tree as the primary entry (both <code>/AgentBoot/</code> and <code>/agentboot/</code> spellings work); the installer falls back across Worker → Pages → jsDelivr mirror → GitHub Release download sources, so any single domain going away still completes the install. If every custom domain expires, this domain-free entry still works: <code>curl -fsSL https://github.com/bit-cook/AgentBoot/releases/latest/download/install.sh | sh</code>.</blockquote>
-<p>Two commands after install:</p>
-<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>Command</th><th>Purpose</th></tr></thead><tbody><tr><td><code>agentboot</code></td><td>Console menu (install/uninstall agents, models, mirrors, offline builds) — Chinese UI, English switchable via <code>agentboot lang en</code></td></tr><tr><td><code>ab</code></td><td>Built-in fallback agent — <strong>free Agnes model, zero config</strong></td></tr></tbody></table></div>
-<blockquote>The one-liner installs AgentBoot itself only — which third-party agents to install is always your choice in the menu.</blockquote>
-<h2 id="features">Features<a class="heading-anchor" href="#features" aria-label="Permalink">#</a></h2>
-<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>📦 <strong>Choose what to install</strong></td><td>16 mainstream agents, multi-select in the menu</td></tr><tr><td>🛟 <strong>Built-in fallback agent</strong></td><td><code>ab</code>: zero third-party dependencies, Agnes by default, offline Linux knowledge base, tool calling, host spec query (<code>ab sys</code>), session persistence</td></tr><tr><td>🧠 <strong>Model provider manager</strong></td><td>Named custom providers, Ollama/LM Studio presets, failover order, connectivity test</td></tr><tr><td>🇨🇳 <strong>China network adaptive</strong></td><td>Switchable npm mirrors (npmmirror/Tencent/Huawei) &amp; GitHub accelerators (gh-proxy etc.); multi-mirror Node runtimes; Tsinghua PyPI; four-source fallback; proxy support</td></tr><tr><td>📴 <strong>Verified offline packages</strong></td><td>Releases provide Codex and OpenCode slim packs tested through install/run/uninstall; menu <code>[7]</code> builds other Agents on their target platform</td></tr><tr><td>➕ <strong>Custom agents</strong></td><td>Add anything beyond the registry (npm / pip / script), stored in your home dir</td></tr><tr><td>🧹 <strong>Safe uninstall</strong></td><td>Menu <code>[9]</code> or <code>agentboot uninstall &lt;id></code>; removes owned program files and preserves user data by default</td></tr><tr><td>🔐 <strong>Verified install</strong></td><td>Enforced SHA-256, atomic app switching, rollback; custom scripts require HTTPS and avoid shell interpolation</td></tr><tr><td>⚡ <strong>Measured performance</strong></td><td>TLS connection reuse, pre-indexed KB, and an on-device <code>/bench</code> for current network/model conditions</td></tr></tbody></table></div>
-<h2 id="supported-agents-16">Supported agents (16)<a class="heading-anchor" href="#supported-agents-16" aria-label="Permalink">#</a></h2>
-<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>#</th><th>Agent</th><th>Command</th><th>Vendor</th><th>Offline</th></tr></thead><tbody><tr><td>1</td><td>CoCo Agent</td><td><code>coco</code></td><td>BitCook</td><td>Linux/macOS</td></tr><tr><td>2</td><td>OpenCode</td><td><code>opencode</code></td><td>opencode.ai</td><td>✓ (v2 native binary from <code>@opencode/cli</code>; x64 baseline fallback)</td></tr><tr><td>3</td><td>Hermes Agent</td><td><code>hermes</code></td><td>Hermes</td><td>✓ (needs Git)</td></tr><tr><td>4</td><td>Cline CLI</td><td><code>cline</code></td><td>Cline</td><td>✓</td></tr><tr><td>5</td><td>CodeBuddy CLI</td><td><code>codebuddy</code></td><td>Tencent</td><td>✓</td></tr><tr><td>6</td><td>Pi Coding Agent</td><td><code>pi</code></td><td>Earendil Works</td><td>✓</td></tr><tr><td>7</td><td>Claude Code</td><td><code>claude</code></td><td>Anthropic</td><td>✓</td></tr><tr><td>8</td><td>OpenAI Codex CLI</td><td><code>codex</code></td><td>OpenAI</td><td>✓ (optional preset model configuration)</td></tr><tr><td>9</td><td>Qwen Code</td><td><code>qwen</code></td><td>Alibaba</td><td>✓ (optional preset model configuration)</td></tr><tr><td>10</td><td>MiMo Code</td><td><code>mimo</code></td><td>Xiaomi</td><td>✓</td></tr><tr><td>11</td><td>OpenClaw</td><td><code>openclaw</code></td><td>OpenClaw</td><td>✓</td></tr><tr><td>12</td><td>Gemini CLI</td><td><code>gemini</code></td><td>Google</td><td>✓</td></tr><tr><td>13</td><td>iFlow CLI</td><td><code>iflow</code></td><td>iFlow</td><td>✓</td></tr><tr><td>14</td><td>Aider</td><td><code>aider</code></td><td>Aider AI</td><td>online only (pip)</td></tr><tr><td>15</td><td>Cursor</td><td><code>cursor</code></td><td>Anysphere</td><td>online only (official signed desktop app in an AgentBoot-owned user directory)</td></tr><tr><td>16</td><td>FreeBuff</td><td><code>freebuff</code></td><td>FreeBuff</td><td>online only (free ad-supported coding agent; npm launcher fetches its binary on first run)</td></tr></tbody></table></div>
-<p>Package names verified on the npm registry. <code>✓</code> = offline payload bundled.</p>
-<h2 id="built-in-fallback-agent-ab">Built-in fallback agent (ab)<a class="heading-anchor" href="#built-in-fallback-agent-ab" aria-label="Permalink">#</a></h2>
-<p>Works when everything else fails — a Python standard-library core shipped with i18n and knowledge-base resources:</p>
-<pre><code>ab                                  # interactive (Agnes free model by default)
-ab run "check disk usage"           # one-shot task
-ab linux 查看端口占用                # query offline Linux knowledge base
-ab doctor                           # environment check
-ab bench                            # performance benchmark
-ab model                            # provider manager</code></pre>
-<ul><li>Tools: run commands (dangerous blocked/confirmed), read/write/edit files, <code>search_files</code>, fetch pages</li><li>Offline Linux knowledge base: 9 topics, usage / operations / troubleshooting</li><li>Session persistence (<code>ab -c</code>), streaming output, context auto-trimming</li></ul>
-<h2 id="offline-packages">Offline packages<a class="heading-anchor" href="#offline-packages" aria-label="Permalink">#</a></h2>
-<p>Download a platform-and-Agent-specific verified pack from <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a>. The pipeline runs on a self-hosted runner and verifies install, <code>--version</code>, and uninstall on Linux before uploading; Windows/macOS packs are built on demand via the release-platforms workflow. Build other Agents on their target platform with menu <code>[7]</code> or:</p>
-<pre><code>python core/menu.py build-offline win-x64 claude-code,pi</code></pre>
-<p>Details: <a href="docs/en/install-guide.md">Installation Guide (EN)</a> · <a href="安装指南.md">安装指南 (中文)</a></p>
-<h2 id="models">Models<a class="heading-anchor" href="#models" aria-label="Permalink">#</a></h2>
-<ul><li><strong>Agnes free model</strong> (<code>agnes-2.5-flash</code>) built-in — zero config;</li><li>Custom OpenAI-compatible providers (named), local models (Ollama / LM Studio), failover order;</li><li>Config: <code>~/.agentboot/config.json</code>; switch language: <code>agentboot lang en</code>.</li></ul>
-<h2 id="uninstall-agents">Uninstall Agents<a class="heading-anchor" href="#uninstall-agents" aria-label="Permalink">#</a></h2>
-<p>Open <code>agentboot</code> and choose <code>[9] Uninstall Agents</code>, or use the CLI:</p>
-<pre><code>agentboot uninstall codex
-agentboot uninstall codex,qwen-code       # batch uninstall
-agentboot uninstall coco --purge          # also remove CoCo user data</code></pre>
-<p>AgentBoot records install ownership and will not remove an unrelated command merely because it has the same name. Normal uninstall removes the program, offline payload, and AgentBoot-owned shim while keeping model config, credentials, and sessions. <code>--purge</code> currently applies to CoCo and removes its user data as well; AgentBoot does not guess at other projects' data directories. Legacy v1.0.0 installs are removed automatically only when their AgentBoot ownership can be proven.</p>
-<h2 id="performance-measured-via-ab-bench">Performance (measured via <code>ab bench</code>)<a class="heading-anchor" href="#performance-measured-via-ab-bench" aria-label="Permalink">#</a></h2>
-<p><code>ab bench</code> measures KB cold/warm queries and first-token latency for a fresh TLS connection versus a reused connection on the current machine and provider. Results vary by network, model, and region and are not a fixed product guarantee.</p>
-<h2 id="links">Links<a class="heading-anchor" href="#links" aria-label="Permalink">#</a></h2>
-<ul><li><a href="docs/en/install-guide.md">Installation Guide (EN)</a> · <a href="安装指南.md">安装指南 (中文)</a></li><li>Primary entry: <a href="https://boot.ide.pub">boot.ide.pub</a> · Mirror: <a href="https://bit-cook.github.io/AgentBoot/">GitHub Pages</a></li></ul>
-<h2 id="security">Security<a class="heading-anchor" href="#security" aria-label="Permalink">#</a></h2>
-<ul><li>The free Agnes model credentials are built in by design; remove <code>PRESETS["agnes"]["api_key"]</code> in <code>core/agent.py</code> if you fork;</li><li><code>smart</code> inspects every command-chain segment, blocks dangerous operations, and requires interactive confirmation for ordinary mutations; non-interactive runs never silently approve writes;</li><li><code>safe</code> permits read-only commands/tools only. Automation that intentionally mutates the machine must explicitly set <code>confirm=always</code>.</li><li>Online tar/zip archives are fetched with same-origin <code>.sha256</code> sidecars and verified before an atomic app-directory switch; failed upgrades preserve or restore the previous version.</li></ul>
-<h2 id="license">License<a class="heading-anchor" href="#license" aria-label="Permalink">#</a></h2>
-<p>MIT</p>
-      </article>
-    </main>
-    <footer class="site-footer shell">
-      <div class="footer-row">
-        <div>
-          <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true"></span><span>AgentBoot</span></a>
-          <p class="footer-note">MIT License · <a href="https://github.com/bit-cook/AgentBoot">GitHub</a> · <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a></p>
-        </div>
-        <div class="footer-links">
-          <a href="https://boot.ide.pub/health">健康检查</a>
-          <a href="https://bit-cook.github.io/AgentBoot/">Pages 镜像</a>
-        </div>
-      </div>
-    </footer>
-  </body>
+
+<footer class="foot">
+  <div class="foot-in">
+    <div>
+      <a class="brand" href="../../index.html"><span class="logo">&gt;_</span><span class="brand-t">AgentBoot</span></a>
+      <p class="foot-note">MIT License · <a href="https://github.com/bit-cook/AgentBoot">GitHub</a> · <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a></p>
+    </div>
+    <div class="foot-links">
+      <a href="https://boot.ide.pub/health">Health check</a>
+      <a href="https://bit-cook.github.io/AgentBoot/">Pages mirror</a>
+    </div>
+  </div>
+</footer>
+
+<button class="totop" id="ab-totop" type="button" aria-label="Back to top"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg></button>
+<style>
+#ab-readme{
+  --bg:#070a12; --bg2:#0b0f1c;
+  --panel:rgba(148,163,199,.05); --panel2:rgba(148,163,199,.09);
+  --bd:rgba(148,163,199,.15); --bd2:rgba(148,163,199,.3);
+  --tx:#e7ecf8; --mut:#a0aac2; --fnt:#69748f;
+  --ac1:#22d3ee; --ac2:#818cf8; --ac3:#e879f9; --grn:#34d399; --amb:#fbbf24;
+  --grad:linear-gradient(92deg,#22d3ee,#818cf8 55%,#e879f9);
+  --grid:rgba(148,163,199,.08);
+  --navbg:rgba(7,10,18,.78);
+  --shadow:0 20px 50px -30px rgba(0,0,0,.6);
+  --cardsh:0 1px 0 rgba(255,255,255,.02) inset;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Consolas,"Courier New",monospace;
+  --disp:"Space Grotesk","Noto Sans SC",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-family:"Noto Sans SC",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  font-size:15.5px; line-height:1.75; color:var(--tx);
+  background:var(--bg); position:relative; overflow:clip;
+  -webkit-font-smoothing:antialiased;
+}
+#ab-readme[data-theme="light"]{
+  --bg:#f7f5ef; --bg2:#efece2;
+  --panel:#ffffff; --panel2:#f0ede3;
+  --bd:#e4e0d2; --bd2:#cfc9b6;
+  --tx:#232a40; --mut:#5d667c; --fnt:#8f96a8;
+  --ac1:#0e7490; --ac2:#5b5bd6; --ac3:#b91cc4; --grn:#0a8a5f; --amb:#b45309;
+  --grid:rgba(35,42,64,.07);
+  --navbg:rgba(247,245,239,.82);
+  --shadow:0 16px 40px -28px rgba(60,50,20,.25);
+}
+#ab-readme *,#ab-readme *::before,#ab-readme *::after{box-sizing:border-box}
+#ab-readme :focus-visible{outline:2px solid var(--ac2);outline-offset:2px;border-radius:4px}
+#ab-readme ::selection{background:rgba(129,140,248,.35)}
+#ab-readme a{color:var(--ac1);text-decoration:none}
+#ab-readme a:hover{text-decoration:underline;text-underline-offset:3px}
+#ab-readme code{font-family:var(--mono);font-size:.86em;background:var(--panel2);border:1px solid var(--bd);border-radius:6px;padding:.1em .45em;color:var(--tx);white-space:nowrap;overflow-wrap:anywhere}
+#ab-readme strong{font-weight:700;color:var(--tx)}
+#ab-readme .ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#ab-readme .ic-f{fill:currentColor;stroke:none}
+#ab-readme .skip{position:absolute;left:-9999px;top:0;z-index:99;background:var(--ac2);color:#fff;padding:8px 14px;border-radius:0 0 10px 0}
+#ab-readme .skip:focus{left:0}
+
+/* ── 顶栏 ─────────────────────────── */
+#ab-readme .nav{position:sticky;top:0;z-index:60;background:var(--navbg);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--bd)}
+#ab-readme .nav-in{max-width:1200px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;gap:22px}
+#ab-readme .brand{display:inline-flex;align-items:center;gap:10px;color:var(--tx);font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:.01em}
+#ab-readme .brand:hover{text-decoration:none}
+#ab-readme .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#06b6d4,#6366f1);display:grid;place-items:center;color:#fff;font-family:var(--mono);font-size:12px;font-weight:600;box-shadow:0 4px 14px -4px rgba(99,102,241,.6)}
+#ab-readme .links{display:flex;gap:4px;margin-left:auto;min-width:0;overflow-x:auto;scrollbar-width:none}
+#ab-readme .links::-webkit-scrollbar{display:none}
+#ab-readme .links a{color:var(--mut);font-size:13.5px;padding:7px 11px;border-radius:9px;white-space:nowrap;flex:none;min-width:max-content}
+#ab-readme .links a:hover{color:var(--tx);background:var(--panel2);text-decoration:none}
+#ab-readme .links a.cur{color:var(--tx);background:var(--panel2)}
+#ab-readme .theme-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--bd);background:var(--panel);color:var(--mut);display:grid;place-items:center;cursor:pointer}
+#ab-readme .theme-btn:hover{color:var(--tx);border-color:var(--bd2)}
+#ab-readme .theme-btn .ic{width:16px;height:16px}
+#ab-readme .ic-sun{display:none}
+#ab-readme[data-theme="light"] .ic-sun{display:block}
+#ab-readme[data-theme="light"] .ic-moon{display:none}
+
+/* ── Hero ─────────────────────────── */
+#ab-readme .hero{position:relative;padding:84px 24px 72px;overflow:hidden}
+#ab-readme .hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse 75% 70% at 50% 32%,#000 25%,transparent 72%);-webkit-mask-image:radial-gradient(ellipse 75% 70% at 50% 32%,#000 25%,transparent 72%);pointer-events:none}
+#ab-readme .hero::after{content:"";position:absolute;inset:0;pointer-events:none;background:
+  radial-gradient(620px 360px at 16% 8%,rgba(34,211,238,.14),transparent 62%),
+  radial-gradient(700px 400px at 84% 14%,rgba(129,140,248,.16),transparent 64%),
+  radial-gradient(560px 320px at 55% 92%,rgba(232,121,249,.07),transparent 62%)}
+#ab-readme[data-theme="light"] .hero::after{background:
+  radial-gradient(620px 360px at 16% 8%,rgba(14,116,144,.1),transparent 62%),
+  radial-gradient(700px 400px at 84% 14%,rgba(91,91,214,.12),transparent 64%),
+  radial-gradient(560px 320px at 55% 92%,rgba(185,28,196,.05),transparent 62%)}
+#ab-readme .hero-in{position:relative;z-index:1;max-width:880px;margin:0 auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px}
+#ab-readme .chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+#ab-readme .chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--mut);border:1px solid var(--bd);background:var(--panel);border-radius:999px;padding:5px 13px;white-space:nowrap;min-width:max-content}
+#ab-readme .chip .ic{width:13px;height:13px;color:var(--ac1)}
+#ab-readme h1{margin:6px 0 0;font-family:var(--disp);font-size:clamp(46px,7.5vw,80px);font-weight:700;letter-spacing:-.015em;line-height:1.05;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+#ab-readme .tagline{margin:0;font-size:clamp(16px,2.4vw,20px);font-weight:500;color:var(--tx);letter-spacing:.14em}
+#ab-readme .lede{margin:2px 0 0;max-width:640px;font-size:15px;color:var(--mut)}
+#ab-readme .lede strong{color:var(--tx)}
+#ab-readme .cta{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:8px}
+#ab-readme .btn-p{display:inline-flex;align-items:center;gap:9px;background:linear-gradient(92deg,#06b6d4,#6366f1);color:#fff;font-weight:600;font-size:15px;padding:12px 24px;border-radius:13px;box-shadow:0 14px 34px -14px rgba(99,102,241,.65);transition:transform .18s ease,box-shadow .18s ease}
+#ab-readme .btn-p:hover{text-decoration:none;transform:translateY(-2px);box-shadow:0 20px 40px -14px rgba(99,102,241,.75)}
+#ab-readme .btn-p .ic{width:16px;height:16px}
+#ab-readme .btn-g{display:inline-flex;align-items:center;gap:9px;color:var(--tx);font-weight:500;font-size:15px;padding:12px 22px;border-radius:13px;border:1px solid var(--bd2);background:var(--panel);transition:border-color .18s ease,transform .18s ease}
+#ab-readme .btn-g:hover{text-decoration:none;transform:translateY(-2px);border-color:var(--ac2)}
+#ab-readme .btn-g .ic{width:17px;height:17px}
+#ab-readme .entries{margin:4px 0 0;font-size:13px;color:var(--mut)}
+#ab-readme .entries a{color:var(--ac1)}
+#ab-readme .entries strong{color:var(--mut);font-weight:500}
+
+/* ── 终端窗口 ──────────────────────── */
+#ab-readme .term{width:min(720px,100%);margin-top:16px;text-align:left;border-radius:14px;background:#0b0f1e;border:1px solid rgba(148,163,199,.2);box-shadow:0 40px 90px -40px rgba(34,211,238,.28),0 40px 90px -50px rgba(129,140,248,.4),var(--shadow);overflow:hidden}
+#ab-readme .term-h{display:flex;align-items:center;gap:10px;height:38px;padding:0 12px;border-bottom:1px solid rgba(148,163,199,.14);background:rgba(148,163,199,.04)}
+#ab-readme .dots{display:inline-flex;gap:6px}
+#ab-readme .dots i{width:11px;height:11px;border-radius:50%}
+#ab-readme .dots i:nth-child(1){background:#ff5f57}
+#ab-readme .dots i:nth-child(2){background:#febc2e}
+#ab-readme .dots i:nth-child(3){background:#28c840}
+#ab-readme .term-t{font-family:var(--mono);font-size:11px;color:#69748f;letter-spacing:.05em}
+#ab-readme .term-b{padding:16px 18px 18px;font-family:var(--mono);font-size:13px;line-height:1.8;color:#dbe4f5}
+#ab-readme .tl{white-space:pre-wrap;word-break:break-all}
+#ab-readme .pp{color:#34d399;margin-right:9px}
+#ab-readme .tl .cur{display:inline-block;width:8px;height:15px;margin-left:2px;background:#22d3ee;vertical-align:-2px;animation:ab-blink 1.05s steps(1) infinite}
+@keyframes ab-blink{50%{opacity:0}}
+#ab-readme .tout{margin-top:6px;opacity:.96}
+#ab-readme .tout .ok{color:#34d399}
+#ab-readme .tout .dim{color:#69748f}
+
+/* ── 代码块 ───────────────────────── */
+#ab-readme .code{border-radius:12px;background:#0b0f1e;border:1px solid rgba(148,163,199,.18);overflow:hidden;box-shadow:var(--shadow)}
+#ab-readme .code + .code{margin-top:12px}
+#ab-readme .code-h{display:flex;align-items:center;gap:10px;height:36px;padding:0 8px 0 12px;border-bottom:1px solid rgba(148,163,199,.13);background:rgba(148,163,199,.04)}
+#ab-readme .code-t{font-family:var(--mono);font-size:10.5px;color:#69748f;letter-spacing:.08em;text-transform:uppercase;margin-right:auto}
+#ab-readme .code-h .dots i{width:9px;height:9px}
+#ab-readme pre{margin:0;padding:14px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.75;color:#dbe4f5;scrollbar-width:thin;scrollbar-color:rgba(148,163,199,.35) transparent}
+#ab-readme pre::-webkit-scrollbar{height:8px}
+#ab-readme pre::-webkit-scrollbar-thumb{background:rgba(148,163,199,.3);border-radius:8px}
+#ab-readme pre .cm{color:#5f6f8f}
+#ab-readme pre .cd{color:#7dd3fc}
+#ab-readme .copy{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:#8ea0c4;background:transparent;border:1px solid rgba(148,163,199,.25);border-radius:7px;padding:4px 9px;cursor:pointer;transition:color .15s,border-color .15s}
+#ab-readme .copy:hover{color:#e7ecf8;border-color:rgba(148,163,199,.5)}
+#ab-readme .copy .ic{width:12px;height:12px}
+#ab-readme .copy.done{color:#34d399;border-color:rgba(52,211,153,.5)}
+
+/* ── 布局 / 目录 ───────────────────── */
+#ab-readme .shell{width:auto;max-width:1200px;margin:0 auto;padding:26px 24px 30px;display:grid;grid-template-columns:212px minmax(0,1fr);gap:52px;align-items:start}
+#ab-readme .toc{position:sticky;top:86px;font-size:13px}
+#ab-readme .toc-t{margin:0 0 10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--fnt);text-transform:uppercase}
+#ab-readme .toc-l{display:flex;flex-direction:column}
+#ab-readme .toc-l a{color:var(--mut);padding:5px 12px;border-left:2px solid var(--bd);transition:color .15s,border-color .15s,background .15s}
+#ab-readme .toc-l a:hover{color:var(--tx);text-decoration:none;background:var(--panel)}
+#ab-readme .toc-l a.on{color:var(--tx);border-image:linear-gradient(180deg,#22d3ee,#818cf8) 1;background:var(--panel)}
+#ab-readme .content{display:flex;flex-direction:column;gap:64px;min-width:0}
+
+/* ── 分区标题 ─────────────────────── */
+#ab-readme .sec{scroll-margin-top:86px}
+#ab-readme .eyebrow{margin:0 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--ac1);text-transform:uppercase;display:flex;align-items:center;gap:10px}
+#ab-readme .eyebrow::after{content:"";height:1px;width:44px;background:linear-gradient(90deg,var(--ac1),transparent)}
+#ab-readme h2{margin:0 0 18px;font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:-.01em;line-height:1.3;max-width:none}
+#ab-readme .ha{margin-left:8px;color:var(--fnt);font-weight:400;opacity:0;transition:opacity .15s}
+#ab-readme h2:hover .ha{opacity:1}
+#ab-readme h2 code{font-size:.8em}
+#ab-readme p{margin:0 0 13px}
+#ab-readme .mut-p{color:var(--mut);font-size:14px}
+#ab-readme .lead-in{margin-top:18px}
+
+/* ── 标签页 ───────────────────────── */
+#ab-readme .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+#ab-readme .tab{font-family:inherit;font-size:13.5px;color:var(--mut);background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:8px 15px;cursor:pointer;transition:all .15s;white-space:nowrap}
+#ab-readme .tab:hover{color:var(--tx);border-color:var(--bd2)}
+#ab-readme .tab.on{color:var(--tx);border-color:transparent;background:linear-gradient(92deg,rgba(34,211,238,.16),rgba(129,140,248,.2));box-shadow:inset 0 0 0 1px rgba(129,140,248,.55)}
+#ab-readme[data-theme="light"] .tab.on{background:linear-gradient(92deg,rgba(14,116,144,.12),rgba(91,91,214,.14));box-shadow:inset 0 0 0 1px rgba(91,91,214,.45)}
+#ab-readme .tabpanel{margin-bottom:18px}
+#ab-readme .tabpanel[hidden]{display:none}
+
+/* ── 提示框 ───────────────────────── */
+#ab-readme .note{display:flex;gap:12px;align-items:flex-start;border:1px solid color-mix(in srgb,var(--ac1) 32%,transparent);background:color-mix(in srgb,var(--ac1) 7%,transparent);border-radius:12px;padding:13px 16px;margin:16px 0}
+#ab-readme .note .ic{width:17px;height:17px;color:var(--ac1);margin-top:4px}
+#ab-readme .note p{margin:0;font-size:13.5px;color:var(--mut)}
+#ab-readme .note p strong{color:var(--tx)}
+#ab-readme .note code{white-space:normal}
+#ab-readme .note.warn{border-color:color-mix(in srgb,var(--amb) 40%,transparent);background:color-mix(in srgb,var(--amb) 8%,transparent)}
+#ab-readme .note.warn .ic{color:var(--amb)}
+
+/* ── 命令卡片 ─────────────────────── */
+#ab-readme .duo{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0 16px}
+#ab-readme .cmd-card{border:1px solid var(--bd);background:var(--panel);border-radius:14px;padding:16px 18px;transition:border-color .18s,transform .18s}
+#ab-readme .cmd-card:hover{border-color:var(--bd2);transform:translateY(-2px)}
+#ab-readme .cmd-top{display:flex;align-items:center;gap:9px;margin-bottom:8px;color:var(--ac1)}
+#ab-readme .cmd-card.hl .cmd-top{color:var(--ac2)}
+#ab-readme .cmd-k{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--tx)}
+#ab-readme .cmd-card p{margin:0;font-size:13.5px;color:var(--mut)}
+
+/* ── 特性网格 ─────────────────────── */
+#ab-readme .feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+#ab-readme .feat{border:1px solid var(--bd);background:var(--panel);border-radius:16px;padding:18px;transition:transform .18s,border-color .18s,box-shadow .18s}
+#ab-readme .feat:hover{transform:translateY(-3px);border-color:var(--bd2);box-shadow:var(--shadow)}
+#ab-readme .fic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;margin-bottom:12px}
+#ab-readme .feat h3{margin:0 0 6px;font-size:14.5px;font-weight:700}
+#ab-readme .feat p{margin:0;font-size:13px;color:var(--mut);line-height:1.7}
+#ab-readme .feat code{font-size:.84em}
+#ab-readme .c1 .fic{color:var(--ac1);background:color-mix(in srgb,var(--ac1) 12%,transparent)}
+#ab-readme .c2 .fic{color:var(--ac2);background:color-mix(in srgb,var(--ac2) 13%,transparent)}
+#ab-readme .c3 .fic{color:var(--ac3);background:color-mix(in srgb,var(--ac3) 12%,transparent)}
+#ab-readme .c4 .fic{color:var(--grn);background:color-mix(in srgb,var(--grn) 12%,transparent)}
+#ab-readme .c5 .fic{color:var(--amb);background:color-mix(in srgb,var(--amb) 13%,transparent)}
+
+/* ── 表格 ─────────────────────────── */
+#ab-readme .tbl-cap{font-size:13px;color:var(--mut);margin-bottom:12px}
+#ab-readme .tbl-scroll{overflow-x:auto;border:1px solid var(--bd);border-radius:14px;background:var(--panel);scrollbar-width:thin}
+#ab-readme .tbl{width:100%;min-width:780px;border-collapse:collapse;font-size:13.5px}
+#ab-readme .tbl th{text-align:left;font-size:11.5px;font-weight:500;letter-spacing:.08em;color:var(--fnt);padding:11px 14px;border-bottom:1px solid var(--bd2);background:var(--panel2);white-space:nowrap}
+#ab-readme .tbl td{padding:11px 14px;border-bottom:1px solid var(--bd);vertical-align:top}
+#ab-readme .tbl tbody tr:last-child td{border-bottom:none}
+#ab-readme .tbl tbody tr{transition:background .12s}
+#ab-readme .tbl tbody tr:hover{background:var(--panel2)}
+#ab-readme .tbl .n{font-family:var(--mono);color:var(--fnt);width:34px}
+#ab-readme .tbl .mut{color:var(--mut);font-size:12.5px}
+#ab-readme .tbl code{white-space:nowrap}
+#ab-readme .tbl .tbl-note{color:var(--mut);font-size:12px}
+#ab-readme .tbl .tbl-note code{font-size:.9em}
+#ab-readme .pill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;border-radius:999px;padding:2px 10px;white-space:nowrap}
+#ab-readme .pill-ok{color:var(--grn);background:color-mix(in srgb,var(--grn) 11%,transparent);border:1px solid color-mix(in srgb,var(--grn) 34%,transparent)}
+#ab-readme .pill-pl{color:var(--ac1);background:color-mix(in srgb,var(--ac1) 10%,transparent);border:1px solid color-mix(in srgb,var(--ac1) 32%,transparent)}
+#ab-readme .pill-on{color:var(--amb);background:color-mix(in srgb,var(--amb) 10%,transparent);border:1px solid color-mix(in srgb,var(--amb) 36%,transparent)}
+
+/* ── 列表 ─────────────────────────── */
+#ab-readme .ab-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:26px;align-items:start}
+#ab-readme .blist{list-style:none;margin:0;padding:0}
+#ab-readme .blist li{position:relative;padding-left:26px;margin-bottom:13px;color:var(--mut)}
+#ab-readme .blist li strong{color:var(--tx)}
+#ab-readme .blist li::before{content:"";position:absolute;left:2px;top:.62em;width:8px;height:8px;border-radius:3px;background:linear-gradient(135deg,#22d3ee,#818cf8);transform:rotate(45deg)}
+#ab-readme .blist.wide li{margin-bottom:15px}
+#ab-readme .slist{list-style:none;counter-reset:sc;margin:0;padding:0}
+#ab-readme .slist li{counter-increment:sc;position:relative;padding:15px 16px 15px 58px;border:1px solid var(--bd);background:var(--panel);border-radius:14px;margin-bottom:10px;color:var(--mut);font-size:14px}
+#ab-readme .slist li::before{content:"0" counter(sc);position:absolute;left:18px;top:15px;font-family:var(--mono);font-size:13px;font-weight:600;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+#ab-readme .slist li strong{color:var(--tx)}
+
+/* ── 链接卡片 ─────────────────────── */
+#ab-readme .lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+#ab-readme .lcard{display:flex;flex-direction:column;border:1px solid var(--bd);background:var(--panel);border-radius:16px;padding:18px;color:var(--tx);transition:transform .18s,border-color .18s,box-shadow .18s}
+#ab-readme a.lcard:hover{text-decoration:none;transform:translateY(-3px);border-color:var(--bd2);box-shadow:var(--shadow)}
+#ab-readme .lcard .fic{margin-bottom:12px;color:var(--ac1);background:color-mix(in srgb,var(--ac1) 12%,transparent)}
+#ab-readme .lcard:nth-child(2) .fic{color:var(--ac2);background:color-mix(in srgb,var(--ac2) 13%,transparent)}
+#ab-readme .lcard:nth-child(3) .fic{color:var(--grn);background:color-mix(in srgb,var(--grn) 12%,transparent)}
+#ab-readme .lc-t{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+#ab-readme .lc-t .arr{color:var(--fnt);font-weight:400;transition:transform .18s,color .18s}
+#ab-readme a.lcard:hover .arr{transform:translateX(4px);color:var(--ac1)}
+#ab-readme .lc-d{font-size:13px;color:var(--mut);line-height:1.7}
+
+/* ── 页脚 ─────────────────────────── */
+#ab-readme .foot{border-top:1px solid var(--bd);position:relative;overflow:hidden}
+#ab-readme .foot::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(34,211,238,.55),rgba(129,140,248,.55),rgba(232,121,249,.5),transparent)}
+#ab-readme .foot-in{max-width:1200px;margin:0 auto;padding:34px 24px 44px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between}
+#ab-readme .foot-note{margin:10px 0 0;font-size:13px;color:var(--mut)}
+#ab-readme .foot-links{display:flex;gap:8px}
+#ab-readme .foot-links a{font-size:13px;color:var(--mut);border:1px solid var(--bd);border-radius:9px;padding:7px 13px}
+#ab-readme .foot-links a:hover{color:var(--tx);border-color:var(--bd2);text-decoration:none}
+
+/* ── 回到顶部 / 揭示动画 ────────────── */
+#ab-readme .totop{display:none;position:fixed;right:22px;bottom:22px;z-index:70;width:40px;height:40px;border-radius:12px;border:1px solid var(--bd2);background:var(--navbg);backdrop-filter:blur(10px);color:var(--mut);cursor:pointer;place-items:center}
+#ab-readme .totop.on{display:grid}
+#ab-readme .totop:hover{color:var(--tx);border-color:var(--ac2)}
+#ab-readme .totop .ic{width:16px;height:16px}
+#ab-readme.ab-js .rv{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s cubic-bezier(.22,.61,.36,1)}
+#ab-readme.ab-js .rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  #ab-readme.ab-js .rv{opacity:1;transform:none;transition:none}
+  #ab-readme .cur{animation:none}
+  #ab-readme *{scroll-behavior:auto}
+}
+html.ab-page{scroll-behavior:smooth}
+html.ab-page body{margin:0;background:#070a12}
+html.ab-page.ab-light body{background:#f7f5ef}
+html.ab-page #ab-readme .skip{position:fixed}
+
+/* ── 文档页头 ─────────────────────── */
+#ab-readme .doc-hero{padding:58px 24px 44px}
+#ab-readme .crumb{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;letter-spacing:.05em;color:var(--fnt)}
+#ab-readme .crumb>*{flex:none;white-space:nowrap;min-width:max-content}
+#ab-readme .crumb a{color:var(--mut)}
+#ab-readme .crumb a:hover{color:var(--tx);text-decoration:none}
+#ab-readme .crumb .sep{color:var(--fnt)}
+#ab-readme .crumb .cur{color:var(--ac1)}
+#ab-readme .doc-title{margin:16px 0 0;font-family:var(--disp);font-size:clamp(34px,5vw,54px);font-weight:700;letter-spacing:-.015em;line-height:1.08;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+#ab-readme .doc-intro{margin:12px 0 0;font-size:15.5px;color:var(--mut)}
+#ab-readme .meta-panel{width:min(860px,100%);margin:26px 0 0;text-align:left;border:1px solid var(--bd);background:var(--panel);border-radius:16px;padding:18px 20px;backdrop-filter:blur(8px)}
+#ab-readme .meta-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 13px}
+#ab-readme .meta-panel > p{margin:0 0 10px;font-size:13.5px;color:var(--mut);line-height:1.8}
+#ab-readme .meta-panel > p:last-child{margin:0}
+#ab-readme .meta-panel strong{color:var(--tx)}
+#ab-readme .meta-panel code{white-space:normal}
+
+/* ── 正文 h3 / 文件清单 / FAQ ──────── */
+#ab-readme h3{margin:32px 0 14px;font-family:var(--disp);font-size:17.5px;font-weight:700;letter-spacing:-.01em;line-height:1.45;max-width:none;display:flex;align-items:center;gap:11px;scroll-margin-top:86px}
+#ab-readme h3::before{content:"";width:11px;height:11px;flex:none;border-radius:3.5px;background:linear-gradient(135deg,#22d3ee,#818cf8);transform:rotate(45deg);opacity:.85}
+#ab-readme h3 .ha{margin-left:2px}
+#ab-readme .filelist{display:flex;flex-direction:column;gap:8px;margin:4px 0 14px}
+#ab-readme .frow{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;border:1px solid var(--bd);background:var(--panel);border-radius:10px;padding:9px 14px;font-size:13px}
+#ab-readme .frow code{background:transparent;border:none;padding:0;color:var(--ac1);font-size:12.5px}
+#ab-readme .frow .fd{color:var(--mut)}
+#ab-readme .faq{display:flex;flex-direction:column;gap:12px}
+#ab-readme .qa{border:1px solid var(--bd);background:var(--panel);border-radius:14px;padding:15px 18px}
+#ab-readme .qa-t{display:flex;gap:10px;align-items:flex-start;font-weight:700;font-size:14.5px;color:var(--tx);margin:0 0 8px}
+#ab-readme .qa-a{display:flex;gap:10px;align-items:flex-start;margin:0;font-size:13.5px;color:var(--mut);line-height:1.8}
+#ab-readme .qa-a code{white-space:normal}
+#ab-readme .qmark{flex:none;width:21px;height:21px;border-radius:7px;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:600;color:#fff;background:linear-gradient(135deg,#06b6d4,#6366f1);margin-top:2px}
+#ab-readme .qmark.a{background:var(--panel2);color:var(--ac1);border:1px solid var(--bd2)}
+#ab-readme pre .ok{color:#34d399}
+#ab-readme pre .warn{color:#fbbf24}
+#ab-readme .toc-l a.sub{padding-left:28px;font-size:12.3px;color:var(--fnt)}
+#ab-readme .toc-l a.sub:hover{color:var(--tx)}
+#ab-readme .toc-l a.sub.on{color:var(--tx);background:var(--panel)}
+
+/* ── 导航 GitHub / 源文档块 ────────── */
+#ab-readme .nav-gh{width:34px;height:34px;border-radius:9px;border:1px solid var(--bd);background:var(--panel);color:var(--mut);display:grid;place-items:center;flex:none;min-width:34px}
+#ab-readme .nav-gh:hover{color:var(--tx);border-color:var(--bd2)}
+#ab-readme .nav-gh .ic{width:16px;height:16px}
+#ab-readme .src-note{display:flex;gap:12px;align-items:flex-start;margin-top:6px;padding:15px 18px;border:1px dashed var(--bd2);border-radius:14px;background:var(--panel)}
+#ab-readme .src-note .ic{width:17px;height:17px;color:var(--mut);margin-top:3px}
+#ab-readme .src-note p{margin:0;font-size:13px;color:var(--mut);line-height:1.85}
+#ab-readme .src-note a{color:var(--ac1)}
+#ab-readme .src-note strong{color:var(--tx)}
+
+/* ── 响应式 ───────────────────────── */
+@media (max-width:1023px){
+  #ab-readme .shell{grid-template-columns:minmax(0,1fr);gap:0}
+  #ab-readme .toc{display:none}
+}
+@media (max-width:860px){
+  #ab-readme .ab-grid{grid-template-columns:1fr}
+  #ab-readme .lgrid{grid-template-columns:1fr}
+  #ab-readme .duo{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  #ab-readme{font-size:15px}
+  #ab-readme .hero{padding:58px 16px 54px}
+  #ab-readme .nav-in{padding:0 14px;gap:8px}
+  #ab-readme .brand{font-size:16px}
+  #ab-readme .links{gap:2px}
+  #ab-readme .links a{padding:6px 7px;font-size:12px}
+  #ab-readme .layout{padding:20px 16px 24px}
+  #ab-readme h2{font-size:22px}
+  #ab-readme .tagline{letter-spacing:.08em}
+  #ab-readme .entries{font-size:12px}
+  #ab-readme .term-b{padding:13px 14px 15px;font-size:12px}
+}
+</style>
+<script>
+(function(){
+  var root=document.getElementById('ab-readme');
+  if(!root) return;
+  root.classList.add('ab-js');
+  var rm=false;
+  try{ rm=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  var isEn=/^en/i.test((document.documentElement&&document.documentElement.lang)||'');
+  var doneTxt=isEn?'Copied ✓':'已复制 ✓';
+  var skipEl=root.querySelector('.skip');
+  if(skipEl&&isEn) skipEl.textContent='Skip to content';
+
+  /* 主题 */
+  var saved=null; try{ saved=localStorage.getItem('ab-theme'); }catch(e){}
+  if(saved==='light'||saved==='dark'){ root.setAttribute('data-theme',saved); }
+  else{
+    var preferLight=false;
+    try{ preferLight=window.matchMedia('(prefers-color-scheme: light)').matches; }catch(e){}
+    root.setAttribute('data-theme', preferLight?'light':'dark');
+  }
+  function syncHtml(){ try{ document.documentElement.classList.toggle('ab-light', root.getAttribute('data-theme')==='light'); }catch(e){} }
+  syncHtml();
+  var tbtn=document.getElementById('ab-theme-btn');
+  if(tbtn) tbtn.addEventListener('click',function(){
+    var t=root.getAttribute('data-theme')==='dark'?'light':'dark';
+    root.setAttribute('data-theme',t);
+    try{ localStorage.setItem('ab-theme',t); }catch(e){}
+    syncHtml();
+  });
+
+  /* 复制 */
+  root.addEventListener('click',function(ev){
+    var b=ev.target.closest?ev.target.closest('.copy'):null;
+    if(!b) return;
+    var txt=b.getAttribute('data-copy');
+    if(!txt){
+      var box=b.closest('.code')||b.closest('.term');
+      var pre=box?box.querySelector('pre'):null;
+      if(!pre) return;
+      txt=(pre.innerText||pre.textContent||'').replace(/^\$\s/gm,'').replace(/^PS>\s/gm,'').replace(/\s+$/,'');
+    }
+    function ok(){ b.classList.add('done'); var old=b.innerHTML; b.innerHTML=doneTxt; setTimeout(function(){ b.classList.remove('done'); b.innerHTML=old; },1500); }
+    function fb(){
+      try{
+        var ta=document.createElement('textarea');
+        ta.value=txt; ta.style.position='absolute'; ta.style.left='-9999px';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta); ok();
+      }catch(e){}
+    }
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){ var _t=setTimeout(fb,900); navigator.clipboard.writeText(txt).then(function(){clearTimeout(_t);ok();},function(){clearTimeout(_t);fb();}); }
+      else fb();
+    }catch(e){ fb(); }
+  });
+
+  /* 标签页 */
+  var tabs=Array.prototype.slice.call(root.querySelectorAll('.tab'));
+  function activate(tab){
+    tabs.forEach(function(t){
+      var on=(t===tab);
+      t.classList.toggle('on',on);
+      t.setAttribute('aria-selected',on?'true':'false');
+      var p=document.getElementById(t.getAttribute('aria-controls'));
+      if(p){ if(on) p.removeAttribute('hidden'); else p.setAttribute('hidden',''); }
+    });
+  }
+  tabs.forEach(function(t,i){
+    t.addEventListener('click',function(){ activate(t); });
+    t.addEventListener('keydown',function(ev){
+      var n=null;
+      if(ev.key==='ArrowRight') n=tabs[(i+1)%tabs.length];
+      else if(ev.key==='ArrowLeft') n=tabs[(i-1+tabs.length)%tabs.length];
+      else if(ev.key==='Home') n=tabs[0];
+      else if(ev.key==='End') n=tabs[tabs.length-1];
+      if(n){ ev.preventDefault(); n.focus(); activate(n); }
+    });
+  });
+
+  /* 锚点平滑滚动 + 预览环境拦截 */
+  var emb=false; try{ emb=(window.self!==window.top); }catch(e){ emb=true; }
+  root.addEventListener('click',function(ev){
+    var a=ev.target.closest?ev.target.closest('a'):null;
+    if(!a) return;
+    var h=a.getAttribute('href')||'';
+    if(h.charAt(0)==='#'){
+      var id=h.slice(1), t=document.getElementById(id);
+      if(!t){ try{ t=document.getElementById(decodeURIComponent(id)); }catch(e){} }
+      if(t){ ev.preventDefault(); t.scrollIntoView({behavior:rm?'auto':'smooth',block:'start'}); }
+    }else if(emb && !/^https?:/i.test(h)){
+      ev.preventDefault();
+    }
+  });
+
+  /* 揭示动画 */
+  var rvs=Array.prototype.slice.call(root.querySelectorAll('.rv'));
+  if(rm||!('IntersectionObserver' in window)){
+    rvs.forEach(function(el){ el.classList.add('in'); });
+  }else{
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(en){
+        if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    },{threshold:.06,rootMargin:'0px 0px -4% 0px'});
+    rvs.forEach(function(el){ io.observe(el); });
+  }
+
+  /* 目录高亮 */
+  var links=Array.prototype.slice.call(root.querySelectorAll('.toc-l a'));
+  var secs=links.map(function(a){
+    var id=a.getAttribute('href').slice(1), s=document.getElementById(id);
+    if(!s){ try{ s=document.getElementById(decodeURIComponent(id)); }catch(e){} }
+    return s;
+  });
+  function mark(i){ links.forEach(function(a,j){ a.classList.toggle('on',j===i); }); }
+  if('IntersectionObserver' in window && secs.some(Boolean)){
+    mark(0);
+    var spy=new IntersectionObserver(function(es){
+      es.forEach(function(en){
+        if(en.isIntersecting){
+          var idx=secs.indexOf(en.target);
+          if(idx>-1) mark(idx); else mark(-1);
+        }
+      });
+    },{rootMargin:'-20% 0px -70% 0px',threshold:0});
+    secs.forEach(function(s){ if(s) spy.observe(s); });
+    var heroEl=root.querySelector('.hero');
+    if(heroEl) spy.observe(heroEl);
+  }
+
+  /* 回到顶部（仅独立页面） */
+  var top=document.getElementById('ab-totop');
+  var standalone=false;
+  try{ standalone=document.documentElement.classList.contains('ab-page'); }catch(e){}
+  if(top&&standalone&&!emb){
+    window.addEventListener('scroll',function(){
+      top.classList.toggle('on', (window.scrollY||0)>640);
+    },{passive:true});
+    top.addEventListener('click',function(){ window.scrollTo({top:0,behavior:rm?'auto':'smooth'}); });
+  }
+
+  /* 终端打字动画 */
+  var cmdEl=document.getElementById('ab-cmd');
+  var out=document.getElementById('ab-out');
+  var cur=document.getElementById('ab-cur');
+  var CMD='curl -fsSL https://boot.ide.pub/install.sh | sh';
+  var OUTHTML=out?out.innerHTML:'';
+  if(cmdEl&&out&&!rm&&('IntersectionObserver' in window)){
+    var played=false;
+    function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+    async function play(){
+      for(;;){
+        cmdEl.textContent=''; out.innerHTML=''; out.style.opacity='0';
+        for(var i=0;i<CMD.length;i++){
+          cmdEl.textContent+=CMD.charAt(i);
+          await sleep(24+Math.random()*40);
+        }
+        await sleep(420);
+        out.innerHTML=OUTHTML; out.style.opacity='0.96';
+        await sleep(7000);
+      }
+    }
+    var tio=new IntersectionObserver(function(es){
+      es.forEach(function(en){
+        if(en.isIntersecting&&!played){
+          played=true; tio.disconnect();
+          play();
+        }
+      });
+    },{threshold:.3});
+    tio.observe(cmdEl);
+  }else if(cmdEl&&cur){
+    cmdEl.textContent=CMD;
+    if(out) out.innerHTML=OUTHTML;
+    if(cur&&!rm) { /* 保持光标闪烁 */ }
+  }
+})();
+</script>
+</div>
+</body>
 </html>
