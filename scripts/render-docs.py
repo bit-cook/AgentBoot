@@ -177,12 +177,18 @@ def render_blocks(lines: list[str]) -> str:
     return "\n".join(out)
 
 
-def page_shell(lang: str, title: str, description: str, body: str, depth: str) -> str:
+def page_shell(lang: str, title: str, description: str, body: str, toc: str, depth: str) -> str:
     nav = "".join('<a class="nav-link" href="%s">%s</a>' % (href, label) for href, label in NAV[lang])
     home = "../index.html" if depth == "en" else "index.html"
-    # en pages live one directory deeper; zh pages sit directly under docs/.
     prefix = "../" if depth == "en" else ""
     canonical = "https://osome.work/AgentBoot/docs/%s" % ("en/install-guide.html" if depth == "en" else "install-guide.html")
+    if lang == "en":
+        crumb = '<a href="%sindex.html">Home</a><span class="crumb-sep">/</span><span class="crumb-current">Docs</span>' % prefix
+        intro = "Everything you need to install, configure, and troubleshoot AgentBoot."
+    else:
+        crumb = '<a href="%sindex.html">首页</a><span class="crumb-sep">/</span><span class="crumb-current">文档</span>' % prefix
+        intro = "安装、配置与故障排查——你需要知道的一切都在这里。"
+    layout = "doc-layout" if toc else "doc-layout doc-layout-wide"
     return """<!doctype html>
 <html lang="%s">
   <head>
@@ -206,8 +212,18 @@ def page_shell(lang: str, title: str, description: str, body: str, depth: str) -
       </a>
       <div class="nav-links">%s</div>
     </nav>
-    <main id="main" class="shell doc-page">
+    <header class="doc-hero">
+      <div class="shell">
+        <nav class="doc-crumb" aria-label="Breadcrumb">%s</nav>
+        <h1 class="doc-title">%s</h1>
+        <p class="doc-intro">%s</p>
+      </div>
+    </header>
+    <main id="main" class="shell %s">
 %s
+      <article class="doc-content">
+%s
+      </article>
     </main>
     <footer class="site-footer shell">
       <div class="footer-row">
@@ -225,35 +241,219 @@ def page_shell(lang: str, title: str, description: str, body: str, depth: str) -
 </html>
 """ % (lang, description.replace('"', "&quot;"), title, canonical,
        prefix, CSS_VERSION, prefix, CSS_VERSION, prefix, CSS_VERSION,
-       home, nav, body, home)
+       home, nav, crumb, title, intro, layout, toc, body, home)
 
 
-DOC_CSS = """/* Documentation pages: typography for rendered markdown. */
-.doc-page { padding: 2.5rem 0 4rem; max-width: 56rem; }
-.doc-page h1 { font-size: 2.1rem; line-height: 1.2; margin: 0 0 1.2rem; }
-.doc-page h2 { font-size: 1.45rem; margin: 2.4rem 0 0.9rem; padding-top: 1.2rem; border-top: 1px solid var(--line); }
-.doc-page h3 { font-size: 1.15rem; margin: 1.8rem 0 0.6rem; }
-.doc-page h4 { font-size: 1rem; margin: 1.4rem 0 0.5rem; }
-.doc-page p { margin: 0 0 1rem; line-height: 1.75; }
-.doc-page ul, .doc-page ol { margin: 0 0 1.1rem; padding-left: 1.4rem; line-height: 1.75; }
-.doc-page li { margin: 0.3rem 0; }
-.doc-page blockquote { margin: 0 0 1.1rem; padding: 0.8rem 1.1rem; background: var(--soft); border-left: 3px solid var(--green); border-radius: 0 var(--radius, 10px) var(--radius, 10px) 0; }
-.doc-page blockquote p { margin: 0; }
-.doc-page pre { margin: 0 0 1.2rem; padding: 1rem 1.1rem; background: #10231b; color: #e7f5ec; border-radius: 12px; overflow-x: auto; font-size: 0.86rem; line-height: 1.6; }
-.doc-page pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
-.doc-page code { background: var(--green-soft); color: var(--green-dark); padding: 0.1rem 0.35rem; border-radius: 6px; font-size: 0.88em; }
-.doc-page a { color: var(--green-dark); }
-.doc-page hr { border: none; border-top: 1px solid var(--line); margin: 2rem 0; }
-.doc-page .table-scroll { margin: 0 0 1.2rem; }
-.doc-page table { width: 100%; }
+DOC_CSS = """/* Documentation pages: rich typography for rendered markdown. */
+:root { --doc-max: 46rem; }
+
+/* ---------- 文档头 ---------- */
+.doc-hero {
+  background:
+    radial-gradient(60rem 20rem at 15% -10rem, var(--sun-soft), transparent 60%),
+    linear-gradient(180deg, var(--soft), var(--paper));
+  border-bottom: 1px solid var(--line);
+  padding: 2.6rem 0 2.2rem;
+}
+.doc-crumb { display: flex; gap: 0.45rem; align-items: center; font-size: 0.85rem; color: var(--muted, #5b6b62); margin-bottom: 0.9rem; }
+.doc-crumb a { color: var(--green-dark); text-decoration: none; }
+.doc-crumb a:hover { text-decoration: underline; }
+.crumb-sep { color: var(--line); }
+.crumb-current { color: var(--muted, #5b6b62); }
+.doc-title {
+  font-family: var(--display);
+  font-size: clamp(1.9rem, 1.4rem + 1.8vw, 2.6rem);
+  line-height: 1.15; letter-spacing: -0.01em;
+  margin: 0 0 0.6rem; color: var(--ink, #14261d);
+}
+.doc-intro { margin: 0; color: var(--muted, #5b6b62); font-size: 1.02rem; max-width: 40rem; }
+
+/* ---------- 双栏布局 ---------- */
+.doc-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2.2rem;
+  padding: 2.4rem 0 4rem;
+  align-items: start;
+}
+.doc-layout:has(.doc-toc) { grid-template-columns: 15rem minmax(0, 1fr); }
+@media (max-width: 60rem) {
+  .doc-layout:has(.doc-toc) { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- 目录侧栏 ---------- */
+.doc-toc {
+  position: sticky; top: 5.2rem;
+  border-left: 2px solid var(--line);
+  padding-left: 1.1rem;
+  max-height: calc(100vh - 7rem);
+  overflow-y: auto;
+  font-size: 0.86rem;
+}
+.toc-title {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted, #5b6b62);
+  margin: 0 0 0.7rem;
+}
+.doc-toc ul { list-style: none; margin: 0; padding: 0; }
+.doc-toc li { margin: 0; }
+.toc-item a {
+  display: block; padding: 0.28rem 0.4rem;
+  color: var(--muted, #5b6b62); text-decoration: none;
+  border-radius: 6px; line-height: 1.45;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.toc-item a:hover { color: var(--green-dark); background: var(--green-soft); }
+.toc-h3 a { padding-left: 1.15rem; font-size: 0.82rem; }
+
+/* ---------- 正文 ---------- */
+.doc-content { min-width: 0; max-width: var(--doc-max); }
+.doc-content > h1 { display: none; } /* 标题已在 hero 展示 */
+.doc-content h2 {
+  font-family: var(--display);
+  font-size: 1.5rem; line-height: 1.3;
+  margin: 2.6rem 0 1rem; padding-top: 1.6rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink, #14261d);
+  scroll-margin-top: 5rem;
+}
+.doc-content h2:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.doc-content h3 {
+  font-family: var(--display);
+  font-size: 1.16rem; margin: 1.9rem 0 0.65rem;
+  color: var(--ink, #14261d); scroll-margin-top: 5rem;
+}
+.doc-content h4 { font-size: 0.98rem; margin: 1.5rem 0 0.5rem; scroll-margin-top: 5rem; }
+.doc-content p { margin: 0 0 1.05rem; line-height: 1.78; color: var(--body-ink, #26332c); }
+.doc-content ul, .doc-content ol { margin: 0 0 1.15rem; padding-left: 1.5rem; line-height: 1.78; color: var(--body-ink, #26332c); }
+.doc-content li { margin: 0.32rem 0; }
+.doc-content li::marker { color: var(--green); }
+.doc-content strong { color: var(--ink, #14261d); }
+.doc-content hr { border: none; height: 1px; background: var(--line); margin: 2.4rem 0; }
+
+/* 标题悬浮锚点 */
+.heading-anchor {
+  margin-left: 0.45rem; font-weight: 400;
+  color: var(--green); opacity: 0; text-decoration: none;
+  transition: opacity 120ms ease;
+}
+h2:hover .heading-anchor, h3:hover .heading-anchor, .heading-anchor:focus { opacity: 0.65; }
+.heading-anchor:hover { opacity: 1 !important; }
+
+/* ---------- 链接 ---------- */
+.doc-content a { color: var(--green-dark); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--green) 35%, transparent); transition: border-color 120ms ease, color 120ms ease; }
+.doc-content a:hover { color: var(--green); border-bottom-color: var(--green); }
+
+/* ---------- 行内代码 ---------- */
+.doc-content code {
+  background: var(--green-soft); color: var(--green-dark);
+  padding: 0.12rem 0.38rem; border-radius: 6px;
+  font-family: var(--mono); font-size: 0.86em;
+  border: 1px solid color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+/* ---------- 代码块 ---------- */
+.doc-content pre {
+  margin: 0 0 1.3rem; padding: 1.05rem 1.2rem;
+  background: var(--code, #10251d); color: #d9ece2;
+  border-radius: 14px; overflow-x: auto;
+  font-size: 0.84rem; line-height: 1.65;
+  border: 1px solid color-mix(in srgb, #0c3a28 55%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.doc-content pre code { background: none; border: none; padding: 0; color: inherit; font-size: inherit; }
+.doc-content pre::-webkit-scrollbar { height: 8px; }
+.doc-content pre::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 4px; }
+
+/* ---------- 引用块（提示框） ---------- */
+.doc-content blockquote {
+  margin: 0 0 1.3rem; padding: 0.9rem 1.15rem;
+  background: linear-gradient(180deg, var(--sun-soft), color-mix(in srgb, var(--sun-soft) 45%, var(--paper)));
+  border: 1px solid color-mix(in srgb, var(--sun) 45%, transparent);
+  border-left: 4px solid var(--sun);
+  border-radius: 4px 12px 12px 4px;
+  color: #5c4a12;
+}
+.doc-content blockquote p { margin: 0; color: inherit; }
+.doc-content blockquote code { background: rgba(255, 216, 77, 0.28); border-color: transparent; color: #6b5416; }
+
+/* ---------- 表格 ---------- */
+.doc-content .table-scroll {
+  margin: 0 0 1.4rem; border: 1px solid var(--line);
+  border-radius: 14px; overflow: auto; background: var(--surface);
+  box-shadow: 0 1px 2px rgba(20, 38, 29, 0.04);
+}
+.doc-content table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.doc-content thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--soft); color: var(--ink, #14261d);
+  font-family: var(--display); font-size: 0.78rem;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  text-align: left; padding: 0.7rem 0.95rem;
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.doc-content tbody td { padding: 0.68rem 0.95rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.doc-content tbody tr:last-child td { border-bottom: none; }
+.doc-content tbody tr:nth-child(even) { background: color-mix(in srgb, var(--soft) 45%, var(--surface)); }
+.doc-content tbody tr:hover { background: var(--green-soft); }
+.doc-content td code { font-size: 0.82em; }
+
+/* ---------- 深色偏好 ---------- */
+@media (prefers-color-scheme: dark) {
+  .doc-hero { background: linear-gradient(180deg, #12281e, #0e211a); }
+  .doc-title, .doc-content h2, .doc-content h3, .doc-content strong { color: #eaf4ee; }
+  .doc-content p, .doc-content li { color: #c3d4ca; }
+  .doc-crumb, .toc-title, .doc-intro, .crumb-current { color: #8fa89b; }
+  .doc-content .table-scroll { background: #12281e; border-color: #1f3a2e; }
+  .doc-content thead th { background: #17352a; color: #eaf4ee; border-color: #1f3a2e; }
+  .doc-content tbody td { border-color: #1f3a2e; }
+  .doc-content tbody tr:nth-child(even) { background: #143025; }
+  .doc-content tbody tr:hover { background: #1a3d2f; }
+  .doc-content h2 { border-color: #1f3a2e; }
+  .doc-toc { border-color: #1f3a2e; }
+}
 """
+
+
+def collect_toc(body: str, lang: str) -> str:
+    """Build a sticky sidebar TOC from the rendered h2/h3 headings."""
+    import re as _re
+    entries = []
+    for m in _re.finditer(r'<h([23]) id="([^"]+)"[^>]*>(.*?)</h\1>', body, _re.S):
+        level, hid, text = m.group(1), m.group(2), m.group(3)
+        plain = _re.sub(r'<a class="heading-anchor"[^>]*>#</a>', "", text)
+        plain = _re.sub(r"<[^>]+>", "", plain).strip()
+        if not plain:
+            continue
+        entries.append((level, hid, plain))
+    if len(entries) < 3:
+        return ""
+    label = "本页目录" if lang != "en" else "On this page"
+    items = []
+    for level, hid, plain in entries:
+        cls = "toc-item toc-h%s" % level
+        items.append('<li class="%s"><a href="#%s">%s</a></li>' % (cls, hid, plain))
+    return ('<aside class="doc-toc" aria-label="%s"><p class="toc-title">%s</p>'
+            "<ul>%s</ul></aside>" % (label, label, "".join(items)))
+
+
+def add_heading_anchors(body: str) -> str:
+    """Append hover anchor links to h2/h3 headings."""
+    import re as _re
+    def repl(m: "_re.Match") -> str:
+        hid = m.group(2)
+        return (m.group(0)[:-len("</h%s>" % m.group(1))]
+                + '<a class="heading-anchor" href="#%s" aria-label="Permalink">#</a></h%s>'
+                % (hid, m.group(1)))
+    return _re.sub(r'<h([23]) id="([^"]+)"[^>]*>.*?</h\1>', repl, body, flags=_re.S)
 
 
 def render(source: Path, output: str, lang: str, title: str, description: str) -> str:
     text = source.read_text(encoding="utf-8")
-    body = render_blocks(text.splitlines())
+    body = add_heading_anchors(render_blocks(text.splitlines()))
+    toc = collect_toc(body, lang)
     depth = "en" if lang == "en" else "zh"
-    return page_shell(lang, title, description, body, depth)
+    return page_shell(lang, title, description, body, toc, depth)
 
 
 def main() -> int:

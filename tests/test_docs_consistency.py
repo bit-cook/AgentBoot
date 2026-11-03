@@ -84,10 +84,10 @@ class DocumentationConsistencyTests(unittest.TestCase):
             page = (ROOT / relative).read_text(encoding="utf-8")
             for fact in facts:
                 self.assertIn(fact, page, "%s missing %s" % (relative, fact))
-            self.assertIn('class="shell doc-page"', page, relative)
+            self.assertIn('class="shell doc-layout"', page, relative)
             self.assertIn("site.css", page, relative)
         css = (ROOT / "pages/docs/assets/docs.css").read_text(encoding="utf-8")
-        for fact in (".doc-page h1", ".doc-page pre", ".doc-page table"):
+        for fact in (".doc-hero", ".doc-toc", ".doc-content pre", ".doc-content table"):
             self.assertIn(fact, css, fact)
 
     def test_homepage_docs_links_stay_on_site(self):

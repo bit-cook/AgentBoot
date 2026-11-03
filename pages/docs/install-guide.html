@@ -21,12 +21,21 @@
       </a>
       <div class="nav-links"><a class="nav-link" href="index.html">首页</a><a class="nav-link" href="install-guide.html">安装指南</a><a class="nav-link" href="readme.html">项目说明</a><a class="nav-link" href="../en/install-guide.html">EN</a></div>
     </nav>
-    <main id="main" class="shell doc-page">
+    <header class="doc-hero">
+      <div class="shell">
+        <nav class="doc-crumb" aria-label="Breadcrumb"><a href="index.html">首页</a><span class="crumb-sep">/</span><span class="crumb-current">文档</span></nav>
+        <h1 class="doc-title">安装指南</h1>
+        <p class="doc-intro">安装、配置与故障排查——你需要知道的一切都在这里。</p>
+      </div>
+    </header>
+    <main id="main" class="shell doc-layout">
+<aside class="doc-toc" aria-label="本页目录"><p class="toc-title">本页目录</p><ul><li class="toc-item toc-h2"><a href="#⚡-一键在线安装（推荐，机器需联网）">⚡ 一键在线安装（推荐，机器需联网）</a></li><li class="toc-item toc-h2"><a href="#📦-一键离线安装（目标机器无网络--网络受限）">📦 一键离线安装（目标机器无网络 / 网络受限）</a></li><li class="toc-item toc-h3"><a href="#第-1-步：获取离线安装包">第 1 步：获取离线安装包</a></li><li class="toc-item toc-h3"><a href="#第-2-步：解压离线包（目标机器没有解压软件也能做）">第 2 步：解压离线包（目标机器没有解压软件也能做）</a></li><li class="toc-item toc-h3"><a href="#第-3-步：运行离线安装脚本">第 3 步：运行离线安装脚本</a></li><li class="toc-item toc-h3"><a href="#离线安装脚本做了什么（透明化）">离线安装脚本做了什么（透明化）</a></li><li class="toc-item toc-h3"><a href="#离线包内容结构">离线包内容结构</a></li><li class="toc-item toc-h3"><a href="#离线安装常见问题">离线安装常见问题</a></li><li class="toc-item toc-h2"><a href="#🧩-自定义-agent（安装注册表之外的任意-agent）">🧩 自定义 Agent（安装注册表之外的任意 Agent）</a></li><li class="toc-item toc-h2"><a href="#📦-自定义离线安装包（按需瘦身）">📦 自定义离线安装包（按需瘦身）</a></li><li class="toc-item toc-h2"><a href="#🌏-中国网络环境自适应">🌏 中国网络环境自适应</a></li><li class="toc-item toc-h2"><a href="#🧠-模型配置（提供商管理器）">🧠 模型配置（提供商管理器）</a></li><li class="toc-item toc-h2"><a href="#🧰-内置最小-agent（ab）能力">🧰 内置最小 Agent（ab）能力</a></li><li class="toc-item toc-h2"><a href="#🔧-升级与卸载">🔧 升级与卸载</a></li><li class="toc-item toc-h2"><a href="#❓-在线安装故障排查">❓ 在线安装故障排查</a></li><li class="toc-item toc-h2"><a href="#❓-faq（常见问答）">❓ FAQ（常见问答）</a></li></ul></aside>
+      <article class="doc-content">
 <h1 id="agentboot-安装指南">AgentBoot 安装指南</h1>
 <blockquote><strong>版本 v1.7.3</strong> · 支持 Linux / macOS / Windows · 界面默认中文（切换：<code>agentboot lang en</code>） 语言 / Language: 中文（本页） | <a href="docs/en/install-guide.md">English</a> ｜ 中文副本：<a href="docs/zh/安装指南.md">docs/zh/安装指南.md</a> AgentBoot 是一个极简、极速、开箱即用的 AI Agent 启动器：内置保底 Agent，其余 Agent（含 Cursor、OpenCode、Claude Code、Codex、FreeBuff 等）通过菜单自选安装。离线能力以注册表和目标平台构建验证为准；Cursor、Aider 与 FreeBuff 当前仅在线安装，OpenCode 使用固定官方 native binary 离线包，Hermes 必须在目标平台原生构建。</blockquote>
 <hr>
 <a id="install"></a>
-<h2 id="⚡-一键在线安装（推荐，机器需联网）">⚡ 一键在线安装（推荐，机器需联网）</h2>
+<h2 id="⚡-一键在线安装（推荐，机器需联网）">⚡ 一键在线安装（推荐，机器需联网）<a class="heading-anchor" href="#⚡-一键在线安装（推荐，机器需联网）" aria-label="Permalink">#</a></h2>
 <p><strong>Linux / macOS：</strong></p>
 <pre><code>curl -fsSL https://boot.ide.pub/install.sh | sh</code></pre>
 <p><strong>Windows（PowerShell / CMD 二选一）：</strong></p>
@@ -49,9 +58,9 @@ curl -fsSL https://raw.githubusercontent.com/bit-cook/AgentBoot/main/install.sh 
 <blockquote>Windows 新装命令需<strong>重新打开终端</strong>才会进入 PATH。  在线安装器会从同一下载源获取 <code>.sha256</code> 并强制校验，完整新版本准备好后才原子切换；下载损坏或升级失败不会覆盖现有版本。</blockquote>
 <hr>
 <a id="offline"></a>
-<h2 id="📦-一键离线安装（目标机器无网络--网络受限）">📦 一键离线安装（目标机器无网络 / 网络受限）</h2>
+<h2 id="📦-一键离线安装（目标机器无网络--网络受限）">📦 一键离线安装（目标机器无网络 / 网络受限）<a class="heading-anchor" href="#📦-一键离线安装（目标机器无网络--网络受限）" aria-label="Permalink">#</a></h2>
 <p>离线安装只需三步：<strong>① 拿到离线包 → ② 拷贝到目标机解压 → ③ 运行离线安装脚本</strong>。 全程不需要目标机器联网，也不需要安装任何解压软件（解压方案见下一节）。</p>
-<h3 id="第-1-步：获取离线安装包">第 1 步：获取离线安装包</h3>
+<h3 id="第-1-步：获取离线安装包">第 1 步：获取离线安装包<a class="heading-anchor" href="#第-1-步：获取离线安装包" aria-label="Permalink">#</a></h3>
 <ul><li><strong>方式 A（推荐）</strong>：到 GitHub Releases 下载现成的离线包 <code>https://github.com/bit-cook/AgentBoot/releases</code> → 选择</li><li><code>AgentBoot-offline-v1.7.3-linux-x64-codex.tar.gz</code>（Linux x64 · Codex）</li><li><code>AgentBoot-offline-v1.7.3-linux-x64-codex-sfx.sh</code>（Linux x64 自解压单文件）</li><li><code>AgentBoot-offline-v1.7.3-linux-x64-opencode.tar.gz</code> / <code>-sfx.sh</code>（Linux x64 · OpenCode）</li></ul>
 <blockquote>Windows / macOS 离线包按需构建（release-platforms 工作流），不随每次发布上传； 也可随时用菜单 <code>[7]</code> 或 <code>build-offline win-x64 codex</code> 自建。</blockquote>
 <ul><li><strong>方式 B（自建）</strong>：在有网的 Linux/macOS 或 Windows 机器上运行项目自带的构建脚本， 自动从 npmmirror 镜像拉取全部 Agent 离线载荷并打包：</li></ul>
@@ -61,11 +70,11 @@ curl -fsSL https://raw.githubusercontent.com/bit-cook/AgentBoot/main/install.sh 
 
   # Windows（PowerShell）
   powershell -File scripts\build-offline.ps1</code></pre>
-<h3 id="第-2-步：解压离线包（目标机器没有解压软件也能做）">第 2 步：解压离线包（目标机器没有解压软件也能做）</h3>
+<h3 id="第-2-步：解压离线包（目标机器没有解压软件也能做）">第 2 步：解压离线包（目标机器没有解压软件也能做）<a class="heading-anchor" href="#第-2-步：解压离线包（目标机器没有解压软件也能做）" aria-label="Permalink">#</a></h3>
 <p>离线包提供 <strong>4 种解压路径</strong>，按目标机器情况任选其一：</p>
 <div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>目标机器情况</th><th>解压方法</th></tr></thead><tbody><tr><td><strong>Windows（任意版本）</strong></td><td>直接<strong>右键 ZIP → 全部解压缩</strong>。Windows 资源管理器自带 ZIP 支持，无需安装任何软件</td></tr><tr><td><strong>Windows 10/11（命令行党，自建 win 包）</strong></td><td>系统自带 <code>tar</code>：<code>tar -xf AgentBoot-offline-&lt;版本>-win-x64-codex.zip</code></td></tr><tr><td><strong>Linux x64</strong></td><td>系统自带 <code>tar</code>：<code>tar -xzf AgentBoot-offline-v1.7.3-linux-x64-codex.tar.gz -C ~</code></td></tr><tr><td><strong>Linux x64 极简环境</strong></td><td>用自解压单文件：<code>sh AgentBoot-offline-v1.7.3-linux-x64-codex-sfx.sh</code></td></tr></tbody></table></div>
 <blockquote>自解压包 <code>*-sfx.sh</code> 本身就是一个 shell 脚本 + 内嵌 base64 数据，<code>sh xxx-sfx.sh</code> 即自动解压并直接进入安装流程，非常适合只有最小化系统的服务器。</blockquote>
-<h3 id="第-3-步：运行离线安装脚本">第 3 步：运行离线安装脚本</h3>
+<h3 id="第-3-步：运行离线安装脚本">第 3 步：运行离线安装脚本<a class="heading-anchor" href="#第-3-步：运行离线安装脚本" aria-label="Permalink">#</a></h3>
 <p><strong>Linux / macOS：</strong></p>
 <pre><code>cd ~/AgentBoot
 sh install-offline.sh                    # 安装程序本体 + 打开控制台菜单（推荐）
@@ -77,11 +86,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1         
 powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1 -All     # 全部 Agent
 powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1 -Agents claude-code,qwen-code</code></pre>
 <blockquote>也可以右键 <code>install-offline.ps1</code> →「使用 PowerShell 运行」。 若提示执行策略限制，用上面带 <code>-ExecutionPolicy Bypass</code> 的命令即可。</blockquote>
-<h3 id="离线安装脚本做了什么（透明化）">离线安装脚本做了什么（透明化）</h3>
+<h3 id="离线安装脚本做了什么（透明化）">离线安装脚本做了什么（透明化）<a class="heading-anchor" href="#离线安装脚本做了什么（透明化）" aria-label="Permalink">#</a></h3>
 <p>包内 <code>PAYLOAD_SHA256SUMS.txt</code> 会在目标机逐文件校验；任一载荷缺失或哈希不符都会停止安装。<code>--all</code> 只安装当前精简包 <code>MANIFEST.txt</code> 实际列出的 Agent。</p>
 <ol><li>校验 <code>payloads/</code> 离线载荷完整性；</li><li>安装 AgentBoot 程序本体到 <code>~/.agentboot/app</code>（Windows：<code>%LOCALAPPDATA%\AgentBoot\app</code>）；</li><li>Python：Linux/macOS 使用系统自带 python3（绝大多数发行版自带）；Windows 若无 Python，</li></ol>
 <p>自动从离线包部署<strong>便携版 Python</strong>（<code>payloads/python/win-embed.zip</code>，免管理员权限）； 4. Node：系统没有 Node 时，自动从离线包部署便携 Node 22 运行时（<code>payloads/node/&lt;平台>/</code>）； 5. 将所选 Agent 的离线载荷直接落盘到 <code>~/.agentboot/agents/&lt;id>/node_modules</code>（<strong>不执行 npm</strong>）， 并生成 <code>claude</code> / <code>codex</code> / <code>qwen</code> 等命令的启动 shim； 6. 把 <code>~/.local/bin</code>（Windows：<code>%LOCALAPPDATA%\AgentBoot\bin</code>）注册进用户 PATH（幂等）； 7. 内置 Agent <code>ab</code> 随装随用：联网机器默认 Groq（Agnes 免费模型为自动备选）；纯离线机器在菜单[4]配置本地模型。</p>
-<h3 id="离线包内容结构">离线包内容结构</h3>
+<h3 id="离线包内容结构">离线包内容结构<a class="heading-anchor" href="#离线包内容结构" aria-label="Permalink">#</a></h3>
 <pre><code>AgentBoot/
 ├── install-offline.sh / install-offline.ps1   ← 离线一键安装脚本
 ├── MANIFEST.txt                                ← 包内清单（版本/平台/Agent 列表）
@@ -90,11 +99,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1 -Agents 
     ├── python/win-embed.zip                    ← Windows 便携 Python
     ├── node/&lt;linux-x64|win-x64|darwin-arm64&gt;/  ← 各平台便携 Node 22
     └── agents/&lt;agent-id&gt;/&lt;平台&gt;/node_modules/  ← 各 Agent 的完整离线依赖</code></pre>
-<h3 id="离线安装常见问题">离线安装常见问题</h3>
+<h3 id="离线安装常见问题">离线安装常见问题<a class="heading-anchor" href="#离线安装常见问题" aria-label="Permalink">#</a></h3>
 <div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>现象</th><th>处理</th></tr></thead><tbody><tr><td><code>未找到 payloads/ 离线载荷目录</code></td><td>脚本必须位于完整解压后的包根目录；或用 <code>--payload &lt;路径></code> 指定</td></tr><tr><td>Linux 上没有 python3</td><td><code>apt install python3</code> / <code>dnf install python3</code> / <code>apk add python3</code> 后重跑</td></tr><tr><td>装完命令找不到</td><td>重开终端；或手动 <code>export PATH="$HOME/.local/bin:$PATH"</code></td></tr><tr><td>某 Agent 提示平台载荷缺失</td><td>该离线包构建时未包含此平台（用方式 B 自建，加 <code>-Platforms</code> 参数）</td></tr><tr><td>纯离线机器上 <code>ab</code> 连不上模型</td><td>正常——Groq/Agnes 都需联网。菜单[4]配置本地模型（Ollama/LM Studio）后完全离线可用</td></tr></tbody></table></div>
 <hr>
 <a id="custom-agent"></a>
-<h2 id="🧩-自定义-agent（安装注册表之外的任意-agent）">🧩 自定义 Agent（安装注册表之外的任意 Agent）</h2>
+<h2 id="🧩-自定义-agent（安装注册表之外的任意-agent）">🧩 自定义 Agent（安装注册表之外的任意 Agent）<a class="heading-anchor" href="#🧩-自定义-agent（安装注册表之外的任意-agent）" aria-label="Permalink">#</a></h2>
 <p>AgentBoot 支持用户添加自己想要的 Agent，不局限于内置注册表：</p>
 <p><strong>方式一：菜单向导（推荐）</strong></p>
 <p><code>agentboot</code> → <code>[2] 在线安装 Agent</code> → 输入 <code>+</code> → 按向导选择安装方式（npm 包 / pip 包 / 安装脚本 URL）、填包名和命令名 → 保存后可立即安装，之后它一直出现在安装列表里（标 ★）。</p>
@@ -111,7 +120,7 @@ python core/menu.py add-agent --del myagent</code></pre>
 <p>自定义条目保存在 <code>~/.agentboot/custom-agents.json</code>（Windows：<code>%USERPROFILE%\.agentboot\custom-agents.json</code>），<strong>升级或重装 AgentBoot 不会丢失</strong>；也可直接编辑该 JSON 文件批量管理。添加后用菜单 <code>[2]</code> 或 <code>menu.py install &lt;id></code> 安装，与其他 Agent 完全一致（国内网络同样自动走镜像）。</p>
 <blockquote>Hermes 的离线载荷包含平台相关的 Python venv，必须在对应目标平台构建。构建器检测到跨平台 Hermes 时会跳过该半成品载荷，避免生成无法运行的伪离线包；其他 npm Agent 仍支持跨平台打包。</blockquote>
 <a id="custom-offline"></a>
-<h2 id="📦-自定义离线安装包（按需瘦身）">📦 自定义离线安装包（按需瘦身）</h2>
+<h2 id="📦-自定义离线安装包（按需瘦身）">📦 自定义离线安装包（按需瘦身）<a class="heading-anchor" href="#📦-自定义离线安装包（按需瘦身）" aria-label="Permalink">#</a></h2>
 <p>官方 v1.3 Release 提供经过安装/启动/卸载验证的 Codex 与 OpenCode 精简包；其他 Agent 请在目标平台自行构建按需包：</p>
 <p><strong>方式一：菜单向导（推荐）</strong></p>
 <p><code>agentboot</code> → <code>[7] 构建自定义离线安装包</code> → 依次选择目标平台（如 win-x64）与要打入的 Agent（回车默认全选）→ 确认后自动完成构建，产物输出到 <code>dist/</code>。</p>
@@ -123,11 +132,11 @@ python core/menu.py build-offline linux-x64,darwin-arm64 coco,pi,hermes</code></
 <p>构建要求：构建机可联网（自动走国内镜像下载依赖）；构建 hermes 载荷需要本机 Git；构建产物按所选平台自动排除无关载荷与 CoCo 的 Windows 载荷。</p>
 <blockquote>提示：构建过程会在 <code>dist/</code> 生成暂存目录与中间产物，可直接删除；同平台重复构建会覆盖同名文件。</blockquote>
 <a id="network"></a>
-<h2 id="🌏-中国网络环境自适应">🌏 中国网络环境自适应</h2>
+<h2 id="🌏-中国网络环境自适应">🌏 中国网络环境自适应<a class="heading-anchor" href="#🌏-中国网络环境自适应" aria-label="Permalink">#</a></h2>
 <p>AgentBoot 对国内复杂网络做了开箱即用的处理：</p>
 <ul><li><strong>自动判定</strong>：安装/运行时探测 <code>registry.npmjs.org</code> 连通性，不通则自动判定为中国大陆网络；</li><li><strong>npm 镜像（可切换）</strong>：npmmirror（阿里）/ 腾讯云 / 华为云 / 官方源，安装 npm 类 Agent 自动使用所选源；</li><li><strong>Node 运行时镜像</strong>：便携 Node 按序尝试 npmmirror → 华为云 → 腾讯云二进制镜像（nodejs.org 兜底）；</li><li><strong>GitHub 加速（可切换）</strong>：gh-proxy.com / ghfast.top / ghproxy.net 自动探测选路，可固定指定或关闭直连；</li><li><strong>pip 镜像</strong>：Aider 等 Python 工具自动使用清华 PyPI 镜像；</li><li><strong>多源下载容错</strong>：安装包只从项目控制的 <code>boot.ide.pub → GitHub Pages → jsDelivr → GitHub Release</code> 获取，并强制同源 SHA-256；</li><li><strong>代理支持</strong>：菜单 <code>[5] 镜像与代理设置</code> 可一键为 npm 与 AgentBoot 自身配置 HTTP 代理；</li><li><strong>手动切换</strong>：菜单 <code>[5]</code> 内可切换 npm 源与 GitHub 加速；命令行 <code>agentboot mirror npm [源URL]</code>、<code>agentboot mirror gh [auto|off|前缀URL]</code>；环境变量 <code>AGENTBOOT_MIRROR=cn|off</code> 强制镜像模式（默认自动）。</li></ul>
 <a id="model"></a>
-<h2 id="🧠-模型配置（提供商管理器）">🧠 模型配置（提供商管理器）</h2>
+<h2 id="🧠-模型配置（提供商管理器）">🧠 模型配置（提供商管理器）<a class="heading-anchor" href="#🧠-模型配置（提供商管理器）" aria-label="Permalink">#</a></h2>
 <p><code>ab</code> 里输入 <code>/model</code>，或菜单 <code>[4] 模型配置</code> —— 两者共用同一个<strong>模型提供商管理器</strong>：</p>
 <pre><code>---- 模型提供商管理 ----
   [1] groq         qwen/qwen3.8-27b     (https://api.groq.com/openai/v1) ← 当前
@@ -140,7 +149,7 @@ python core/menu.py build-offline linux-x64,darwin-arm64 coco,pi,hermes</code></
 <ul><li><strong>Groq（默认）</strong>：内置预设（Base URL <code>https://api.groq.com/openai/v1</code>，模型 <code>qwen/qwen3.8-27b</code>，450 t/s 极速推理），<strong>首次运行自动生成配置、零设置直接对话</strong>；</li><li><strong>Agnes 免费模型（备选）</strong>：内置预设（Base URL <code>https://apihub.agnes-ai.com/v1</code>，模型 <code>agnes-2.5-flash</code>），主源失败时自动切换；</li><li><strong>添加自定义提供商</strong>：任意 OpenAI 兼容接口（中转站 / vLLM / 私有部署），命名保存、随时切换删除；</li><li><strong>本地模型（完全离线）</strong>：内置 Ollama（11434）与 LM Studio（1234）预设；vLLM 可作为自定义 OpenAI 兼容提供商添加；</li><li><strong>故障切换</strong>：默认 <code>groq → agnes</code>；也可设置任意备用顺序（如 <code>groq → ollama</code>）；</li><li><strong>Groq key 管理</strong>：内置默认 key（编码存放，防自动扫描）。用自己的 key：设环境变量 <code>GROQ_API_KEY=gsk_...</code>，或 <code>/model</code> → <code>[a] 添加</code>（提供商名填 <code>groq</code>）——显式配置优先于环境变量与内置 key。内置 key 被滥用时可在 Groq 控制台直接轮换；</li><li><strong>连通测试</strong>：一键验证当前模型。</li></ul>
 <p>配置保存在 <code>~/.agentboot/config.json</code>，也可直接编辑。</p>
 <a id="ab"></a>
-<h2 id="🧰-内置最小-agent（ab）能力">🧰 内置最小 Agent（ab）能力</h2>
+<h2 id="🧰-内置最小-agent（ab）能力">🧰 内置最小 Agent（ab）能力<a class="heading-anchor" href="#🧰-内置最小-agent（ab）能力" aria-label="Permalink">#</a></h2>
 <ul><li>零第三方依赖 Python 核心（仅标准库，随附 i18n 与知识库资源），启动即用；</li><li>工具：执行命令（危险命令拦截/确认）、读写与精确编辑文件、目录列表、抓取网页；</li><li><strong>离线 Linux 知识库</strong>：内置 9 大主题（基础命令/系统信息/服务管理/网络/软件包/用户权限/磁盘/故障排查/终端技巧）， 问它 Linux 用法、让它操作 Linux、修简单问题（磁盘满、端口占用、服务起不来等）都可以；</li><li>模型随时切换（<code>/model</code>），支持流式输出。</li></ul>
 <p>示例：</p>
 <pre><code>ab                                  # 进入交互
@@ -148,7 +157,7 @@ python core/menu.py build-offline linux-x64,darwin-arm64 coco,pi,hermes</code></
 你 › nginx 起不来怎么排查？
 你 › /linux 查看端口占用</code></pre>
 <a id="upgrade"></a>
-<h2 id="🔧-升级与卸载">🔧 升级与卸载</h2>
+<h2 id="🔧-升级与卸载">🔧 升级与卸载<a class="heading-anchor" href="#🔧-升级与卸载" aria-label="Permalink">#</a></h2>
 <pre><code># 升级：重跑在线一键安装即可覆盖更新（配置保留）
 curl -fsSL https://boot.ide.pub/install.sh | sh
 
@@ -166,16 +175,17 @@ rmdir /s /q "%USERPROFILE%\.agentboot" &amp; rmdir /s /q "%LOCALAPPDATA%\AgentBo
 <p>下载离线包后可先运行 <code>sha256sum -c SHA256SUMS.txt --ignore-missing</code> 验证外部归档；包内 <code>PAYLOAD_SHA256SUMS.txt</code> 用于解压后的逐文件二次校验。</p>
 <p>也可在控制台选择菜单 <code>[9] 卸载 Agent</code>。AgentBoot 会记录安装归属，避免误删系统中碰巧同名的外部命令；默认保留 Agent 配置、认证信息与会话。<code>--purge</code> 目前只定义了 CoCo 的数据清理边界，其他 Agent 的数据目录不会被猜测删除。</p>
 <a id="faq-online"></a>
-<h2 id="❓-在线安装故障排查">❓ 在线安装故障排查</h2>
+<h2 id="❓-在线安装故障排查">❓ 在线安装故障排查<a class="heading-anchor" href="#❓-在线安装故障排查" aria-label="Permalink">#</a></h2>
 <div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>现象</th><th>处理</th></tr></thead><tbody><tr><td><code>curl</code> 不存在</td><td>用 `wget -qO- https://boot.ide.pub/install.sh \</td><td>sh`，或先安装 curl</td></tr><tr><td>所有下载源失败</td><td>用离线包安装；或给终端设置代理后重试</td></tr><tr><td>Windows 提示"禁止运行脚本"</td><td>使用文档中带 <code>-ExecutionPolicy Bypass</code> 的命令</td></tr><tr><td><code>python3</code> 自动安装失败</td><td>手动安装后重跑脚本；或先只用其他 Agent（Node 类不依赖 Python）</td></tr><tr><td>装完 <code>agentboot</code> 找不到命令</td><td>重开终端；或 <code>source ~/.bashrc</code>；Windows 重开终端窗口</td></tr></tbody></table></div>
 <hr>
-<h2 id="❓-faq（常见问答）">❓ FAQ（常见问答）</h2>
+<h2 id="❓-faq（常见问答）">❓ FAQ（常见问答）<a class="heading-anchor" href="#❓-faq（常见问答）" aria-label="Permalink">#</a></h2>
 <p><strong>Q：哪些 Agent 装完就能用 Agnes 免费模型？</strong> codex 与 qwen-code 安装后由 AgentBoot 自动接线（config.toml / OPENAI_* 环境变量），开箱即用；opencode 写入 opencode.json；其余 Agent 按官方方式登录或配置（注册表 notes 有说明）。内置 <code>ab</code> 默认 Groq（失败自动切 Agnes 备选）。</p>
 <p><strong>Q：为什么 codex 用 Agnes 预置时建议选 0.90.0？</strong> 0.100+ 移除了 chat 协议，与 Agnes 预设不兼容。默认安装始终是最新版（官方登录不受影响）；要用 Agnes 预设请自选旧版：<code>agentboot install codex@0.90.0</code>。</p>
 <p><strong>Q：瘦身包里没有我要的 Agent 怎么办？</strong> 菜单 [7] 在目标平台重新构建并勾选它。离线安装遇到未打包的 Agent 会给出明确提示。</p>
 <p><strong>Q：内置 ab 怎么用本地模型？</strong> <code>ab</code> → <code>/model</code> → 管理器选 ollama / lmstudio 预设，或 <code>[a]</code> 添加自定义提供商（任意 OpenAI 兼容接口）。完全离线场景用本地模型即可。</p>
 <p><strong>Q：怎么验证性能？</strong> <code>ab bench</code>：输出知识库查询延迟（冷/热）、模型首字延迟（含 TLS 握手 vs 复用连接对比）。</p>
 <p><strong>Q：离线包那么大，能再小吗？</strong> 菜单 [7] 自选平台与 Agent 构建瘦身包（如 win-x64 仅 Pi ≈ 89MB）。Hermes 载荷含完整 Python 运行时（约 620MB），不需要就不要勾选。</p>
+      </article>
     </main>
     <footer class="site-footer shell">
       <div class="footer-row">
