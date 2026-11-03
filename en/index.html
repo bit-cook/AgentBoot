@@ -10,7 +10,7 @@
   <link rel="canonical" href="https://osome.work/AgentBoot/en/">
   <link rel="alternate" hreflang="zh-CN" href="https://osome.work/AgentBoot/">
   <link rel="alternate" hreflang="en" href="https://osome.work/AgentBoot/en/">
-  <link rel="icon" href="../assets/favicon.svg?v=1.7.3&b=2" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=1.7.4&b=2" type="image/svg+xml">
   <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="AgentBoot">
@@ -18,8 +18,8 @@
   <meta property="og:description" content="Install any of 16 mainstream AI coding agents with one command. Free built-in model, verified offline packages, China-network auto-adaptation.">
   <meta property="og:image" content="https://boot.ide.pub/assets/og-image-en.png">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="stylesheet" href="../assets/site.css?v=1.7.3&b=4">
-  <script src="../assets/site.js?v=1.7.3" defer></script>
+  <link rel="stylesheet" href="../assets/site.css?v=1.7.4&b=5">
+  <script src="../assets/site.js?v=1.7.4" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -41,7 +41,7 @@
 
   <header class="hero shell" id="top">
     <div>
-      <p class="eyebrow">v1.7.3 · Free and open source · Three platforms</p>
+      <p class="eyebrow">v1.7.4 · Free and open source · Three platforms</p>
       <h1>One command.<br><span class="hero-highlight">Agents ready.</span></h1>
       <p class="hero-copy">Bring installation, models, mirrors, offline packs, and safe uninstall into one clear menu. You choose the AI agents you need; AgentBoot installs them reliably.</p>
       <div class="hero-actions">
@@ -81,6 +81,27 @@
       </div>
     </div>
   </header>
+
+  <section class="stats-band" aria-label="Project facts">
+    <div class="shell stats-grid">
+      <div class="stat">
+        <strong class="stat-value" data-count-to="16">16</strong>
+        <span class="stat-label">built-in agents</span>
+      </div>
+      <div class="stat">
+        <strong class="stat-value" data-count-to="3">3</strong>
+        <span class="stat-label">platforms</span>
+      </div>
+      <div class="stat">
+        <strong class="stat-value" data-count-to="4">4</strong>
+        <span class="stat-label">download mirrors</span>
+      </div>
+      <div class="stat">
+        <strong class="stat-value">MIT</strong>
+        <span class="stat-label">licensed</span>
+      </div>
+    </div>
+  </section>
 
   <main id="main">
     <section class="section section-soft" id="install">
@@ -257,6 +278,54 @@
           <li><a class="docs-link" href="../docs/en/readme.html"><strong>Project overview</strong><span>Features · Architecture · Custom agents</span></a></li>
           <li><a class="docs-link" href="https://github.com/bit-cook/AgentBoot/releases"><strong>Versions and downloads</strong><span>Online packs · Verified offline packs · Checksums</span></a></li>
         </ul>
+      </div>
+    </section>
+
+    <section class="section section-soft" aria-label="Frequently asked questions">
+      <div class="shell">
+        <div class="section-heading">
+          <div><p class="kicker">Asked and answered</p><h2>Frequently asked questions</h2></div>
+          <p class="section-lede">The common questions about install, models and uninstall — every answer verified in practice.</p>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>agentboot: command not found after installing?</summary>
+            <div class="faq-answer">
+              <p>The installer already appends the command directory to <code class="inline-code">~/.bashrc</code> and <code class="inline-code">~/.profile</code>. Open a new terminal, or run <code class="inline-code">source ~/.bashrc</code> to apply it immediately (zsh users: <code class="inline-code">~/.zshrc</code>).</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Does it preset models or touch my existing config?</summary>
+            <div class="faq-answer">
+              <p>No. Every agent installs as the upstream original and you pick a model on first run; if you want it ready out of the box, enable "Preset model config" from menu <code>[4]</code>. Existing configuration and credentials are kept.</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Slow or failing installs on restricted networks?</summary>
+            <div class="faq-answer">
+              <p>npm, Node and PyPI mirrors are selected automatically, and downloads fall back through Worker → Pages → jsDelivr → GitHub Release. One-click proxy setup lives in the menu.</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>How do I install on a machine with no network?</summary>
+            <div class="faq-answer">
+              <p>Download a verified Linux offline bundle from Releases and carry it over, or build one on the target platform with menu <code>[7]</code> (<code>build-offline</code>). Run the bundled script — no extra unzip tool needed.</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Will uninstall delete my config and sessions?</summary>
+            <div class="faq-answer">
+              <p>No. Menu <code>[9]</code> or <code>uninstall</code> removes only what AgentBoot manages; configuration, credentials and session history are kept by default.</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>What is ab, and how does it relate to other agents?</summary>
+            <div class="faq-answer">
+              <p>ab is AgentBoot's built-in minimal agent: Groq by default (Agnes as automatic fallback), zero configuration — just run <code class="inline-code">ab</code>. Other agents install on demand from the menu and stay independent.</p>
+            </div>
+          </details>
+        </div>
+        <p class="faq-more">More answers in the <a href="docs/en/install-guide.html">Install Guide</a>'s FAQ section.</p>
       </div>
     </section>
 
