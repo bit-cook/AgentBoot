@@ -10,7 +10,7 @@
   <link rel="canonical" href="https://osome.work/AgentBoot/">
   <link rel="alternate" hreflang="zh-CN" href="https://osome.work/AgentBoot/">
   <link rel="alternate" hreflang="en" href="https://osome.work/AgentBoot/en/">
-  <link rel="icon" href="assets/favicon.svg?v=1.7.3&b=2" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.svg?v=1.7.4&b=2" type="image/svg+xml">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="AgentBoot">
@@ -18,8 +18,8 @@
   <meta property="og:description" content="一条命令按需安装 16 个主流 AI Agent，内置免费模型，支持离线包与中国网络自适应。">
   <meta property="og:image" content="https://boot.ide.pub/assets/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="stylesheet" href="assets/site.css?v=1.7.3&b=4">
-  <script src="assets/site.js?v=1.7.3" defer></script>
+  <link rel="stylesheet" href="assets/site.css?v=1.7.4&b=5">
+  <script src="assets/site.js?v=1.7.4" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到主要内容</a>
@@ -41,7 +41,7 @@
 
   <header class="hero shell" id="top">
     <div>
-      <p class="eyebrow">v1.7.3 · 免费开源 · 三平台可用</p>
+      <p class="eyebrow">v1.7.4 · 免费开源 · 三平台可用</p>
       <h1>一条命令，<br><span class="hero-highlight">Agent 就位</span></h1>
       <p class="hero-copy">把安装、模型、镜像、离线包和安全卸载收进一个清楚的菜单。你选择要用的 AI Agent，AgentBoot 负责把它可靠地装好。</p>
       <div class="hero-actions">
@@ -81,6 +81,27 @@
       </div>
     </div>
   </header>
+
+  <section class="stats-band" aria-label="项目数据">
+    <div class="shell stats-grid">
+      <div class="stat">
+        <strong class="stat-value" data-count-to="16">16</strong>
+        <span class="stat-label">个内置 Agent</span>
+      </div>
+      <div class="stat">
+        <strong class="stat-value" data-count-to="3">3</strong>
+        <span class="stat-label">大平台支持</span>
+      </div>
+      <div class="stat">
+        <strong class="stat-value" data-count-to="4">4</strong>
+        <span class="stat-label">源下载容错</span>
+      </div>
+      <div class="stat">
+        <strong class="stat-value">MIT</strong>
+        <span class="stat-label">开源许可</span>
+      </div>
+    </div>
+  </section>
 
   <main id="main">
     <section class="section section-soft" id="install">
@@ -260,6 +281,54 @@
       </div>
     </section>
 
+    <section class="section section-soft" aria-label="常见问题">
+      <div class="shell">
+        <div class="section-heading">
+          <div><p class="kicker">先问清楚</p><h2>常见问题</h2></div>
+          <p class="section-lede">安装、模型、卸载的高频疑问，答案都经过实际验证。</p>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>安装后输入 agentboot 提示找不到命令？</summary>
+            <div class="faq-answer">
+              <p>安装器已自动把命令目录写入 <code class="inline-code">~/.bashrc</code> 与 <code class="inline-code">~/.profile</code>。重开一个终端即可；想立即生效，执行 <code class="inline-code">source ~/.bashrc</code>（zsh 用户改用 <code class="inline-code">~/.zshrc</code>）。</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>默认会预置模型吗？会改动我已有的配置吗？</summary>
+            <div class="faq-answer">
+              <p>不会。所有 Agent 默认原版安装，首次运行时自选模型；需要开箱即用，可在菜单 <code>[4]</code> 开启「安装时预设模型配置」。已存在的配置与认证默认保留。</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>国内网络安装慢或失败怎么办？</summary>
+            <div class="faq-answer">
+              <p>安装器自动选择 npm、Node、PyPI 镜像；主入口不可用时按 Worker → Pages → jsDelivr → GitHub Release 四源依次容错。菜单内也提供一键代理配置。</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>目标机器没有网络，怎么安装？</summary>
+            <div class="faq-answer">
+              <p>从 Releases 下载已验证的 Linux 离线包直接带到目标机，或用菜单 <code>[7]</code>（<code>build-offline</code>）在目标平台按需构建。运行包内脚本即可，无需额外解压软件。</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>卸载会删除我的配置和会话吗？</summary>
+            <div class="faq-answer">
+              <p>不会。菜单 <code>[9]</code> 或 <code>uninstall</code> 只清理由 AgentBoot 管理的程序，默认保留配置、认证和会话记录。</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>ab 是什么？和其他 Agent 有什么关系？</summary>
+            <div class="faq-answer">
+              <p>ab 是 AgentBoot 内置的最小 Agent：默认接入 Groq 模型（Agnes 免费模型自动备选），输入 <code class="inline-code">ab</code> 即可零配置对话。其余 Agent 通过菜单按需安装，互不影响。</p>
+            </div>
+          </details>
+        </div>
+        <p class="faq-more">更多解答见 <a href="docs/install-guide.html">安装指南</a>的「FAQ（常见问答）」章节。</p>
+      </div>
+    </section>
+
     <section class="section shell">
       <div class="final-call">
         <h2>少折腾环境，早点开始创造</h2>
@@ -276,7 +345,7 @@
     <div class="footer-row">
       <div>
         <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span><span>AgentBoot</span></a>
-        <p class="footer-note">内置 <code>ab</code> 默认使用 Agnes 免费模型；执行命令类操作默认拦截高危行为。MIT License。</p>
+        <p class="footer-note">内置 <code>ab</code> 默认使用 Groq 模型（Agnes 免费模型自动备选）；执行命令类操作默认拦截高危行为。MIT License。</p>
       </div>
       <div class="footer-links">
         <a href="https://github.com/bit-cook/AgentBoot">GitHub</a>
