@@ -15,3 +15,4 @@ Thumbs.db
 # 本地性能实验输出（固定基线 performance-baseline.json 需要提交）
 performance-run.log
 performance-round-*.json
+.release-watch-*.sh
