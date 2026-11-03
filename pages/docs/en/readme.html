@@ -9,6 +9,7 @@
     <title>Overview · AgentBoot</title>
     <link rel="canonical" href="https://boot.ide.pub/docs/en/readme.html" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpath d='M18 22l10 10-10 10M34 44h12' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../assets/site.css?v=1.7.4&b=5" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -97,7 +98,7 @@
   </div>
 </section>
 
-<div class="layout">
+<div class="shell doc-layout">
   <aside class="toc" aria-label="On this page">
     <p class="toc-t">On this page</p>
     <nav class="toc-l">
@@ -463,7 +464,7 @@ agentboot uninstall coco --purge          <span class="cm"># also remove CoCo us
 #ab-readme .copy.done{color:#34d399;border-color:rgba(52,211,153,.5)}
 
 /* ── 布局 / 目录 ───────────────────── */
-#ab-readme .layout{max-width:1200px;margin:0 auto;padding:26px 24px 30px;display:grid;grid-template-columns:212px minmax(0,1fr);gap:52px;align-items:start}
+#ab-readme .shell{width:auto;max-width:1200px;margin:0 auto;padding:26px 24px 30px;display:grid;grid-template-columns:212px minmax(0,1fr);gap:52px;align-items:start}
 #ab-readme .toc{position:sticky;top:86px;font-size:13px}
 #ab-readme .toc-t{margin:0 0 10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--fnt);text-transform:uppercase}
 #ab-readme .toc-l{display:flex;flex-direction:column}
@@ -476,7 +477,7 @@ agentboot uninstall coco --purge          <span class="cm"># also remove CoCo us
 #ab-readme .sec{scroll-margin-top:86px}
 #ab-readme .eyebrow{margin:0 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--ac1);text-transform:uppercase;display:flex;align-items:center;gap:10px}
 #ab-readme .eyebrow::after{content:"";height:1px;width:44px;background:linear-gradient(90deg,var(--ac1),transparent)}
-#ab-readme h2{margin:0 0 18px;font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:-.01em;line-height:1.3}
+#ab-readme h2{margin:0 0 18px;font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:-.01em;line-height:1.3;max-width:none}
 #ab-readme .ha{margin-left:8px;color:var(--fnt);font-weight:400;opacity:0;transition:opacity .15s}
 #ab-readme h2:hover .ha{opacity:1}
 #ab-readme h2 code{font-size:.8em}
@@ -612,7 +613,7 @@ html.ab-page #ab-readme .skip{position:fixed}
 #ab-readme .meta-panel code{white-space:normal}
 
 /* ── 正文 h3 / 文件清单 / FAQ ──────── */
-#ab-readme h3{margin:32px 0 14px;font-size:17.5px;font-weight:700;line-height:1.45;display:flex;align-items:center;gap:11px;scroll-margin-top:86px}
+#ab-readme h3{margin:32px 0 14px;font-family:var(--disp);font-size:17.5px;font-weight:700;letter-spacing:-.01em;line-height:1.45;max-width:none;display:flex;align-items:center;gap:11px;scroll-margin-top:86px}
 #ab-readme h3::before{content:"";width:11px;height:11px;flex:none;border-radius:3.5px;background:linear-gradient(135deg,#22d3ee,#818cf8);transform:rotate(45deg);opacity:.85}
 #ab-readme h3 .ha{margin-left:2px}
 #ab-readme .filelist{display:flex;flex-direction:column;gap:8px;margin:4px 0 14px}
@@ -644,7 +645,7 @@ html.ab-page #ab-readme .skip{position:fixed}
 
 /* ── 响应式 ───────────────────────── */
 @media (max-width:1023px){
-  #ab-readme .layout{grid-template-columns:minmax(0,1fr);gap:0}
+  #ab-readme .shell{grid-template-columns:minmax(0,1fr);gap:0}
   #ab-readme .toc{display:none}
 }
 @media (max-width:860px){
