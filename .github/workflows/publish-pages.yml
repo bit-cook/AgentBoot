@@ -10,7 +10,7 @@ permissions:
 
 # 与 deploy-pages.yml 同一组并发键，避免两个发布通道同时写 Pages。
 concurrency:
-  group: github-pages
+  group: agentboot-publish-pages
   cancel-in-progress: true
 
 jobs:

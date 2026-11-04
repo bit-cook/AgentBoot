@@ -25,7 +25,9 @@ permissions:
   pages: read
 
 concurrency:
-  group: github-pages
+  # 独立组名：GitHub 原生的 'pages build and deploy' 也占 github-pages 组，
+  # 共用会被它反复取消（实测 v1.8.1 连取消 3 次）。
+  group: agentboot-deploy-pages
   cancel-in-progress: true
 
 jobs:
