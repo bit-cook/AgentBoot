@@ -498,3 +498,29 @@ class OfficialInstallerShimRemovalTests(unittest.TestCase):
                 self.assertFalse((home / ".local" / "bin" / name).exists(),
                                  "%s 软链应被删除" % name)
             self.assertTrue(mine.exists(), "用户自有文件不能被误删")
+
+    def test_official_wrapper_script_shims_are_removed(self):
+        """官方包装脚本形态（coco v1.1.0 的 web/coweb）必须被删。
+
+        实测形态：exec "<shim_dir>/coco" web "$@"——无 AgentBoot 字样，
+        纯字样判定漏删。用户自有脚本（引用别处的 coco）不能被误删。
+        """
+        with tempfile.TemporaryDirectory() as d:
+            home = Path(d)
+            shim_dir = home / ".local" / "bin"
+            shim_dir.mkdir(parents=True)
+            coco_shim = shim_dir / "coco"
+            coco_shim.write_text("#!/bin/sh\n")
+            entry = {"executable": str(coco_shim)}
+            wrapper_body = '#!/usr/bin/env bash\nexec "%s" web "$@"\n' % coco_shim
+            self.assertTrue(menu._shim_body_owned(wrapper_body, self._agent(), entry))
+            self.assertFalse(menu._shim_body_owned(
+                '#!/bin/sh\nexec /usr/bin/something-else\n', self._agent(), entry))
+            for name in ("web", "coweb"):
+                (shim_dir / name).write_text(wrapper_body)
+            with mock.patch.object(menu.os.path, "expanduser",
+                                   side_effect=lambda p: p.replace("~", str(home))):
+                menu._remove_owned_shims(self._agent(), entry)
+            for name in ("web", "coweb"):
+                self.assertFalse((shim_dir / name).exists(),
+                                 "官方包装脚本 %s 应被删除" % name)

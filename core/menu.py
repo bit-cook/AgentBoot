@@ -1192,6 +1192,32 @@ def _extract_tgz_fast(archive, destination):
         return False
 
 
+def _shim_body_owned(body, a, entry=None):
+    """普通文件 shim 是否属于该 agent（官方包装脚本形态判定）。
+
+    coco v1.1.0 官方安装器在 PATH 目录写的 web/coweb 是包装脚本：
+        #!/usr/bin/env bash
+        exec "/home/u/.local/bin/coco" web "$@"
+    没有 AgentBoot 字样，只靠字样判定会残留（v1.8.1 InstaBox 实测）。
+    认「内容引用本 agent 的 bin 名 + 指向本 agent 安装根/自己 shim」的脚本。
+    """
+    if not body:
+        return False
+    bin_name = a.get("bin") or ""
+    if not bin_name or bin_name not in body:
+        return False
+    roots = []
+    for source in (a, entry or {}):
+        for key in ("install_root", "prefix", "executable"):
+            val = source.get(key)
+            if val:
+                roots.append(os.path.realpath(os.path.expanduser(str(val))))
+    roots.append(os.path.realpath(os.path.expanduser("~/.%s" % (a.get("id") or ""))))
+    for d in shim_bin_dirs():
+        roots.append(os.path.realpath(os.path.join(d, bin_name)))
+    return any(root and root in body for root in roots)
+
+
 def _shim_link_owned(path, a, entry=None):
     """软链 shim 是否指向该 agent 自己的安装根（官方安装器落点判定）。
 
@@ -1235,7 +1261,7 @@ def _remove_owned_shims(a, entry):
                 continue
             with open(path, "r", encoding="utf-8", errors="ignore") as f:
                 marker = f.read(512)
-            if "AgentBoot" not in marker:
+            if "AgentBoot" not in marker and not _shim_body_owned(marker, a, entry):
                 log_info(t("menu.uninstall_shim_changed") % path)
                 continue
             _remove_owned_file(path)
