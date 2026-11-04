@@ -64,6 +64,8 @@ class ShimTargetResolutionTests(unittest.TestCase):
                 menu, "prefix_bin_dirs", return_value=[str(self.prefix_bin)]))
             stack.enter_context(mock.patch.object(
                 menu, "AB_HOME", str(self.tmp.name)))
+            stack.enter_context(mock.patch.object(
+                menu, "user_local_bin_dirs", return_value=[]))
             yield
 
     def test_prefers_prefix_binary_over_existing_shim(self):
@@ -107,6 +109,35 @@ class ShimTargetResolutionTests(unittest.TestCase):
                 mock.patch.object(menu, "prefix_bin_dirs", return_value=[]), \
                 mock.patch.object(menu.shutil, "which", return_value=None):
             self.assertIsNone(menu.resolve_shim_target("opencode"))
+
+
+class UserLocalBinResolutionTests(unittest.TestCase):
+    """回归：官方脚本安装器（coco）落盘 ~/.local/bin 时必须校验通过。
+
+    背景（coco v1.0.0 InstaBox 新机实测）：官方安装器退出码 0、shim 落在
+    ~/.local/bin 并写了 rc，但当前 shell 的 PATH 不含该目录（rc 只对新终端
+    生效）——resolve_shim_target 搜不到 → AgentBoot 汇总把 coco 判为失败，
+    而安装其实成功了。修复：校验主动搜索用户级标准 bin 目录。
+    """
+
+    def test_resolves_binary_in_user_local_bin(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            local_bin = Path(tmp) / ".local" / "bin"
+            local_bin.mkdir(parents=True)
+            real = local_bin / BIN_NAME
+            real.write_text("#!/bin/sh\necho coco\n")
+            real.chmod(0o755)
+            with mock.patch.object(menu, "prefix_bin_dirs", return_value=[]), \
+                    mock.patch.object(menu, "user_local_bin_dirs",
+                                      return_value=[str(local_bin)]), \
+                    mock.patch.object(menu.shutil, "which", return_value=None):
+                self.assertEqual(menu.resolve_shim_target("opencode"), str(real))
+
+    def test_user_local_bin_dirs_is_home_scoped(self):
+        """返回的目录必须位于当前用户 HOME 下（不会指到别人的家目录）。"""
+        for d in menu.user_local_bin_dirs():
+            self.assertTrue(menu._inside(d, os.path.expanduser("~")), d)
+            self.assertTrue(d.endswith(".local/bin"), d)
 
 
 class WriteShimGuardTests(unittest.TestCase):

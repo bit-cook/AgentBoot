@@ -977,6 +977,20 @@ def _shim_exec_target(path):
     return m.group(1) if m else None
 
 
+def user_local_bin_dirs():
+    """用户级安装器的标准落盘目录（POSIX）。
+
+    官方脚本安装器（coco 等）把命令装到 ~/.local/bin 并只写 shell rc——
+    当前进程的 PATH 未必包含它（rc 只对新终端生效）。装后校验必须主动
+    搜索这些目录，否则安装明明成功却误报「未在 PATH 找到」：
+    coco v1.0.0 实测——官方安装器退出码 0、shim 落在 ~/.local/bin、
+    rc 也写了，resolve_shim_target 搜不到 → 汇总里 coco 被判失败。
+    """
+    if not POSIX:
+        return []
+    return [os.path.join(os.path.expanduser("~"), ".local", "bin")]
+
+
 def resolve_shim_target(name):
     """解析 shim 应指向的「真实可执行文件」。
 
@@ -984,6 +998,8 @@ def resolve_shim_target(name):
     旧 shim 当真身返回，新 shim 再 exec 旧 shim → 死循环（v1.5.1 实测踩坑）。
     解析顺序：
       1) npm prefix bin（在线安装的真身就在这）+ 离线 payload 目录
+      1.5) 用户级标准 bin 目录（~/.local/bin，官方脚本安装器的落点；
+          只写 rc 不进当前 PATH，不主动搜就会误判安装失败）
       2) PATH 上的其它位置（跳过自身 shim 目录）
       3) 旧 shim 的 exec 目标（带环保护，目标仍位于 shim 目录则放弃）
     """
@@ -993,7 +1009,7 @@ def resolve_shim_target(name):
     def _not_mine(p):
         return bool(p) and not any(_inside(p, d) for d in my_dirs)
 
-    for d in prefix_bin_dirs():
+    for d in prefix_bin_dirs() + user_local_bin_dirs():
         for c in cands:
             p = os.path.join(d, c)
             if os.path.isfile(p):
