@@ -29,6 +29,23 @@ class VersionConsistencyTests(unittest.TestCase):
         self.assertIn("$Tag       = '%s'" % TAG, powershell)
         self.assertIn('const TAG = "%s"' % TAG, worker)
 
+    def test_pages_mirror_copies_match_canonical_sources(self):
+        """Pages 镜像上的安装器副本必须与权威源同版本。
+
+        曾漂移：pages/install.ps1 停在 v1.5.1、pages/VERSION 停在 1.7.3
+        （v1.7.5 实测发现）——这些副本由发布流水线构建时拷贝，仓库里却
+        没人同步，严格测试也不查它们。gh-pages 服务的就是这些文件，
+        用户从 Pages 镜像下载到的安装器版本由仓库副本决定。
+        """
+        mirror_version = (ROOT / "pages" / "VERSION").read_text(encoding="ascii").strip()
+        self.assertEqual(mirror_version, VERSION, "pages/VERSION 与 VERSION 不一致")
+        mirror_ps1 = (ROOT / "pages" / "install.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn("$Tag       = '%s'" % TAG, mirror_ps1,
+                      "pages/install.ps1 与 scripts/install.ps1 不同版本")
+        mirror_sh = (ROOT / "pages" / "install.sh").read_text(encoding="utf-8")
+        self.assertIn('TAG="%s"' % TAG, mirror_sh,
+                      "pages/install.sh 与 install.sh 不同版本")
+
     def test_web_and_guides_show_current_version(self):
         for relative in ("pages/index.html", "pages/en/index.html", "cloudflare/worker.js",
                          "docs/zh/安装指南.md", "docs/en/install-guide.md", "安装指南.md"):
