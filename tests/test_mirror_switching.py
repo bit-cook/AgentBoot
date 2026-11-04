@@ -162,7 +162,7 @@ class InstallWiringTests(unittest.TestCase):
             tried.extend(urls)
             return False
 
-        meta = ("v1.2.3", ("uv-x86_64-linux.tar.gz", "uv/uv"), "a" * 64)
+        meta = ("v1.2.3", ("uv-x86_64-linux.tar.gz", "uv"), "a" * 64)
         with mock.patch.object(menu, "_hermes_uv_meta", return_value=meta), \
                 mock.patch.object(menu, "gh_mirrors", return_value=["https://p1/"]), \
                 mock.patch.object(menu, "_download_mirror", side_effect=fake_download):

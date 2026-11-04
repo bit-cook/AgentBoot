@@ -1,3 +1,18 @@
+## v1.8.2 (2026-11-04) — 修 hermes 装机必败（uv 0.12.13 包内布局变更）
+
+- **修 hermes agent 安装崩溃**（用户实测）：uv 0.12.13 的发行包把包内目录
+  从旧布局 <target>/uv 改成 uv-<target>/uv，AgentBoot 的 uv 预置逻辑却把
+  完整成员名硬编码成 x86_64-unknown-linux-gnu/uv——下载与 SHA-256 校验都
+  通过后，在 tarfile.extractfile 上 KeyError 崩栈，装机 100% 失败
+- uv 成员提取改为布局无关：只要 basename（uv/uv.exe），按 basename 在包里
+  找最浅匹配，新旧布局/根级平铺/Windows zip 全兼容；找不到时干净报错并
+  列出包内目录样本，不再崩栈
+- uv 预置失败不再误判装机失败：放行官方 postinstall（其 ensureUv 会自行
+  下载 uv），由官方流程给出最终成败
+- 顺手修 _seed_uv 的未关闭文件句柄（ResourceWarning）
+- 9 个新回归测试（含两种布局的端到端 fixture）+ 1 个「预置失败不阻断」
+  回归；变异验证：还原旧行为 → 2 个测试精确崩栈复现。404 全绿
+
 ## v1.8.1 (2026-11-04) — coco 上游同步 v1.1.0 + Pages 副本内容守卫
 
 - **修 coco 官方安装器的 shim 卸载残留**（InstaBox 新机实测）：coco v1.1.0

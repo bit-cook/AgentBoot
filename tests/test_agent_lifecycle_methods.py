@@ -127,4 +127,29 @@ class AgentLifecycleTests(unittest.TestCase):
         self.assertEqual(post_run.call_args.args[0][0], runtime_node)
 
 
+    def test_hermes_install_continues_when_uv_seeding_fails(self):
+        """uv 预置失败（如包内布局变化）不得误判安装失败。
+
+        官方 postinstall 的 ensureUv 会自行下载 uv；预置只是镜像提速手段。
+        v1.8.1 实测：uv 0.12.13 把包内目录改成 uv-<target>/，AgentBoot 硬编码
+        旧成员名直接 KeyError 崩栈，装机必败。
+        """
+        agent = {"id": "hermes", "name": "Hermes", "method": "npm", "npm": "hermes-agent", "node": ">=20"}
+        runtime_npm = "/managed/runtime/bin/npm"
+        runtime_node = "/managed/runtime/bin/node"
+        with mock.patch.object(menu, "npm_cmd", return_value=runtime_npm), \
+                mock.patch.object(menu, "ensure_npm_prefix"), \
+                mock.patch.object(menu, "runtime_node_dir", return_value="/managed/runtime"), \
+                mock.patch.object(menu, "node_exe", return_value=runtime_node), \
+                mock.patch.object(menu, "node_ok", return_value=True), \
+                mock.patch.object(menu, "_npm_global_root", return_value="/managed/root"), \
+                mock.patch.object(menu.os.path, "isdir", return_value=True), \
+                mock.patch.object(menu, "_seed_uv", return_value=False), \
+                mock.patch.object(menu, "_github_git_reachable", return_value=True), \
+                mock.patch.object(menu, "_run_npm_process", return_value=(0, "")), \
+                mock.patch.object(menu, "run_with_timeout", return_value=0) as post_run:
+            self.assertTrue(menu.install_hermes_special(agent))
+        post_run.assert_called_once()
+
+
 if __name__ == "__main__": unittest.main(verbosity=2)

@@ -1198,7 +1198,7 @@ def _shim_body_owned(body, a, entry=None):
     coco v1.1.0 官方安装器在 PATH 目录写的 web/coweb 是包装脚本：
         #!/usr/bin/env bash
         exec "/home/u/.local/bin/coco" web "$@"
-    没有 AgentBoot 字样，只靠字样判定会残留（v1.8.1 InstaBox 实测）。
+    没有 AgentBoot 字样，只靠字样判定会残留（v1.8.2 InstaBox 实测）。
     认「内容引用本 agent 的 bin 名 + 指向本 agent 安装根/自己 shim」的脚本。
     """
     if not body:
@@ -1502,7 +1502,7 @@ def _kill_process_tree(process):
 def run_with_timeout(cmd, env=None, timeout=NPM_INSTALL_TIMEOUT, label=""):
     """带超时与进程树清理的子进程执行（网络类命令防无限挂起）。
 
-    背景（v1.8.1 排查）：hermes 安装流、npm/pip 卸载、官方脚本安装器等
+    背景（v1.8.2 排查）：hermes 安装流、npm/pip 卸载、官方脚本安装器等
     调用点此前用裸 subprocess.run——网络挂起时菜单无限等待，用户只能
     kill。npm_install 早就有 NPM_INSTALL_TIMEOUT + 进程树清理，其余
     网络类调用点一律补上同等保护。返回 returncode；超时返回 None
@@ -2165,7 +2165,11 @@ def _hermes_uv_meta(pkg_root):
                   "aarch64-unknown-linux-gnu" if platform.machine().lower() in ("arm64", "aarch64")
                   else "x86_64-unknown-linux-gnu")
         asset = "uv-%s.tar.gz" % target
-        member = target + "/uv"
+        # 只要 basename：uv 发行包的包内目录名随版本变化过——旧版 <target>/uv，
+        # 0.12.13 起是 uv-<target>/uv（实测 KeyError: 'x86_64-unknown-linux-gnu/uv
+        # not found'）。硬编码完整成员名一改布局就炸，交给 _extract_uv_binary 按
+        # basename 找，同时兼容两种布局与根级平铺。
+        member = "uv"
     m = _re.search(r'"%s":\s*"([0-9a-f]{64})"' % _re.escape(asset), text)
     sha = m.group(1) if m else None
     return version, (asset, member), sha
@@ -2186,6 +2190,46 @@ def _download_mirror(urls, dest):
         except Exception:
             continue
     return False
+
+
+def _extract_uv_binary(archive, asset, want):
+    """从 uv 发行包中取出 want（uv / uv.exe）的字节；找不到返回 (None, 目录样本)。
+
+    布局无关：uv 的包内目录名改过（旧 <target>/uv → 新 uv-<target>/uv），
+    按 basename 匹配并取路径最浅的匹配项，新旧布局与根级平铺都能用。
+    """
+    import tarfile
+    import zipfile
+    best = None  # (深度, 名字)
+    try:
+        if asset.endswith(".zip"):
+            with zipfile.ZipFile(archive) as z:
+                names = z.namelist()
+                for name in names:
+                    base = name.rstrip("/").split("/")[-1]
+                    if base != want or name.endswith("/"):
+                        continue
+                    depth = name.count("/")
+                    if best is None or depth < best[0]:
+                        best = (depth, name)
+                if best is None:
+                    return None, [n for n in names if n.endswith("/")][:5]
+                return z.read(best[1]), None
+        with tarfile.open(archive, "r:gz") as t:
+            for m in t.getmembers():
+                if not m.isfile() or os.path.basename(m.name) != want:
+                    continue
+                depth = m.name.count("/")
+                if best is None or depth < best[0]:
+                    best = (depth, m.name)
+            if best is None:
+                return None, [m.name for m in t.getmembers() if m.isdir()][:5]
+            f = t.extractfile(best[1])
+            if f is None:
+                return None, [best[1]]
+            return f.read(), None
+    except (tarfile.TarError, zipfile.BadZipFile, OSError) as e:
+        return None, ["解析失败：%s" % e]
 
 
 def _seed_uv(pkg_root):
@@ -2218,7 +2262,8 @@ def _seed_uv(pkg_root):
     if not _download_mirror(urls, archive):
         log_err("uv 镜像下载失败")
         return False
-    actual_sha = hashlib.sha256(open(archive, "rb").read()).hexdigest()
+    with open(archive, "rb") as f:
+        actual_sha = hashlib.sha256(f.read()).hexdigest()
     if actual_sha != sha.lower():
         log_err("uv SHA-256 校验失败")
         try:
@@ -2226,12 +2271,15 @@ def _seed_uv(pkg_root):
         except OSError:
             pass
         return False
-    if asset.endswith(".zip"):
-        with zipfile.ZipFile(archive) as z:
-            data = z.read(member)
-    else:
-        with tarfile.open(archive, "r:gz") as t:
-            data = t.extractfile(member).read()
+    data, sample = _extract_uv_binary(archive, asset, member)
+    if data is None:
+        log_err("uv 发行包内未找到 %s（uv 包内布局可能又变了；包内目录样本：%s）"
+                % (member, ", ".join(sample) if sample else "（空）"))
+        try:
+            os.remove(archive)
+        except OSError:
+            pass
+        return False
     with open(exe, "wb") as f:
         f.write(data)
     if POSIX:
@@ -2283,9 +2331,11 @@ def install_hermes_special(a):
     if not os.path.isdir(pkg_root):
         log_err("未定位到 hermes-agent 包目录")
         return False
-    # 2) 预置 uv（官方地址优先，镜像兜底）
+    # 2) 预置 uv（官方地址优先，镜像兜底）。失败不阻断：官方 postinstall 的
+    #    ensureUv 会自行下载（uv 布局变化/单镜像抖动时尤其应该放行），
+    #    由官方流程给出最终成败，而不是在这里误判为安装失败。
     if not _seed_uv(pkg_root):
-        return False
+        log_info("uv 预置未完成，继续官方 postinstall 流程")
     # 3) 执行官方 postinstall：git 不可达时启用镜像重写；Python/PyPI 镜像对全球用户同样可用
     env = child_env()
     gh_prefixes = gh_mirrors()
