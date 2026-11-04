@@ -1,1000 +1,203 @@
 <!doctype html>
-<html lang="zh-CN" class="ab-page">
-<head>
+<html lang="zh-CN">
+  <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="一键安装 · 离线部署 · 自定义构建 · 模型配置 · 故障排查 —— AgentBoot 安装指南" />
-    <meta name="theme-color" content="#070a12" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="一键安装 · 离线部署 · 自定义构建 · 模型配置 · 故障排查" />
+    <meta name="theme-color" content="#fffdf5" />
+    <meta name="color-scheme" content="light" />
     <title>安装指南 · AgentBoot</title>
-    <link rel="canonical" href="https://boot.ide.pub/docs/install-guide.html" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpath d='M18 22l10 10-10 10M34 44h12' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" type="image/svg+xml" />
-    <link rel="stylesheet" href="assets/site.css?v=1.7.5&b=6" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-</head>
-<body>
-<div id="ab-readme" data-theme="dark">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <symbol id="i-term" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
-    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
-    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
-    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
-    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
-    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></symbol>
-    <symbol id="i-buoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></symbol>
-    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></symbol>
-    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
-    <symbol id="i-drive" viewBox="0 0 24 24"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></symbol>
-    <symbol id="i-plus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></symbol>
-    <symbol id="i-eraser" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></symbol>
-    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
-    <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 13 10 13 2"/></symbol>
-    <symbol id="i-mon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></symbol>
-    <symbol id="i-gh" viewBox="0 0 24 24"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.17c-3.2.7-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.66.41.35.78 1.05.78 2.12v3.14c0 .31.21.68.8.56A10.52 10.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></symbol>
-    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
-    <symbol id="i-dl" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
-    <symbol id="i-up" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></symbol>
-    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M12 15l3.5-3.5"/><path d="M20.3 18a10 10 0 1 0-16.6 0"/></symbol>
-    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
-    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/></symbol>
-    <symbol id="i-lan" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="12" rx="2"/><path d="M7 20h10M12 16v4"/></symbol>
-  </defs>
-</svg>
-
-<a class="skip" href="#main">跳到主要内容</a>
-
-<header class="nav">
-  <div class="nav-in">
-    <a class="brand" href="index.html"><span class="logo">&gt;_</span><span class="brand-t">AgentBoot</span></a>
-    <nav class="links" aria-label="主导航">
-      <a href="index.html">首页</a>
-      <a class="cur" href="install-guide.html" aria-current="page">安装指南</a>
-      <a href="readme.html">项目说明</a>
-      <a href="en/install-guide.html">EN</a>
+    <link rel="canonical" href="https://osome.work/AgentBoot/docs/install-guide.html" />
+    <link rel="icon" href="assets/favicon.svg?v=1.8.0&b=2" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/site.css?v=1.8.0&b=4" />
+    <link rel="stylesheet" href="assets/docs.css?v=1.8.0" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+    <nav class="site-nav shell" aria-label="主导航">
+      <a class="brand" href="index.html" aria-label="AgentBoot">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>AgentBoot</span>
+      </a>
+      <div class="nav-links"><a class="nav-link" href="index.html">首页</a><a class="nav-link" href="install-guide.html">安装指南</a><a class="nav-link" href="readme.html">项目说明</a><a class="nav-link" href="../en/install-guide.html">EN</a></div>
     </nav>
-    <a class="nav-gh" href="https://github.com/bit-cook/AgentBoot" aria-label="GitHub 仓库"><svg class="ic ic-f" aria-hidden="true"><use href="#i-gh"/></svg></a>
-    <button class="theme-btn" id="ab-theme-btn" type="button" aria-label="切换明暗主题">
-      <svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"/></svg>
-      <svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"/></svg>
-    </button>
-  </div>
-</header>
-
-<section class="hero doc-hero">
-  <div class="hero-in">
-    <nav class="crumb rv" aria-label="Breadcrumb"><a href="index.html">首页</a><span class="sep">/</span><span class="cur">文档</span></nav>
-    <h1 class="doc-title rv">安装指南</h1>
-    <p class="doc-intro rv">安装、配置与故障排查——你需要知道的一切都在这里。</p>
-    <div class="meta-panel rv">
-      <div class="meta-chips">
-        <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-spark"/></svg>版本 v1.7.5</span>
-        <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-mon"/></svg>Linux · macOS · Windows</span>
-        <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg>界面默认中文（切换：<code>agentboot lang en</code>）</span>
+    <header class="doc-hero">
+      <div class="shell">
+        <nav class="doc-crumb" aria-label="Breadcrumb"><a href="index.html">首页</a><span class="crumb-sep">/</span><span class="crumb-current">文档</span></nav>
+        <h1 class="doc-title">安装指南</h1>
+        <p class="doc-intro">安装、配置与故障排查——你需要知道的一切都在这里。</p>
       </div>
-      <p>AgentBoot 是一个极简、极速、开箱即用的 AI Agent 启动器：内置保底 Agent，其余 Agent（含 Cursor、OpenCode、Claude Code、Codex、FreeBuff 等）通过菜单自选安装。离线能力以注册表和目标平台构建验证为准；Cursor、Aider 与 FreeBuff 当前仅在线安装，OpenCode 使用固定官方 native binary 离线包，Hermes 必须在目标平台原生构建。</p>
-      <p><strong>语言 / Language</strong>：中文（本页） | <a href="en/install-guide.html">English</a> ｜ 中文副本：<a href="https://github.com/bit-cook/AgentBoot/blob/main/docs/zh/安装指南.md">docs/zh/安装指南.md</a></p>
-    </div>
-  </div>
-</section>
-
-<div class="shell doc-layout">
-  <aside class="toc" aria-label="本页目录">
-    <p class="toc-t">本页目录</p>
-    <nav class="toc-l">
-      <a href="#⚡-一键在线安装（推荐，机器需联网）">一键在线安装（推荐，机器需联网）</a>
-      <a href="#📦-一键离线安装（目标机器无网络--网络受限）">一键离线安装（目标机器无网络 / 网络受限）</a>
-      <a class="sub" href="#第-1-步：获取离线安装包">第 1 步：获取离线安装包</a>
-      <a class="sub" href="#第-2-步：解压离线包（目标机器没有解压软件也能做）">第 2 步：解压离线包</a>
-      <a class="sub" href="#第-3-步：运行离线安装脚本">第 3 步：运行离线安装脚本</a>
-      <a class="sub" href="#离线安装脚本做了什么（透明化）">离线安装脚本做了什么（透明化）</a>
-      <a class="sub" href="#离线包内容结构">离线包内容结构</a>
-      <a class="sub" href="#离线安装常见问题">离线安装常见问题</a>
-      <a href="#🧩-自定义-agent（安装注册表之外的任意-agent）">自定义 Agent（安装注册表之外的任意 Agent）</a>
-      <a href="#📦-自定义离线安装包（按需瘦身）">自定义离线安装包（按需瘦身）</a>
-      <a href="#🌏-中国网络环境自适应">中国网络环境自适应</a>
-      <a href="#🧠-模型配置（提供商管理器）">模型配置（提供商管理器）</a>
-      <a href="#🧰-内置最小-agent（ab）能力">内置最小 Agent（ab）能力</a>
-      <a href="#🔧-升级与卸载">升级与卸载</a>
-      <a href="#❓-在线安装故障排查">在线安装故障排查</a>
-      <a href="#❓-faq（常见问答）">FAQ（常见问答）</a>
-    </nav>
-  </aside>
-
-  <main id="main" class="content">
-
-    <section class="sec" id="⚡-一键在线安装（推荐，机器需联网）">
-      <p class="eyebrow">01 · ONLINE INSTALL</p>
-      <h2>一键在线安装（推荐，机器需联网）<a class="ha" href="#⚡-一键在线安装（推荐，机器需联网）" aria-label="Permalink">#</a></h2>
-      <p><strong>Linux / macOS：</strong></p>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code>curl -fsSL https://boot.ide.pub/install.sh | sh</code></pre>
-      </div>
-      <p><strong>Windows（PowerShell / CMD 二选一）：</strong></p>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">powershell</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</code></pre>
-      </div>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">cmd</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code><span class="cm">:: 或下载 install.bat 双击运行（GitHub 仓库根目录有该文件）</span></code></pre>
-      </div>
-      <p><strong>冗余入口（GitHub Pages，<code>ide.pub</code> 域名不可用或过期时使用；路径大小写均可，<code>/AgentBoot/</code> 与 <code>/agentboot/</code> 等价）：</strong></p>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code><span class="cm"># Linux / macOS（路径大小写均可，/agentboot/ 同样有效）</span>
+    </header>
+    <main id="main" class="shell doc-layout">
+<aside class="doc-toc" aria-label="本页目录"><p class="toc-title">本页目录</p><ul><li class="toc-item toc-h2"><a href="#⚡-一键在线安装（推荐，机器需联网）">⚡ 一键在线安装（推荐，机器需联网）</a></li><li class="toc-item toc-h2"><a href="#📦-一键离线安装（目标机器无网络--网络受限）">📦 一键离线安装（目标机器无网络 / 网络受限）</a></li><li class="toc-item toc-h3"><a href="#第-1-步：获取离线安装包">第 1 步：获取离线安装包</a></li><li class="toc-item toc-h3"><a href="#第-2-步：解压离线包（目标机器没有解压软件也能做）">第 2 步：解压离线包（目标机器没有解压软件也能做）</a></li><li class="toc-item toc-h3"><a href="#第-3-步：运行离线安装脚本">第 3 步：运行离线安装脚本</a></li><li class="toc-item toc-h3"><a href="#离线安装脚本做了什么（透明化）">离线安装脚本做了什么（透明化）</a></li><li class="toc-item toc-h3"><a href="#离线包内容结构">离线包内容结构</a></li><li class="toc-item toc-h3"><a href="#离线安装常见问题">离线安装常见问题</a></li><li class="toc-item toc-h2"><a href="#🧩-自定义-agent（安装注册表之外的任意-agent）">🧩 自定义 Agent（安装注册表之外的任意 Agent）</a></li><li class="toc-item toc-h2"><a href="#📦-自定义离线安装包（按需瘦身）">📦 自定义离线安装包（按需瘦身）</a></li><li class="toc-item toc-h2"><a href="#🌏-中国网络环境自适应">🌏 中国网络环境自适应</a></li><li class="toc-item toc-h2"><a href="#🧠-模型配置（提供商管理器）">🧠 模型配置（提供商管理器）</a></li><li class="toc-item toc-h2"><a href="#🧰-内置最小-agent（ab）能力">🧰 内置最小 Agent（ab）能力</a></li><li class="toc-item toc-h2"><a href="#🔧-升级与卸载">🔧 升级与卸载</a></li><li class="toc-item toc-h2"><a href="#❓-在线安装故障排查">❓ 在线安装故障排查</a></li><li class="toc-item toc-h2"><a href="#❓-faq（常见问答）">❓ FAQ（常见问答）</a></li></ul></aside>
+      <article class="doc-content">
+<h1 id="agentboot-安装指南">AgentBoot 安装指南</h1>
+<blockquote><strong>版本 v1.8.0</strong> · 支持 Linux / macOS / Windows · 界面默认中文（切换：<code>agentboot lang en</code>） 语言 / Language: 中文（本页） | <a href="docs/en/install-guide.md">English</a> ｜ 中文副本：<a href="docs/zh/安装指南.md">docs/zh/安装指南.md</a> AgentBoot 是一个极简、极速、开箱即用的 AI Agent 启动器：内置保底 Agent，其余 Agent（含 Cursor、OpenCode、Claude Code、Codex、FreeBuff 等）通过菜单自选安装。离线能力以注册表和目标平台构建验证为准；Cursor、Aider 与 FreeBuff 当前仅在线安装，OpenCode 使用固定官方 native binary 离线包，Hermes 必须在目标平台原生构建。</blockquote>
+<hr>
+<a id="install"></a>
+<h2 id="⚡-一键在线安装（推荐，机器需联网）">⚡ 一键在线安装（推荐，机器需联网）<a class="heading-anchor" href="#⚡-一键在线安装（推荐，机器需联网）" aria-label="Permalink">#</a></h2>
+<p><strong>Linux / macOS：</strong></p>
+<pre><code>curl -fsSL https://boot.ide.pub/install.sh | sh</code></pre>
+<p><strong>Windows（PowerShell / CMD 二选一）：</strong></p>
+<pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://boot.ide.pub/install.ps1'))"</code></pre>
+<pre><code>:: 或下载 install.bat 双击运行（GitHub 仓库根目录有该文件）</code></pre>
+<p><strong>冗余入口（GitHub Pages，<code>ide.pub</code> 域名不可用或过期时使用；路径大小写均可，<code>/AgentBoot/</code> 与 <code>/agentboot/</code> 等价）：</strong></p>
+<pre><code># Linux / macOS（路径大小写均可，/agentboot/ 同样有效）
 curl -fsSL https://bit-cook.github.io/AgentBoot/install.sh | sh</code></pre>
-      </div>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">powershell</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code><span class="cm"># Windows PowerShell（把 install.sh 换成 install.ps1 即为 Windows 版）</span>
+<pre><code># Windows PowerShell（把 install.sh 换成 install.ps1 即为 Windows 版）
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://bit-cook.github.io/AgentBoot/install.ps1'))"</code></pre>
-      </div>
-      <p><strong>终极兜底（GitHub Releases，不依赖任何自定义域名；<code>ide.pub</code>、<code>osome.work</code> 等域名全部过期时仍可用）：</strong></p>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code>curl -fsSL https://github.com/bit-cook/AgentBoot/releases/latest/download/install.sh | sh</code></pre>
-      </div>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">powershell</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://github.com/bit-cook/AgentBoot/releases/latest/download/install.ps1'))"</code></pre>
-      </div>
-      <div class="note rv">
-        <svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>
-        <p>维护提示：<code>bit-cook.github.io</code> 目前 301 跳转到自定义域名 <code>osome.work</code>；若该域名未来失效，在 GitHub 仓库 <code>bit-cook.github.io</code> 的 Settings → Pages 中移除自定义域名即可恢复 <code>bit-cook.github.io</code> 直出，上述入口全部自动生效。jsDelivr 镜像（<code>cdn.jsdelivr.net/gh/bit-cook/AgentBoot@main/install.sh</code>）不依赖任何 GitHub Pages 配置，国内通常更可达。</p>
-      </div>
-      <p><strong>镜像兜底</strong>（安装脚本内部还会按 Worker → GitHub Pages → jsDelivr 镜像 → GitHub Release 顺序自动尝试下载安装包与 .sha256，无需手动操作；也可直连 GitHub main 获取最新开发版脚本）：</p>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code><span class="cm"># 直连 GitHub main（最新代码，未经发布验证）</span>
+<p><strong>终极兜底（GitHub Releases，不依赖任何自定义域名；<code>ide.pub</code>、<code>osome.work</code> 等域名全部过期时仍可用）：</strong></p>
+<pre><code>curl -fsSL https://github.com/bit-cook/AgentBoot/releases/latest/download/install.sh | sh</code></pre>
+<pre><code>powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object Net.WebClient).DownloadString('https://github.com/bit-cook/AgentBoot/releases/latest/download/install.ps1'))"</code></pre>
+<blockquote>维护提示：<code>bit-cook.github.io</code> 目前 301 跳转到自定义域名 <code>osome.work</code>；若该域名未来失效，在 GitHub 仓库 <code>bit-cook.github.io</code> 的 Settings → Pages 中移除自定义域名即可恢复 <code>bit-cook.github.io</code> 直出，上述入口全部自动生效。jsDelivr 镜像（<code>cdn.jsdelivr.net/gh/bit-cook/AgentBoot@main/install.sh</code>）不依赖任何 GitHub Pages 配置，国内通常更可达。</blockquote>
+<p><strong>镜像兜底</strong>（安装脚本内部还会按 Worker → GitHub Pages → jsDelivr 镜像 → GitHub Release 顺序自动尝试下载安装包与 .sha256，无需手动操作；也可直连 GitHub main 获取最新开发版脚本）：</p>
+<pre><code># 直连 GitHub main（最新代码，未经发布验证）
 curl -fsSL https://raw.githubusercontent.com/bit-cook/AgentBoot/main/install.sh | sh</code></pre>
-      </div>
-      <p><strong>安装完成后：</strong></p>
-      <div class="tbl-scroll rv" role="region" tabindex="0" aria-label="安装完成后的命令">
-        <table class="tbl">
-          <thead><tr><th>命令</th><th>作用</th></tr></thead>
-          <tbody>
-            <tr><td><code>agentboot</code></td><td>打开中文控制台菜单（安装其他 Agent / 模型配置 / 镜像代理）</td></tr>
-            <tr><td><code>ab</code></td><td>直接启动内置最小 Agent（默认 Groq qwen/qwen3.8-27b，免费模型自动备选）</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="note warn rv">
-        <svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>
-        <p>Windows 新装命令需<strong>重新打开终端</strong>才会进入 PATH。在线安装器会从同一下载源获取 <code>.sha256</code> 并强制校验，完整新版本准备好后才原子切换；下载损坏或升级失败不会覆盖现有版本。</p>
-      </div>
-    </section>
+<p><strong>安装完成后：</strong></p>
+<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>命令</th><th>作用</th></tr></thead><tbody><tr><td><code>agentboot</code></td><td>打开中文控制台菜单（安装其他 Agent / 模型配置 / 镜像代理）</td></tr><tr><td><code>ab</code></td><td>直接启动内置最小 Agent（默认 Groq qwen/qwen3.8-27b，Agnes 免费模型自动备选）</td></tr></tbody></table></div>
+<blockquote>Windows 新装命令需<strong>重新打开终端</strong>才会进入 PATH。  在线安装器会从同一下载源获取 <code>.sha256</code> 并强制校验，完整新版本准备好后才原子切换；下载损坏或升级失败不会覆盖现有版本。</blockquote>
+<hr>
+<a id="offline"></a>
+<h2 id="📦-一键离线安装（目标机器无网络--网络受限）">📦 一键离线安装（目标机器无网络 / 网络受限）<a class="heading-anchor" href="#📦-一键离线安装（目标机器无网络--网络受限）" aria-label="Permalink">#</a></h2>
+<p>离线安装只需三步：<strong>① 拿到离线包 → ② 拷贝到目标机解压 → ③ 运行离线安装脚本</strong>。 全程不需要目标机器联网，也不需要安装任何解压软件（解压方案见下一节）。</p>
+<h3 id="第-1-步：获取离线安装包">第 1 步：获取离线安装包<a class="heading-anchor" href="#第-1-步：获取离线安装包" aria-label="Permalink">#</a></h3>
+<ul><li><strong>方式 A（推荐）</strong>：到 GitHub Releases 下载现成的离线包 <code>https://github.com/bit-cook/AgentBoot/releases</code> → 选择</li><li><code>AgentBoot-offline-v1.8.0-linux-x64-codex.tar.gz</code>（Linux x64 · Codex）</li><li><code>AgentBoot-offline-v1.8.0-linux-x64-codex-sfx.sh</code>（Linux x64 自解压单文件）</li><li><code>AgentBoot-offline-v1.8.0-linux-x64-opencode.tar.gz</code> / <code>-sfx.sh</code>（Linux x64 · OpenCode）</li></ul>
+<blockquote>Windows / macOS 离线包按需构建（release-platforms 工作流），不随每次发布上传； 也可随时用菜单 <code>[7]</code> 或 <code>build-offline win-x64 codex</code> 自建。</blockquote>
+<ul><li><strong>方式 B（自建）</strong>：在有网的 Linux/macOS 或 Windows 机器上运行项目自带的构建脚本， 自动从 npmmirror 镜像拉取全部 Agent 离线载荷并打包：</li></ul>
+<pre><code>  # Linux / macOS（可自定义平台与 Agent 列表）
+  sh scripts/build-offline.sh
+  AGENTS="claude-code,codex" PLATFORMS="linux-x64,win-x64" sh scripts/build-offline.sh
 
-    <a id="offline"></a>
-    <section class="sec" id="📦-一键离线安装（目标机器无网络--网络受限）">
-      <p class="eyebrow">02 · OFFLINE INSTALL</p>
-      <h2>一键离线安装（目标机器无网络 / 网络受限）<a class="ha" href="#📦-一键离线安装（目标机器无网络--网络受限）" aria-label="Permalink">#</a></h2>
-      <p>离线安装只需三步：<strong>① 拿到离线包 → ② 拷贝到目标机解压 → ③ 运行离线安装脚本</strong>。全程不需要目标机器联网，也不需要安装任何解压软件（解压方案见下一节）。</p>
-
-      <h3 id="第-1-步：获取离线安装包">第 1 步：获取离线安装包<a class="ha" href="#第-1-步：获取离线安装包" aria-label="Permalink">#</a></h3>
-      <p><strong>方式 A（推荐）</strong>：到 GitHub <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a> 下载现成的离线包 → 选择：</p>
-      <div class="filelist rv">
-        <div class="frow"><code>AgentBoot-offline-v1.7.5-linux-x64-codex.tar.gz</code><span class="fd">（Linux x64 · Codex）</span></div>
-        <div class="frow"><code>AgentBoot-offline-v1.7.5-linux-x64-codex-sfx.sh</code><span class="fd">（Linux x64 自解压单文件）</span></div>
-        <div class="frow"><code>AgentBoot-offline-v1.7.5-linux-x64-opencode.tar.gz</code> / <code>-sfx.sh</code><span class="fd">（Linux x64 · OpenCode）</span></div>
-      </div>
-      <div class="note rv">
-        <svg class="ic" aria-hidden="true"><use href="#i-drive"/></svg>
-        <p>Windows / macOS 离线包按需构建（release-platforms 工作流），不随每次发布上传；也可随时用菜单 <code>[7]</code> 或 <code>build-offline win-x64 codex</code> 自建。</p>
-      </div>
-      <p><strong>方式 B（自建）</strong>：在有网的 Linux/macOS 或 Windows 机器上运行项目自带的构建脚本，自动从 npmmirror 镜像拉取全部 Agent 离线载荷并打包：</p>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash / powershell</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code><span class="cm"># Linux / macOS（可自定义平台与 Agent 列表）</span>
-sh scripts/build-offline.sh
-AGENTS="claude-code,codex" PLATFORMS="linux-x64,win-x64" sh scripts/build-offline.sh
-
-<span class="cm"># Windows（PowerShell）</span>
-powershell -File scripts\build-offline.ps1</code></pre>
-      </div>
-
-      <h3 id="第-2-步：解压离线包（目标机器没有解压软件也能做）">第 2 步：解压离线包（目标机器没有解压软件也能做）<a class="ha" href="#第-2-步：解压离线包（目标机器没有解压软件也能做）" aria-label="Permalink">#</a></h3>
-      <p>离线包提供 <strong>4 种解压路径</strong>，按目标机器情况任选其一：</p>
-      <div class="tbl-scroll rv" role="region" tabindex="0" aria-label="解压方法对照表">
-        <table class="tbl">
-          <thead><tr><th>目标机器情况</th><th>解压方法</th></tr></thead>
-          <tbody>
-            <tr><td><strong>Windows（任意版本）</strong></td><td>直接<strong>右键 ZIP → 全部解压缩</strong>。Windows 资源管理器自带 ZIP 支持，无需安装任何软件</td></tr>
-            <tr><td><strong>Windows 10/11（命令行党，自建 win 包）</strong></td><td>系统自带 <code>tar</code>：<code>tar -xf AgentBoot-offline-&lt;版本&gt;-win-x64-codex.zip</code></td></tr>
-            <tr><td><strong>Linux x64</strong></td><td>系统自带 <code>tar</code>：<code>tar -xzf AgentBoot-offline-v1.7.5-linux-x64-codex.tar.gz -C ~</code></td></tr>
-            <tr><td><strong>Linux x64 极简环境</strong></td><td>用自解压单文件：<code>sh AgentBoot-offline-v1.7.5-linux-x64-codex-sfx.sh</code></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="note rv">
-        <svg class="ic" aria-hidden="true"><use href="#i-zap"/></svg>
-        <p>自解压包 <code>*-sfx.sh</code> 本身就是一个 shell 脚本 + 内嵌 base64 数据，<code>sh xxx-sfx.sh</code> 即自动解压并直接进入安装流程，非常适合只有最小化系统的服务器。</p>
-      </div>
-
-      <h3 id="第-3-步：运行离线安装脚本">第 3 步：运行离线安装脚本<a class="ha" href="#第-3-步：运行离线安装脚本" aria-label="Permalink">#</a></h3>
-      <p><strong>Linux / macOS：</strong></p>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code>cd ~/AgentBoot
-sh install-offline.sh                    <span class="cm"># 安装程序本体 + 打开控制台菜单（推荐）</span>
-sh install-offline.sh --all              <span class="cm"># 一键安装全部支持离线的 Agent（不进菜单）</span>
-sh install-offline.sh claude-code qwen-code   <span class="cm"># 只安装指定 Agent</span></code></pre>
-      </div>
-      <p><strong>Windows：</strong></p>
-      <div class="code">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">powershell</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code>cd AgentBoot
-powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1          <span class="cm"># 安装 + 打开菜单</span>
-powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1 -All     <span class="cm"># 全部 Agent</span>
+  # Windows（PowerShell）
+  powershell -File scripts\build-offline.ps1</code></pre>
+<h3 id="第-2-步：解压离线包（目标机器没有解压软件也能做）">第 2 步：解压离线包（目标机器没有解压软件也能做）<a class="heading-anchor" href="#第-2-步：解压离线包（目标机器没有解压软件也能做）" aria-label="Permalink">#</a></h3>
+<p>离线包提供 <strong>4 种解压路径</strong>，按目标机器情况任选其一：</p>
+<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>目标机器情况</th><th>解压方法</th></tr></thead><tbody><tr><td><strong>Windows（任意版本）</strong></td><td>直接<strong>右键 ZIP → 全部解压缩</strong>。Windows 资源管理器自带 ZIP 支持，无需安装任何软件</td></tr><tr><td><strong>Windows 10/11（命令行党，自建 win 包）</strong></td><td>系统自带 <code>tar</code>：<code>tar -xf AgentBoot-offline-&lt;版本>-win-x64-codex.zip</code></td></tr><tr><td><strong>Linux x64</strong></td><td>系统自带 <code>tar</code>：<code>tar -xzf AgentBoot-offline-v1.8.0-linux-x64-codex.tar.gz -C ~</code></td></tr><tr><td><strong>Linux x64 极简环境</strong></td><td>用自解压单文件：<code>sh AgentBoot-offline-v1.8.0-linux-x64-codex-sfx.sh</code></td></tr></tbody></table></div>
+<blockquote>自解压包 <code>*-sfx.sh</code> 本身就是一个 shell 脚本 + 内嵌 base64 数据，<code>sh xxx-sfx.sh</code> 即自动解压并直接进入安装流程，非常适合只有最小化系统的服务器。</blockquote>
+<h3 id="第-3-步：运行离线安装脚本">第 3 步：运行离线安装脚本<a class="heading-anchor" href="#第-3-步：运行离线安装脚本" aria-label="Permalink">#</a></h3>
+<p><strong>Linux / macOS：</strong></p>
+<pre><code>cd ~/AgentBoot
+sh install-offline.sh                    # 安装程序本体 + 打开控制台菜单（推荐）
+sh install-offline.sh --all              # 一键安装全部支持离线的 Agent（不进菜单）
+sh install-offline.sh claude-code qwen-code   # 只安装指定 Agent</code></pre>
+<p><strong>Windows：</strong></p>
+<pre><code>cd AgentBoot
+powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1          # 安装 + 打开菜单
+powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1 -All     # 全部 Agent
 powershell -NoProfile -ExecutionPolicy Bypass -File install-offline.ps1 -Agents claude-code,qwen-code</code></pre>
-      </div>
-      <div class="note rv">
-        <svg class="ic" aria-hidden="true"><use href="#i-term"/></svg>
-        <p>也可以右键 <code>install-offline.ps1</code> →「使用 PowerShell 运行」。若提示执行策略限制，用上面带 <code>-ExecutionPolicy Bypass</code> 的命令即可。</p>
-      </div>
-
-      <h3 id="离线安装脚本做了什么（透明化）">离线安装脚本做了什么（透明化）<a class="ha" href="#离线安装脚本做了什么（透明化）" aria-label="Permalink">#</a></h3>
-      <p>包内 <code>PAYLOAD_SHA256SUMS.txt</code> 会在目标机逐文件校验；任一载荷缺失或哈希不符都会停止安装。<code>--all</code> 只安装当前精简包 <code>MANIFEST.txt</code> 实际列出的 Agent。</p>
-      <ol class="slist rv">
-        <li>校验 <code>payloads/</code> 离线载荷完整性；</li>
-        <li>安装 AgentBoot 程序本体到 <code>~/.agentboot/app</code>（Windows：<code>%LOCALAPPDATA%\AgentBoot\app</code>）；</li>
-        <li><strong>Python</strong>：Linux/macOS 使用系统自带 python3（绝大多数发行版自带）；Windows 若无 Python，自动从离线包部署<strong>便携版 Python</strong>（<code>payloads/python/win-embed.zip</code>，免管理员权限）；</li>
-        <li><strong>Node</strong>：系统没有 Node 时，自动从离线包部署便携 Node 22 运行时（<code>payloads/node/&lt;平台&gt;/</code>）；</li>
-        <li>将所选 Agent 的离线载荷直接落盘到 <code>~/.agentboot/agents/&lt;id&gt;/node_modules</code>（<strong>不执行 npm</strong>），并生成 <code>claude</code> / <code>codex</code> / <code>qwen</code> 等命令的启动 shim；</li>
-        <li>把 <code>~/.local/bin</code>（Windows：<code>%LOCALAPPDATA%\AgentBoot\bin</code>）注册进用户 PATH（幂等）；</li>
-        <li>内置 Agent <code>ab</code> 随装随用：联网机器默认 Groq（免费模型为自动备选）；纯离线机器在菜单 [4] 配置本地模型。</li>
-      </ol>
-
-      <h3 id="离线包内容结构">离线包内容结构<a class="ha" href="#离线包内容结构" aria-label="Permalink">#</a></h3>
-      <div class="code rv">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">AgentBoot/</span><button class="copy" type="button" aria-label="复制目录树"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code>AgentBoot/
-├── <span class="cd">install-offline.sh / install-offline.ps1</span>   <span class="cm">← 离线一键安装脚本</span>
-├── <span class="cd">MANIFEST.txt</span>                                <span class="cm">← 包内清单（版本/平台/Agent 列表）</span>
-├── <span class="cd">core/ agents/ tools/ scripts/ ...</span>           <span class="cm">← 程序本体</span>
-└── <span class="cd">payloads/</span>
-    ├── <span class="cd">python/win-embed.zip</span>                    <span class="cm">← Windows 便携 Python</span>
-    ├── <span class="cd">node/&lt;linux-x64|win-x64|darwin-arm64&gt;/</span>  <span class="cm">← 各平台便携 Node 22</span>
-    └── <span class="cd">agents/&lt;agent-id&gt;/&lt;平台&gt;/node_modules/</span>  <span class="cm">← 各 Agent 的完整离线依赖</span></code></pre>
-      </div>
-
-      <h3 id="离线安装常见问题">离线安装常见问题<a class="ha" href="#离线安装常见问题" aria-label="Permalink">#</a></h3>
-      <div class="tbl-scroll rv" role="region" tabindex="0" aria-label="离线安装常见问题">
-        <table class="tbl">
-          <thead><tr><th>现象</th><th>处理</th></tr></thead>
-          <tbody>
-            <tr><td><code>未找到 payloads/ 离线载荷目录</code></td><td>脚本必须位于完整解压后的包根目录；或用 <code>--payload &lt;路径&gt;</code> 指定</td></tr>
-            <tr><td>Linux 上没有 python3</td><td><code>apt install python3</code> / <code>dnf install python3</code> / <code>apk add python3</code> 后重跑</td></tr>
-            <tr><td>装完命令找不到</td><td>重开终端；或手动 <code>export PATH="$HOME/.local/bin:$PATH"</code></td></tr>
-            <tr><td>某 Agent 提示平台载荷缺失</td><td>该离线包构建时未包含此平台（用方式 B 自建，加 <code>-Platforms</code> 参数）</td></tr>
-            <tr><td>纯离线机器上 <code>ab</code> 连不上模型</td><td>正常——Groq/Agnes 都需联网。菜单 [4] 配置本地模型（Ollama/LM Studio）后完全离线可用</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <a id="custom-agent"></a>
-    <section class="sec" id="🧩-自定义-agent（安装注册表之外的任意-agent）">
-      <p class="eyebrow">03 · CUSTOM AGENT</p>
-      <h2>自定义 Agent（安装注册表之外的任意 Agent）<a class="ha" href="#🧩-自定义-agent（安装注册表之外的任意-agent）" aria-label="Permalink">#</a></h2>
-      <p>AgentBoot 支持用户添加自己想要的 Agent，不局限于内置注册表：</p>
-      <p><strong>方式一：菜单向导（推荐）</strong></p>
-      <p><code>agentboot</code> → <code>[2] 在线安装 Agent</code> → 输入 <code>+</code> → 按向导选择安装方式（npm 包 / pip 包 / 安装脚本 URL）、填包名和命令名 → 保存后可立即安装，之后它一直出现在安装列表里（标 ★）。</p>
-      <p><strong>方式二：命令行</strong></p>
-      <div class="code rv">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code><span class="cm"># npm 方式</span>
+<blockquote>也可以右键 <code>install-offline.ps1</code> →「使用 PowerShell 运行」。 若提示执行策略限制，用上面带 <code>-ExecutionPolicy Bypass</code> 的命令即可。</blockquote>
+<h3 id="离线安装脚本做了什么（透明化）">离线安装脚本做了什么（透明化）<a class="heading-anchor" href="#离线安装脚本做了什么（透明化）" aria-label="Permalink">#</a></h3>
+<p>包内 <code>PAYLOAD_SHA256SUMS.txt</code> 会在目标机逐文件校验；任一载荷缺失或哈希不符都会停止安装。<code>--all</code> 只安装当前精简包 <code>MANIFEST.txt</code> 实际列出的 Agent。</p>
+<ol><li>校验 <code>payloads/</code> 离线载荷完整性；</li><li>安装 AgentBoot 程序本体到 <code>~/.agentboot/app</code>（Windows：<code>%LOCALAPPDATA%\AgentBoot\app</code>）；</li><li>Python：Linux/macOS 使用系统自带 python3（绝大多数发行版自带）；Windows 若无 Python，</li></ol>
+<p>自动从离线包部署<strong>便携版 Python</strong>（<code>payloads/python/win-embed.zip</code>，免管理员权限）； 4. Node：系统没有 Node 时，自动从离线包部署便携 Node 22 运行时（<code>payloads/node/&lt;平台>/</code>）； 5. 将所选 Agent 的离线载荷直接落盘到 <code>~/.agentboot/agents/&lt;id>/node_modules</code>（<strong>不执行 npm</strong>）， 并生成 <code>claude</code> / <code>codex</code> / <code>qwen</code> 等命令的启动 shim； 6. 把 <code>~/.local/bin</code>（Windows：<code>%LOCALAPPDATA%\AgentBoot\bin</code>）注册进用户 PATH（幂等）； 7. 内置 Agent <code>ab</code> 随装随用：联网机器默认 Groq（Agnes 免费模型为自动备选）；纯离线机器在菜单[4]配置本地模型。</p>
+<h3 id="离线包内容结构">离线包内容结构<a class="heading-anchor" href="#离线包内容结构" aria-label="Permalink">#</a></h3>
+<pre><code>AgentBoot/
+├── install-offline.sh / install-offline.ps1   ← 离线一键安装脚本
+├── MANIFEST.txt                                ← 包内清单（版本/平台/Agent 列表）
+├── core/ agents/ tools/ scripts/ ...           ← 程序本体
+└── payloads/
+    ├── python/win-embed.zip                    ← Windows 便携 Python
+    ├── node/&lt;linux-x64|win-x64|darwin-arm64&gt;/  ← 各平台便携 Node 22
+    └── agents/&lt;agent-id&gt;/&lt;平台&gt;/node_modules/  ← 各 Agent 的完整离线依赖</code></pre>
+<h3 id="离线安装常见问题">离线安装常见问题<a class="heading-anchor" href="#离线安装常见问题" aria-label="Permalink">#</a></h3>
+<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>现象</th><th>处理</th></tr></thead><tbody><tr><td><code>未找到 payloads/ 离线载荷目录</code></td><td>脚本必须位于完整解压后的包根目录；或用 <code>--payload &lt;路径></code> 指定</td></tr><tr><td>Linux 上没有 python3</td><td><code>apt install python3</code> / <code>dnf install python3</code> / <code>apk add python3</code> 后重跑</td></tr><tr><td>装完命令找不到</td><td>重开终端；或手动 <code>export PATH="$HOME/.local/bin:$PATH"</code></td></tr><tr><td>某 Agent 提示平台载荷缺失</td><td>该离线包构建时未包含此平台（用方式 B 自建，加 <code>-Platforms</code> 参数）</td></tr><tr><td>纯离线机器上 <code>ab</code> 连不上模型</td><td>正常——Groq/Agnes 都需联网。菜单[4]配置本地模型（Ollama/LM Studio）后完全离线可用</td></tr></tbody></table></div>
+<hr>
+<a id="custom-agent"></a>
+<h2 id="🧩-自定义-agent（安装注册表之外的任意-agent）">🧩 自定义 Agent（安装注册表之外的任意 Agent）<a class="heading-anchor" href="#🧩-自定义-agent（安装注册表之外的任意-agent）" aria-label="Permalink">#</a></h2>
+<p>AgentBoot 支持用户添加自己想要的 Agent，不局限于内置注册表：</p>
+<p><strong>方式一：菜单向导（推荐）</strong></p>
+<p><code>agentboot</code> → <code>[2] 在线安装 Agent</code> → 输入 <code>+</code> → 按向导选择安装方式（npm 包 / pip 包 / 安装脚本 URL）、填包名和命令名 → 保存后可立即安装，之后它一直出现在安装列表里（标 ★）。</p>
+<p><strong>方式二：命令行</strong></p>
+<pre><code># npm 方式
 python core/menu.py add-agent myagent npm @scope/some-agent some-cmd
-<span class="cm"># pip 方式</span>
+# pip 方式
 python core/menu.py add-agent myagent pip some-agent-pkg some-cmd
-<span class="cm"># 安装脚本方式（URL 直接执行）</span>
+# 安装脚本方式（URL 直接执行）
 python core/menu.py add-agent myagent script "https://example.com/install.sh" some-cmd
-<span class="cm"># 查看 / 删除</span>
+# 查看 / 删除
 python core/menu.py add-agent --list
 python core/menu.py add-agent --del myagent</code></pre>
-      </div>
-      <p>自定义条目保存在 <code>~/.agentboot/custom-agents.json</code>（Windows：<code>%USERPROFILE%\.agentboot\custom-agents.json</code>），<strong>升级或重装 AgentBoot 不会丢失</strong>；也可直接编辑该 JSON 文件批量管理。添加后用菜单 <code>[2]</code> 或 <code>menu.py install &lt;id&gt;</code> 安装，与其他 Agent 完全一致（国内网络同样自动走镜像）。</p>
-      <div class="note warn rv">
-        <svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>
-        <p>Hermes 的离线载荷包含平台相关的 Python venv，必须在对应目标平台构建。构建器检测到跨平台 Hermes 时会跳过该半成品载荷，避免生成无法运行的伪离线包；其他 npm Agent 仍支持跨平台打包。</p>
-      </div>
-    </section>
-
-    <a id="custom-offline"></a>
-    <section class="sec" id="📦-自定义离线安装包（按需瘦身）">
-      <p class="eyebrow">04 · CUSTOM PACKAGE</p>
-      <h2>自定义离线安装包（按需瘦身）<a class="ha" href="#📦-自定义离线安装包（按需瘦身）" aria-label="Permalink">#</a></h2>
-      <p>官方 v1.3 Release 提供经过安装/启动/卸载验证的 Codex 与 OpenCode 精简包；其他 Agent 请在目标平台自行构建按需包：</p>
-      <p><strong>方式一：菜单向导（推荐）</strong></p>
-      <p><code>agentboot</code> → <code>[7] 构建自定义离线安装包</code> → 依次选择目标平台（如 win-x64）与要打入的 Agent（回车默认全选）→ 确认后自动完成构建，产物输出到 <code>dist/</code>。</p>
-      <p><strong>方式二：命令行</strong></p>
-      <div class="code rv">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code><span class="cm"># 平台列表 与 Agent列表 均为逗号分隔</span>
+<p>自定义条目保存在 <code>~/.agentboot/custom-agents.json</code>（Windows：<code>%USERPROFILE%\.agentboot\custom-agents.json</code>），<strong>升级或重装 AgentBoot 不会丢失</strong>；也可直接编辑该 JSON 文件批量管理。添加后用菜单 <code>[2]</code> 或 <code>menu.py install &lt;id></code> 安装，与其他 Agent 完全一致（国内网络同样自动走镜像）。</p>
+<blockquote>Hermes 的离线载荷包含平台相关的 Python venv，必须在对应目标平台构建。构建器检测到跨平台 Hermes 时会跳过该半成品载荷，避免生成无法运行的伪离线包；其他 npm Agent 仍支持跨平台打包。</blockquote>
+<a id="custom-offline"></a>
+<h2 id="📦-自定义离线安装包（按需瘦身）">📦 自定义离线安装包（按需瘦身）<a class="heading-anchor" href="#📦-自定义离线安装包（按需瘦身）" aria-label="Permalink">#</a></h2>
+<p>官方 v1.3 Release 提供经过安装/启动/卸载验证的 Codex 与 OpenCode 精简包；其他 Agent 请在目标平台自行构建按需包：</p>
+<p><strong>方式一：菜单向导（推荐）</strong></p>
+<p><code>agentboot</code> → <code>[7] 构建自定义离线安装包</code> → 依次选择目标平台（如 win-x64）与要打入的 Agent（回车默认全选）→ 确认后自动完成构建，产物输出到 <code>dist/</code>。</p>
+<p><strong>方式二：命令行</strong></p>
+<pre><code># 平台列表 与 Agent列表 均为逗号分隔
 python core/menu.py build-offline win-x64 claude-code,pi
 python core/menu.py build-offline linux-x64,darwin-arm64 coco,pi,hermes</code></pre>
-      </div>
-      <p>按需包结构与 Release 精简包一致，目标机安装方式不变。未打入载荷的 Agent 会给出明确提示，可联网安装或在对应目标平台重新构建；实际体积取决于 Agent 及其平台运行时。</p>
-      <p>构建要求：构建机可联网（自动走国内镜像下载依赖）；构建 hermes 载荷需要本机 Git；构建产物按所选平台自动排除无关载荷与 CoCo 的 Windows 载荷。</p>
-      <div class="note rv">
-        <svg class="ic" aria-hidden="true"><use href="#i-drive"/></svg>
-        <p>提示：构建过程会在 <code>dist/</code> 生成暂存目录与中间产物，可直接删除；同平台重复构建会覆盖同名文件。</p>
-      </div>
-    </section>
-
-    <a id="network"></a>
-    <section class="sec" id="🌏-中国网络环境自适应">
-      <p class="eyebrow">05 · CHINA NETWORK</p>
-      <h2>中国网络环境自适应<a class="ha" href="#🌏-中国网络环境自适应" aria-label="Permalink">#</a></h2>
-      <p>AgentBoot 对国内复杂网络做了开箱即用的处理：</p>
-      <ul class="blist wide rv">
-        <li><strong>自动判定</strong>：安装/运行时探测 <code>registry.npmjs.org</code> 连通性，不通则自动判定为中国大陆网络；</li>
-        <li><strong>npm 镜像（可切换）</strong>：npmmirror（阿里）/ 腾讯云 / 华为云 / 官方源，安装 npm 类 Agent 自动使用所选源；</li>
-        <li><strong>Node 运行时镜像</strong>：便携 Node 按序尝试 npmmirror → 华为云 → 腾讯云二进制镜像（nodejs.org 兜底）；</li>
-        <li><strong>GitHub 加速（可切换）</strong>：gh-proxy.com / ghfast.top / ghproxy.net 自动探测选路，可固定指定或关闭直连；</li>
-        <li><strong>pip 镜像</strong>：Aider 等 Python 工具自动使用清华 PyPI 镜像；</li>
-        <li><strong>多源下载容错</strong>：安装包只从项目控制的 <code>boot.ide.pub → GitHub Pages → jsDelivr → GitHub Release</code> 获取，并强制同源 SHA-256；</li>
-        <li><strong>代理支持</strong>：菜单 <code>[5] 镜像与代理设置</code> 可一键为 npm 与 AgentBoot 自身配置 HTTP 代理；</li>
-        <li><strong>手动切换</strong>：菜单 <code>[5]</code> 内可切换 npm 源与 GitHub 加速；命令行 <code>agentboot mirror npm [源URL]</code>、<code>agentboot mirror gh [auto|off|前缀URL]</code>；环境变量 <code>AGENTBOOT_MIRROR=cn|off</code> 强制镜像模式（默认自动）。</li>
-      </ul>
-    </section>
-
-    <a id="model"></a>
-    <section class="sec" id="🧠-模型配置（提供商管理器）">
-      <p class="eyebrow">06 · MODEL PROVIDERS</p>
-      <h2>模型配置（提供商管理器）<a class="ha" href="#🧠-模型配置（提供商管理器）" aria-label="Permalink">#</a></h2>
-      <p><code>ab</code> 里输入 <code>/model</code>，或菜单 <code>[4] 模型配置</code> —— 两者共用同一个<strong>模型提供商管理器</strong>：</p>
-      <div class="code rv">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">ab /model — 提供商管理器</span><button class="copy" type="button" aria-label="复制文本"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code>---- 模型提供商管理 ----
-  [1] groq         qwen/qwen3.8-27b     (https://api.groq.com/openai/v1) <span class="ok">← 当前</span>
-  [2] agnes        agnes-2.5-flash      (https://apihub.agnes-ai.com/v1) <span class="warn">← 备选</span>
+<p>按需包结构与 Release 精简包一致，目标机安装方式不变。未打入载荷的 Agent 会给出明确提示，可联网安装或在对应目标平台重新构建；实际体积取决于 Agent 及其平台运行时。</p>
+<p>构建要求：构建机可联网（自动走国内镜像下载依赖）；构建 hermes 载荷需要本机 Git；构建产物按所选平台自动排除无关载荷与 CoCo 的 Windows 载荷。</p>
+<blockquote>提示：构建过程会在 <code>dist/</code> 生成暂存目录与中间产物，可直接删除；同平台重复构建会覆盖同名文件。</blockquote>
+<a id="network"></a>
+<h2 id="🌏-中国网络环境自适应">🌏 中国网络环境自适应<a class="heading-anchor" href="#🌏-中国网络环境自适应" aria-label="Permalink">#</a></h2>
+<p>AgentBoot 对国内复杂网络做了开箱即用的处理：</p>
+<ul><li><strong>自动判定</strong>：安装/运行时探测 <code>registry.npmjs.org</code> 连通性，不通则自动判定为中国大陆网络；</li><li><strong>npm 镜像（可切换）</strong>：npmmirror（阿里）/ 腾讯云 / 华为云 / 官方源，安装 npm 类 Agent 自动使用所选源；</li><li><strong>Node 运行时镜像</strong>：便携 Node 按序尝试 npmmirror → 华为云 → 腾讯云二进制镜像（nodejs.org 兜底）；</li><li><strong>GitHub 加速（可切换）</strong>：gh-proxy.com / ghfast.top / ghproxy.net 自动探测选路，可固定指定或关闭直连；</li><li><strong>pip 镜像</strong>：Aider 等 Python 工具自动使用清华 PyPI 镜像；</li><li><strong>多源下载容错</strong>：安装包只从项目控制的 <code>boot.ide.pub → GitHub Pages → jsDelivr → GitHub Release</code> 获取，并强制同源 SHA-256；</li><li><strong>代理支持</strong>：菜单 <code>[5] 镜像与代理设置</code> 可一键为 npm 与 AgentBoot 自身配置 HTTP 代理；</li><li><strong>手动切换</strong>：菜单 <code>[5]</code> 内可切换 npm 源与 GitHub 加速；命令行 <code>agentboot mirror npm [源URL]</code>、<code>agentboot mirror gh [auto|off|前缀URL]</code>；环境变量 <code>AGENTBOOT_MIRROR=cn|off</code> 强制镜像模式（默认自动）。</li></ul>
+<a id="model"></a>
+<h2 id="🧠-模型配置（提供商管理器）">🧠 模型配置（提供商管理器）<a class="heading-anchor" href="#🧠-模型配置（提供商管理器）" aria-label="Permalink">#</a></h2>
+<p><code>ab</code> 里输入 <code>/model</code>，或菜单 <code>[4] 模型配置</code> —— 两者共用同一个<strong>模型提供商管理器</strong>：</p>
+<pre><code>---- 模型提供商管理 ----
+  [1] groq         qwen/qwen3.8-27b     (https://api.groq.com/openai/v1) ← 当前
+  [2] agnes        agnes-2.5-flash      (https://apihub.agnes-ai.com/v1) ← 备选
   [3] ollama       qwen2.5:7b           (http://127.0.0.1:11434/v1)
   [4] lmstudio     local-model          (http://127.0.0.1:1234/v1)
   ...
   [s] 切换当前模型源   [a] 添加自定义提供商   [d] 删除自定义提供商
   [f] 设置故障切换顺序 [t] 测试当前模型        [0] 完成</code></pre>
-      </div>
-      <ul class="blist wide rv">
-        <li><strong>Groq（默认）</strong>：内置预设（Base URL <code>https://api.groq.com/openai/v1</code>，模型 <code>qwen/qwen3.8-27b</code>，450 t/s 极速推理），<strong>首次运行自动生成配置、零设置直接对话</strong>；</li>
-        <li><strong>免费模型（备选）</strong>：内置预设（Base URL <code>https://apihub.agnes-ai.com/v1</code>，模型 <code>agnes-2.5-flash</code>），主源失败时自动切换；</li>
-        <li><strong>添加自定义提供商</strong>：任意 OpenAI 兼容接口（中转站 / vLLM / 私有部署），命名保存、随时切换删除；</li>
-        <li><strong>本地模型（完全离线）</strong>：内置 Ollama（11434）与 LM Studio（1234）预设；vLLM 可作为自定义 OpenAI 兼容提供商添加；</li>
-        <li><strong>故障切换</strong>：默认 <code>groq → agnes</code>；也可设置任意备用顺序（如 <code>groq → ollama</code>）；</li>
-        <li><strong>Groq key 管理</strong>：内置默认 key（编码存放，防自动扫描）。用自己的 key：设环境变量 <code>GROQ_API_KEY=gsk_...</code>，或 <code>/model</code> → <code>[a] 添加</code>（提供商名填 <code>groq</code>）——显式配置优先于环境变量与内置 key。内置 key 被滥用时可在 Groq 控制台直接轮换；</li>
-        <li><strong>连通测试</strong>：一键验证当前模型。</li>
-      </ul>
-      <p>配置保存在 <code>~/.agentboot/config.json</code>，也可直接编辑。</p>
-    </section>
-
-    <a id="ab"></a>
-    <section class="sec" id="🧰-内置最小-agent（ab）能力">
-      <p class="eyebrow">07 · BUILT-IN AGENT</p>
-      <h2>内置最小 Agent（ab）能力<a class="ha" href="#🧰-内置最小-agent（ab）能力" aria-label="Permalink">#</a></h2>
-      <ul class="blist wide rv">
-        <li>零第三方依赖 Python 核心（仅标准库，随附 i18n 与知识库资源），启动即用；</li>
-        <li>工具：执行命令（危险命令拦截/确认）、读写与精确编辑文件、目录列表、抓取网页；</li>
-        <li><strong>离线 Linux 知识库</strong>：内置 9 大主题（基础命令/系统信息/服务管理/网络/软件包/用户权限/磁盘/故障排查/终端技巧），问它 Linux 用法、让它操作 Linux、修简单问题（磁盘满、端口占用、服务起不来等）都可以；</li>
-        <li>模型随时切换（<code>/model</code>），支持流式输出。</li>
-      </ul>
-      <p>示例：</p>
-      <div class="code rv">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">ab — 交互示例</span><button class="copy" type="button" aria-label="复制示例"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code>ab                                  <span class="cm"># 进入交互</span>
-<span class="pp">你 ›</span> 查一下磁盘占用，满的话给出清理建议
-<span class="pp">你 ›</span> nginx 起不来怎么排查？
-<span class="pp">你 ›</span> /linux 查看端口占用</code></pre>
-      </div>
-    </section>
-
-    <a id="upgrade"></a>
-    <section class="sec" id="🔧-升级与卸载">
-      <p class="eyebrow">08 · UPGRADE &amp; UNINSTALL</p>
-      <h2>升级与卸载<a class="ha" href="#🔧-升级与卸载" aria-label="Permalink">#</a></h2>
-      <div class="code rv">
-        <div class="code-h"><span class="dots"><i></i><i></i><i></i></span><span class="code-t">bash / cmd</span><button class="copy" type="button" aria-label="复制命令"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>复制</button></div>
-        <pre><code><span class="cm"># 升级：重跑在线一键安装即可覆盖更新（配置保留）</span>
+<ul><li><strong>Groq（默认）</strong>：内置预设（Base URL <code>https://api.groq.com/openai/v1</code>，模型 <code>qwen/qwen3.8-27b</code>，450 t/s 极速推理），<strong>首次运行自动生成配置、零设置直接对话</strong>；</li><li><strong>Agnes 免费模型（备选）</strong>：内置预设（Base URL <code>https://apihub.agnes-ai.com/v1</code>，模型 <code>agnes-2.5-flash</code>），主源失败时自动切换；</li><li><strong>添加自定义提供商</strong>：任意 OpenAI 兼容接口（中转站 / vLLM / 私有部署），命名保存、随时切换删除；</li><li><strong>本地模型（完全离线）</strong>：内置 Ollama（11434）与 LM Studio（1234）预设；vLLM 可作为自定义 OpenAI 兼容提供商添加；</li><li><strong>故障切换</strong>：默认 <code>groq → agnes</code>；也可设置任意备用顺序（如 <code>groq → ollama</code>）；</li><li><strong>Groq key 管理</strong>：内置默认 key（编码存放，防自动扫描）。用自己的 key：设环境变量 <code>GROQ_API_KEY=gsk_...</code>，或 <code>/model</code> → <code>[a] 添加</code>（提供商名填 <code>groq</code>）——显式配置优先于环境变量与内置 key。内置 key 被滥用时可在 Groq 控制台直接轮换；</li><li><strong>连通测试</strong>：一键验证当前模型。</li></ul>
+<p>配置保存在 <code>~/.agentboot/config.json</code>，也可直接编辑。</p>
+<a id="ab"></a>
+<h2 id="🧰-内置最小-agent（ab）能力">🧰 内置最小 Agent（ab）能力<a class="heading-anchor" href="#🧰-内置最小-agent（ab）能力" aria-label="Permalink">#</a></h2>
+<ul><li>零第三方依赖 Python 核心（仅标准库，随附 i18n 与知识库资源），启动即用；</li><li>工具：执行命令（危险命令拦截/确认）、读写与精确编辑文件、目录列表、抓取网页；</li><li><strong>离线 Linux 知识库</strong>：内置 9 大主题（基础命令/系统信息/服务管理/网络/软件包/用户权限/磁盘/故障排查/终端技巧）， 问它 Linux 用法、让它操作 Linux、修简单问题（磁盘满、端口占用、服务起不来等）都可以；</li><li>模型随时切换（<code>/model</code>），支持流式输出。</li></ul>
+<p>示例：</p>
+<pre><code>ab                                  # 进入交互
+你 › 查一下磁盘占用，满的话给出清理建议
+你 › nginx 起不来怎么排查？
+你 › /linux 查看端口占用</code></pre>
+<a id="upgrade"></a>
+<h2 id="🔧-升级与卸载">🔧 升级与卸载<a class="heading-anchor" href="#🔧-升级与卸载" aria-label="Permalink">#</a></h2>
+<pre><code># 升级：重跑在线一键安装即可覆盖更新（配置保留）
 curl -fsSL https://boot.ide.pub/install.sh | sh
 
-<span class="cm"># 卸载单个 Agent（默认保留配置、认证与会话）</span>
+# 卸载单个 Agent（默认保留配置、认证与会话）
 agentboot uninstall codex
 agentboot uninstall codex,qwen-code
 
-<span class="cm"># 彻底清理 CoCo 程序和用户数据（不可恢复）</span>
+# 彻底清理 CoCo 程序和用户数据（不可恢复）
 agentboot uninstall coco --purge
 
-<span class="cm"># 卸载 AgentBoot 本体（会删除 AgentBoot 自身配置）</span>
-rm -rf ~/.agentboot ~/.local/bin/agentboot ~/.local/bin/ab      <span class="cm"># Linux/macOS</span>
-rmdir /s /q "%USERPROFILE%\.agentboot" &amp; rmdir /s /q "%LOCALAPPDATA%\AgentBoot"   <span class="cm"># Windows</span></code></pre>
-      </div>
-      <p>POSIX 完全卸载后，还应删除 shell 配置中 <code># &gt;&gt;&gt; agentboot &gt;&gt;&gt;</code> 到 <code># &lt;&lt;&lt; agentboot &lt;&lt;&lt;</code> 的整段；Windows 在用户 Path 中删除 AgentBoot 的两个 bin 目录。</p>
-      <p>下载离线包后可先运行 <code>sha256sum -c SHA256SUMS.txt --ignore-missing</code> 验证外部归档；包内 <code>PAYLOAD_SHA256SUMS.txt</code> 用于解压后的逐文件二次校验。</p>
-      <p>也可在控制台选择菜单 <code>[9] 卸载 Agent</code>。AgentBoot 会记录安装归属，避免误删系统中碰巧同名的外部命令；默认保留 Agent 配置、认证信息与会话。<code>--purge</code> 目前只定义了 CoCo 的数据清理边界，其他 Agent 的数据目录不会被猜测删除。</p>
-    </section>
-
-    <a id="faq-online"></a>
-    <section class="sec" id="❓-在线安装故障排查">
-      <p class="eyebrow">09 · TROUBLESHOOTING</p>
-      <h2>在线安装故障排查<a class="ha" href="#❓-在线安装故障排查" aria-label="Permalink">#</a></h2>
-      <div class="tbl-scroll rv" role="region" tabindex="0" aria-label="在线安装故障排查">
-        <table class="tbl">
-          <thead><tr><th>现象</th><th>处理</th></tr></thead>
-          <tbody>
-            <tr><td><code>curl</code> 不存在</td><td>用 <code>wget -qO- https://boot.ide.pub/install.sh | sh</code>，或先安装 curl</td></tr>
-            <tr><td>所有下载源失败</td><td>用离线包安装；或给终端设置代理后重试</td></tr>
-            <tr><td>Windows 提示"禁止运行脚本"</td><td>使用文档中带 <code>-ExecutionPolicy Bypass</code> 的命令</td></tr>
-            <tr><td><code>python3</code> 自动安装失败</td><td>手动安装后重跑脚本；或先只用其他 Agent（Node 类不依赖 Python）</td></tr>
-            <tr><td>装完 <code>agentboot</code> 找不到命令</td><td>重开终端；或 <code>source ~/.bashrc</code>；Windows 重开终端窗口</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="sec" id="❓-faq（常见问答）">
-      <p class="eyebrow">10 · FAQ</p>
-      <h2>FAQ（常见问答）<a class="ha" href="#❓-faq（常见问答）" aria-label="Permalink">#</a></h2>
-      <div class="faq rv">
-        <div class="qa">
-          <p class="qa-t"><span class="qmark">Q</span>哪些 Agent 装完就能用 免费模型？</p>
-          <p class="qa-a"><span class="qmark a">A</span><span>codex 与 qwen-code 安装后由 AgentBoot 自动接线（config.toml / OPENAI_* 环境变量），开箱即用；opencode 写入 opencode.json；其余 Agent 按官方方式登录或配置（注册表 notes 有说明）。内置 <code>ab</code> 默认 Groq（失败自动切 Agnes 备选）。</span></p>
+# 卸载 AgentBoot 本体（会删除 AgentBoot 自身配置）
+rm -rf ~/.agentboot ~/.local/bin/agentboot ~/.local/bin/ab      # Linux/macOS
+rmdir /s /q "%USERPROFILE%\.agentboot" &amp; rmdir /s /q "%LOCALAPPDATA%\AgentBoot"   # Windows</code></pre>
+<p>POSIX 完全卸载后，还应删除 shell 配置中 <code># >>> agentboot >>></code> 到 <code># &lt;&lt;&lt; agentboot &lt;&lt;&lt;</code> 的整段；Windows 在用户 Path 中删除 AgentBoot 的两个 bin 目录。</p>
+<p>下载离线包后可先运行 <code>sha256sum -c SHA256SUMS.txt --ignore-missing</code> 验证外部归档；包内 <code>PAYLOAD_SHA256SUMS.txt</code> 用于解压后的逐文件二次校验。</p>
+<p>也可在控制台选择菜单 <code>[9] 卸载 Agent</code>。AgentBoot 会记录安装归属，避免误删系统中碰巧同名的外部命令；默认保留 Agent 配置、认证信息与会话。<code>--purge</code> 目前只定义了 CoCo 的数据清理边界，其他 Agent 的数据目录不会被猜测删除。</p>
+<a id="faq-online"></a>
+<h2 id="❓-在线安装故障排查">❓ 在线安装故障排查<a class="heading-anchor" href="#❓-在线安装故障排查" aria-label="Permalink">#</a></h2>
+<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>现象</th><th>处理</th></tr></thead><tbody><tr><td><code>curl</code> 不存在</td><td>用 `wget -qO- https://boot.ide.pub/install.sh \</td><td>sh`，或先安装 curl</td></tr><tr><td>所有下载源失败</td><td>用离线包安装；或给终端设置代理后重试</td></tr><tr><td>Windows 提示"禁止运行脚本"</td><td>使用文档中带 <code>-ExecutionPolicy Bypass</code> 的命令</td></tr><tr><td><code>python3</code> 自动安装失败</td><td>手动安装后重跑脚本；或先只用其他 Agent（Node 类不依赖 Python）</td></tr><tr><td>装完 <code>agentboot</code> 找不到命令</td><td>重开终端；或 <code>source ~/.bashrc</code>；Windows 重开终端窗口</td></tr></tbody></table></div>
+<hr>
+<h2 id="❓-faq（常见问答）">❓ FAQ（常见问答）<a class="heading-anchor" href="#❓-faq（常见问答）" aria-label="Permalink">#</a></h2>
+<p><strong>Q：哪些 Agent 装完就能用 Agnes 免费模型？</strong> codex 与 qwen-code 安装后由 AgentBoot 自动接线（config.toml / OPENAI_* 环境变量），开箱即用；opencode 写入 opencode.json；其余 Agent 按官方方式登录或配置（注册表 notes 有说明）。内置 <code>ab</code> 默认 Groq（失败自动切 Agnes 备选）。</p>
+<p><strong>Q：为什么 codex 用 Agnes 预置时建议选 0.90.0？</strong> 0.100+ 移除了 chat 协议，与 Agnes 预设不兼容。默认安装始终是最新版（官方登录不受影响）；要用 Agnes 预设请自选旧版：<code>agentboot install codex@0.90.0</code>。</p>
+<p><strong>Q：瘦身包里没有我要的 Agent 怎么办？</strong> 菜单 [7] 在目标平台重新构建并勾选它。离线安装遇到未打包的 Agent 会给出明确提示。</p>
+<p><strong>Q：内置 ab 怎么用本地模型？</strong> <code>ab</code> → <code>/model</code> → 管理器选 ollama / lmstudio 预设，或 <code>[a]</code> 添加自定义提供商（任意 OpenAI 兼容接口）。完全离线场景用本地模型即可。</p>
+<p><strong>Q：怎么验证性能？</strong> <code>ab bench</code>：输出知识库查询延迟（冷/热）、模型首字延迟（含 TLS 握手 vs 复用连接对比）。</p>
+<p><strong>Q：离线包那么大，能再小吗？</strong> 菜单 [7] 自选平台与 Agent 构建瘦身包（如 win-x64 仅 Pi ≈ 89MB）。Hermes 载荷含完整 Python 运行时（约 620MB），不需要就不要勾选。</p>
+      </article>
+    </main>
+    <footer class="site-footer shell">
+      <div class="footer-row">
+        <div>
+          <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span>AgentBoot</span></a>
+          <p class="footer-note">MIT License · <a href="https://github.com/bit-cook/AgentBoot">GitHub</a> · <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a></p>
         </div>
-        <div class="qa">
-          <p class="qa-t"><span class="qmark">Q</span>为什么 codex 用 Agnes 预置时建议选 0.90.0？</p>
-          <p class="qa-a"><span class="qmark a">A</span><span>0.100+ 移除了 chat 协议，与 Agnes 预设不兼容。默认安装始终是最新版（官方登录不受影响）；要用 Agnes 预设请自选旧版：<code>agentboot install codex@0.90.0</code>。</span></p>
-        </div>
-        <div class="qa">
-          <p class="qa-t"><span class="qmark">Q</span>瘦身包里没有我要的 Agent 怎么办？</p>
-          <p class="qa-a"><span class="qmark a">A</span><span>菜单 [7] 在目标平台重新构建并勾选它。离线安装遇到未打包的 Agent 会给出明确提示。</span></p>
-        </div>
-        <div class="qa">
-          <p class="qa-t"><span class="qmark">Q</span>内置 ab 怎么用本地模型？</p>
-          <p class="qa-a"><span class="qmark a">A</span><span><code>ab</code> → <code>/model</code> → 管理器选 ollama / lmstudio 预设，或 <code>[a]</code> 添加自定义提供商（任意 OpenAI 兼容接口）。完全离线场景用本地模型即可。</span></p>
-        </div>
-        <div class="qa">
-          <p class="qa-t"><span class="qmark">Q</span>怎么验证性能？</p>
-          <p class="qa-a"><span class="qmark a">A</span><span><code>ab bench</code>：输出知识库查询延迟（冷/热）、模型首字延迟（含 TLS 握手 vs 复用连接对比）。</span></p>
-        </div>
-        <div class="qa">
-          <p class="qa-t"><span class="qmark">Q</span>离线包那么大，能再小吗？</p>
-          <p class="qa-a"><span class="qmark a">A</span><span>菜单 [7] 自选平台与 Agent 构建瘦身包（如 win-x64 仅 Pi ≈ 89MB）。Hermes 载荷含完整 Python 运行时（约 620MB），不需要就不要勾选。</span></p>
+        <div class="footer-links">
+          <a href="https://boot.ide.pub/health">健康检查</a>
+          <a href="https://bit-cook.github.io/AgentBoot/">Pages 镜像</a>
         </div>
       </div>
-    </section>
-
-    <div class="src-note rv">
-      <svg class="ic ic-f" aria-hidden="true"><use href="#i-gh"/></svg>
-      <p><strong>本页源文档</strong>：<a href="https://github.com/bit-cook/AgentBoot/blob/main/docs/zh/安装指南.md">docs/zh/安装指南.md</a>（中文）· <a href="https://github.com/bit-cook/AgentBoot/blob/main/docs/en/install-guide.md">docs/en/install-guide.md</a>（English）—— 欢迎在 <a href="https://github.com/bit-cook/AgentBoot">GitHub 仓库</a> 提 Issue / PR。</p>
-    </div>
-
-  </main>
-</div>
-
-<footer class="foot">
-  <div class="foot-in">
-    <div>
-      <a class="brand" href="index.html"><span class="logo">&gt;_</span><span class="brand-t">AgentBoot</span></a>
-      <p class="foot-note">MIT License · <a href="https://github.com/bit-cook/AgentBoot">GitHub</a> · <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a></p>
-    </div>
-    <div class="foot-links">
-      <a href="https://boot.ide.pub/health">健康检查</a>
-      <a href="https://bit-cook.github.io/AgentBoot/">Pages 镜像</a>
-    </div>
-  </div>
-</footer>
-
-<button class="totop" id="ab-totop" type="button" aria-label="回到顶部"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg></button>
-<style>
-#ab-readme{
-  --bg:#070a12; --bg2:#0b0f1c;
-  --panel:rgba(148,163,199,.05); --panel2:rgba(148,163,199,.09);
-  --bd:rgba(148,163,199,.15); --bd2:rgba(148,163,199,.3);
-  --tx:#e7ecf8; --mut:#a0aac2; --fnt:#69748f;
-  --ac1:#22d3ee; --ac2:#818cf8; --ac3:#e879f9; --grn:#34d399; --amb:#fbbf24;
-  --grad:linear-gradient(92deg,#22d3ee,#818cf8 55%,#e879f9);
-  --grid:rgba(148,163,199,.08);
-  --navbg:rgba(7,10,18,.78);
-  --shadow:0 20px 50px -30px rgba(0,0,0,.6);
-  --cardsh:0 1px 0 rgba(255,255,255,.02) inset;
-  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Consolas,"Courier New",monospace;
-  --disp:"Space Grotesk","Noto Sans SC",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
-  font-family:"Noto Sans SC",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
-  font-size:15.5px; line-height:1.75; color:var(--tx);
-  background:var(--bg); position:relative; overflow:clip;
-  -webkit-font-smoothing:antialiased;
-}
-#ab-readme[data-theme="light"]{
-  --bg:#f7f5ef; --bg2:#efece2;
-  --panel:#ffffff; --panel2:#f0ede3;
-  --bd:#e4e0d2; --bd2:#cfc9b6;
-  --tx:#232a40; --mut:#5d667c; --fnt:#8f96a8;
-  --ac1:#0e7490; --ac2:#5b5bd6; --ac3:#b91cc4; --grn:#0a8a5f; --amb:#b45309;
-  --grid:rgba(35,42,64,.07);
-  --navbg:rgba(247,245,239,.82);
-  --shadow:0 16px 40px -28px rgba(60,50,20,.25);
-}
-#ab-readme *,#ab-readme *::before,#ab-readme *::after{box-sizing:border-box}
-#ab-readme :focus-visible{outline:2px solid var(--ac2);outline-offset:2px;border-radius:4px}
-#ab-readme ::selection{background:rgba(129,140,248,.35)}
-#ab-readme a{color:var(--ac1);text-decoration:none}
-#ab-readme a:hover{text-decoration:underline;text-underline-offset:3px}
-#ab-readme code{font-family:var(--mono);font-size:.86em;background:var(--panel2);border:1px solid var(--bd);border-radius:6px;padding:.1em .45em;color:var(--tx);white-space:nowrap;overflow-wrap:anywhere}
-#ab-readme strong{font-weight:700;color:var(--tx)}
-#ab-readme .ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
-#ab-readme .ic-f{fill:currentColor;stroke:none}
-#ab-readme .skip{position:absolute;left:-9999px;top:0;z-index:99;background:var(--ac2);color:#fff;padding:8px 14px;border-radius:0 0 10px 0}
-#ab-readme .skip:focus{left:0}
-
-/* ── 顶栏 ─────────────────────────── */
-#ab-readme .nav{position:sticky;top:0;z-index:60;background:var(--navbg);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--bd)}
-#ab-readme .nav-in{max-width:1200px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;gap:22px}
-#ab-readme .brand{display:inline-flex;align-items:center;gap:10px;color:var(--tx);font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:.01em}
-#ab-readme .brand:hover{text-decoration:none}
-#ab-readme .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#06b6d4,#6366f1);display:grid;place-items:center;color:#fff;font-family:var(--mono);font-size:12px;font-weight:600;box-shadow:0 4px 14px -4px rgba(99,102,241,.6)}
-#ab-readme .links{display:flex;gap:4px;margin-left:auto;min-width:0;overflow-x:auto;scrollbar-width:none}
-#ab-readme .links::-webkit-scrollbar{display:none}
-#ab-readme .links a{color:var(--mut);font-size:13.5px;padding:7px 11px;border-radius:9px;white-space:nowrap;flex:none;min-width:max-content}
-#ab-readme .links a:hover{color:var(--tx);background:var(--panel2);text-decoration:none}
-#ab-readme .links a.cur{color:var(--tx);background:var(--panel2)}
-#ab-readme .theme-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--bd);background:var(--panel);color:var(--mut);display:grid;place-items:center;cursor:pointer}
-#ab-readme .theme-btn:hover{color:var(--tx);border-color:var(--bd2)}
-#ab-readme .theme-btn .ic{width:16px;height:16px}
-#ab-readme .ic-sun{display:none}
-#ab-readme[data-theme="light"] .ic-sun{display:block}
-#ab-readme[data-theme="light"] .ic-moon{display:none}
-
-/* ── Hero ─────────────────────────── */
-#ab-readme .hero{position:relative;padding:84px 24px 72px;overflow:hidden}
-#ab-readme .hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse 75% 70% at 50% 32%,#000 25%,transparent 72%);-webkit-mask-image:radial-gradient(ellipse 75% 70% at 50% 32%,#000 25%,transparent 72%);pointer-events:none}
-#ab-readme .hero::after{content:"";position:absolute;inset:0;pointer-events:none;background:
-  radial-gradient(620px 360px at 16% 8%,rgba(34,211,238,.14),transparent 62%),
-  radial-gradient(700px 400px at 84% 14%,rgba(129,140,248,.16),transparent 64%),
-  radial-gradient(560px 320px at 55% 92%,rgba(232,121,249,.07),transparent 62%)}
-#ab-readme[data-theme="light"] .hero::after{background:
-  radial-gradient(620px 360px at 16% 8%,rgba(14,116,144,.1),transparent 62%),
-  radial-gradient(700px 400px at 84% 14%,rgba(91,91,214,.12),transparent 64%),
-  radial-gradient(560px 320px at 55% 92%,rgba(185,28,196,.05),transparent 62%)}
-#ab-readme .hero-in{position:relative;z-index:1;max-width:880px;margin:0 auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px}
-#ab-readme .chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
-#ab-readme .chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--mut);border:1px solid var(--bd);background:var(--panel);border-radius:999px;padding:5px 13px;white-space:nowrap;min-width:max-content}
-#ab-readme .chip .ic{width:13px;height:13px;color:var(--ac1)}
-#ab-readme h1{margin:6px 0 0;font-family:var(--disp);font-size:clamp(46px,7.5vw,80px);font-weight:700;letter-spacing:-.015em;line-height:1.05;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-#ab-readme .tagline{margin:0;font-size:clamp(16px,2.4vw,20px);font-weight:500;color:var(--tx);letter-spacing:.14em}
-#ab-readme .lede{margin:2px 0 0;max-width:640px;font-size:15px;color:var(--mut)}
-#ab-readme .lede strong{color:var(--tx)}
-#ab-readme .cta{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:8px}
-#ab-readme .btn-p{display:inline-flex;align-items:center;gap:9px;background:linear-gradient(92deg,#06b6d4,#6366f1);color:#fff;font-weight:600;font-size:15px;padding:12px 24px;border-radius:13px;box-shadow:0 14px 34px -14px rgba(99,102,241,.65);transition:transform .18s ease,box-shadow .18s ease}
-#ab-readme .btn-p:hover{text-decoration:none;transform:translateY(-2px);box-shadow:0 20px 40px -14px rgba(99,102,241,.75)}
-#ab-readme .btn-p .ic{width:16px;height:16px}
-#ab-readme .btn-g{display:inline-flex;align-items:center;gap:9px;color:var(--tx);font-weight:500;font-size:15px;padding:12px 22px;border-radius:13px;border:1px solid var(--bd2);background:var(--panel);transition:border-color .18s ease,transform .18s ease}
-#ab-readme .btn-g:hover{text-decoration:none;transform:translateY(-2px);border-color:var(--ac2)}
-#ab-readme .btn-g .ic{width:17px;height:17px}
-#ab-readme .entries{margin:4px 0 0;font-size:13px;color:var(--mut)}
-#ab-readme .entries a{color:var(--ac1)}
-#ab-readme .entries strong{color:var(--mut);font-weight:500}
-
-/* ── 终端窗口 ──────────────────────── */
-#ab-readme .term{width:min(720px,100%);margin-top:16px;text-align:left;border-radius:14px;background:#0b0f1e;border:1px solid rgba(148,163,199,.2);box-shadow:0 40px 90px -40px rgba(34,211,238,.28),0 40px 90px -50px rgba(129,140,248,.4),var(--shadow);overflow:hidden}
-#ab-readme .term-h{display:flex;align-items:center;gap:10px;height:38px;padding:0 12px;border-bottom:1px solid rgba(148,163,199,.14);background:rgba(148,163,199,.04)}
-#ab-readme .dots{display:inline-flex;gap:6px}
-#ab-readme .dots i{width:11px;height:11px;border-radius:50%}
-#ab-readme .dots i:nth-child(1){background:#ff5f57}
-#ab-readme .dots i:nth-child(2){background:#febc2e}
-#ab-readme .dots i:nth-child(3){background:#28c840}
-#ab-readme .term-t{font-family:var(--mono);font-size:11px;color:#69748f;letter-spacing:.05em}
-#ab-readme .term-b{padding:16px 18px 18px;font-family:var(--mono);font-size:13px;line-height:1.8;color:#dbe4f5}
-#ab-readme .tl{white-space:pre-wrap;word-break:break-all}
-#ab-readme .pp{color:#34d399;margin-right:9px}
-#ab-readme .tl .cur{display:inline-block;width:8px;height:15px;margin-left:2px;background:#22d3ee;vertical-align:-2px;animation:ab-blink 1.05s steps(1) infinite}
-@keyframes ab-blink{50%{opacity:0}}
-#ab-readme .tout{margin-top:6px;opacity:.96}
-#ab-readme .tout .ok{color:#34d399}
-#ab-readme .tout .dim{color:#69748f}
-
-/* ── 代码块 ───────────────────────── */
-#ab-readme .code{border-radius:12px;background:#0b0f1e;border:1px solid rgba(148,163,199,.18);overflow:hidden;box-shadow:var(--shadow)}
-#ab-readme .code + .code{margin-top:12px}
-#ab-readme .code-h{display:flex;align-items:center;gap:10px;height:36px;padding:0 8px 0 12px;border-bottom:1px solid rgba(148,163,199,.13);background:rgba(148,163,199,.04)}
-#ab-readme .code-t{font-family:var(--mono);font-size:10.5px;color:#69748f;letter-spacing:.08em;text-transform:uppercase;margin-right:auto}
-#ab-readme .code-h .dots i{width:9px;height:9px}
-#ab-readme pre{margin:0;padding:14px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.75;color:#dbe4f5;scrollbar-width:thin;scrollbar-color:rgba(148,163,199,.35) transparent}
-#ab-readme pre::-webkit-scrollbar{height:8px}
-#ab-readme pre::-webkit-scrollbar-thumb{background:rgba(148,163,199,.3);border-radius:8px}
-#ab-readme pre .cm{color:#5f6f8f}
-#ab-readme pre .cd{color:#7dd3fc}
-#ab-readme .copy{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:#8ea0c4;background:transparent;border:1px solid rgba(148,163,199,.25);border-radius:7px;padding:4px 9px;cursor:pointer;transition:color .15s,border-color .15s}
-#ab-readme .copy:hover{color:#e7ecf8;border-color:rgba(148,163,199,.5)}
-#ab-readme .copy .ic{width:12px;height:12px}
-#ab-readme .copy.done{color:#34d399;border-color:rgba(52,211,153,.5)}
-
-/* ── 布局 / 目录 ───────────────────── */
-#ab-readme .shell{width:auto;max-width:1200px;margin:0 auto;padding:26px 24px 30px;display:grid;grid-template-columns:212px minmax(0,1fr);gap:52px;align-items:start}
-#ab-readme .toc{position:sticky;top:86px;font-size:13px}
-#ab-readme .toc-t{margin:0 0 10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--fnt);text-transform:uppercase}
-#ab-readme .toc-l{display:flex;flex-direction:column}
-#ab-readme .toc-l a{color:var(--mut);padding:5px 12px;border-left:2px solid var(--bd);transition:color .15s,border-color .15s,background .15s}
-#ab-readme .toc-l a:hover{color:var(--tx);text-decoration:none;background:var(--panel)}
-#ab-readme .toc-l a.on{color:var(--tx);border-image:linear-gradient(180deg,#22d3ee,#818cf8) 1;background:var(--panel)}
-#ab-readme .content{display:flex;flex-direction:column;gap:64px;min-width:0}
-
-/* ── 分区标题 ─────────────────────── */
-#ab-readme .sec{scroll-margin-top:86px}
-#ab-readme .eyebrow{margin:0 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--ac1);text-transform:uppercase;display:flex;align-items:center;gap:10px}
-#ab-readme .eyebrow::after{content:"";height:1px;width:44px;background:linear-gradient(90deg,var(--ac1),transparent)}
-#ab-readme h2{margin:0 0 18px;font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:-.01em;line-height:1.3;max-width:none}
-#ab-readme .ha{margin-left:8px;color:var(--fnt);font-weight:400;opacity:0;transition:opacity .15s}
-#ab-readme h2:hover .ha{opacity:1}
-#ab-readme h2 code{font-size:.8em}
-#ab-readme p{margin:0 0 13px}
-#ab-readme .mut-p{color:var(--mut);font-size:14px}
-#ab-readme .lead-in{margin-top:18px}
-
-/* ── 标签页 ───────────────────────── */
-#ab-readme .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
-#ab-readme .tab{font-family:inherit;font-size:13.5px;color:var(--mut);background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:8px 15px;cursor:pointer;transition:all .15s;white-space:nowrap}
-#ab-readme .tab:hover{color:var(--tx);border-color:var(--bd2)}
-#ab-readme .tab.on{color:var(--tx);border-color:transparent;background:linear-gradient(92deg,rgba(34,211,238,.16),rgba(129,140,248,.2));box-shadow:inset 0 0 0 1px rgba(129,140,248,.55)}
-#ab-readme[data-theme="light"] .tab.on{background:linear-gradient(92deg,rgba(14,116,144,.12),rgba(91,91,214,.14));box-shadow:inset 0 0 0 1px rgba(91,91,214,.45)}
-#ab-readme .tabpanel{margin-bottom:18px}
-#ab-readme .tabpanel[hidden]{display:none}
-
-/* ── 提示框 ───────────────────────── */
-#ab-readme .note{display:flex;gap:12px;align-items:flex-start;border:1px solid color-mix(in srgb,var(--ac1) 32%,transparent);background:color-mix(in srgb,var(--ac1) 7%,transparent);border-radius:12px;padding:13px 16px;margin:16px 0}
-#ab-readme .note .ic{width:17px;height:17px;color:var(--ac1);margin-top:4px}
-#ab-readme .note p{margin:0;font-size:13.5px;color:var(--mut)}
-#ab-readme .note p strong{color:var(--tx)}
-#ab-readme .note code{white-space:normal}
-#ab-readme .note.warn{border-color:color-mix(in srgb,var(--amb) 40%,transparent);background:color-mix(in srgb,var(--amb) 8%,transparent)}
-#ab-readme .note.warn .ic{color:var(--amb)}
-
-/* ── 命令卡片 ─────────────────────── */
-#ab-readme .duo{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0 16px}
-#ab-readme .cmd-card{border:1px solid var(--bd);background:var(--panel);border-radius:14px;padding:16px 18px;transition:border-color .18s,transform .18s}
-#ab-readme .cmd-card:hover{border-color:var(--bd2);transform:translateY(-2px)}
-#ab-readme .cmd-top{display:flex;align-items:center;gap:9px;margin-bottom:8px;color:var(--ac1)}
-#ab-readme .cmd-card.hl .cmd-top{color:var(--ac2)}
-#ab-readme .cmd-k{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--tx)}
-#ab-readme .cmd-card p{margin:0;font-size:13.5px;color:var(--mut)}
-
-/* ── 特性网格 ─────────────────────── */
-#ab-readme .feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
-#ab-readme .feat{border:1px solid var(--bd);background:var(--panel);border-radius:16px;padding:18px;transition:transform .18s,border-color .18s,box-shadow .18s}
-#ab-readme .feat:hover{transform:translateY(-3px);border-color:var(--bd2);box-shadow:var(--shadow)}
-#ab-readme .fic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;margin-bottom:12px}
-#ab-readme .feat h3{margin:0 0 6px;font-size:14.5px;font-weight:700}
-#ab-readme .feat p{margin:0;font-size:13px;color:var(--mut);line-height:1.7}
-#ab-readme .feat code{font-size:.84em}
-#ab-readme .c1 .fic{color:var(--ac1);background:color-mix(in srgb,var(--ac1) 12%,transparent)}
-#ab-readme .c2 .fic{color:var(--ac2);background:color-mix(in srgb,var(--ac2) 13%,transparent)}
-#ab-readme .c3 .fic{color:var(--ac3);background:color-mix(in srgb,var(--ac3) 12%,transparent)}
-#ab-readme .c4 .fic{color:var(--grn);background:color-mix(in srgb,var(--grn) 12%,transparent)}
-#ab-readme .c5 .fic{color:var(--amb);background:color-mix(in srgb,var(--amb) 13%,transparent)}
-
-/* ── 表格 ─────────────────────────── */
-#ab-readme .tbl-cap{font-size:13px;color:var(--mut);margin-bottom:12px}
-#ab-readme .tbl-scroll{overflow-x:auto;border:1px solid var(--bd);border-radius:14px;background:var(--panel);scrollbar-width:thin}
-#ab-readme .tbl{width:100%;min-width:780px;border-collapse:collapse;font-size:13.5px}
-#ab-readme .tbl th{text-align:left;font-size:11.5px;font-weight:500;letter-spacing:.08em;color:var(--fnt);padding:11px 14px;border-bottom:1px solid var(--bd2);background:var(--panel2);white-space:nowrap}
-#ab-readme .tbl td{padding:11px 14px;border-bottom:1px solid var(--bd);vertical-align:top}
-#ab-readme .tbl tbody tr:last-child td{border-bottom:none}
-#ab-readme .tbl tbody tr{transition:background .12s}
-#ab-readme .tbl tbody tr:hover{background:var(--panel2)}
-#ab-readme .tbl .n{font-family:var(--mono);color:var(--fnt);width:34px}
-#ab-readme .tbl .mut{color:var(--mut);font-size:12.5px}
-#ab-readme .tbl code{white-space:nowrap}
-#ab-readme .tbl .tbl-note{color:var(--mut);font-size:12px}
-#ab-readme .tbl .tbl-note code{font-size:.9em}
-#ab-readme .pill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;border-radius:999px;padding:2px 10px;white-space:nowrap}
-#ab-readme .pill-ok{color:var(--grn);background:color-mix(in srgb,var(--grn) 11%,transparent);border:1px solid color-mix(in srgb,var(--grn) 34%,transparent)}
-#ab-readme .pill-pl{color:var(--ac1);background:color-mix(in srgb,var(--ac1) 10%,transparent);border:1px solid color-mix(in srgb,var(--ac1) 32%,transparent)}
-#ab-readme .pill-on{color:var(--amb);background:color-mix(in srgb,var(--amb) 10%,transparent);border:1px solid color-mix(in srgb,var(--amb) 36%,transparent)}
-
-/* ── 列表 ─────────────────────────── */
-#ab-readme .ab-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:26px;align-items:start}
-#ab-readme .blist{list-style:none;margin:0;padding:0}
-#ab-readme .blist li{position:relative;padding-left:26px;margin-bottom:13px;color:var(--mut)}
-#ab-readme .blist li strong{color:var(--tx)}
-#ab-readme .blist li::before{content:"";position:absolute;left:2px;top:.62em;width:8px;height:8px;border-radius:3px;background:linear-gradient(135deg,#22d3ee,#818cf8);transform:rotate(45deg)}
-#ab-readme .blist.wide li{margin-bottom:15px}
-#ab-readme .slist{list-style:none;counter-reset:sc;margin:0;padding:0}
-#ab-readme .slist li{counter-increment:sc;position:relative;padding:15px 16px 15px 58px;border:1px solid var(--bd);background:var(--panel);border-radius:14px;margin-bottom:10px;color:var(--mut);font-size:14px}
-#ab-readme .slist li::before{content:"0" counter(sc);position:absolute;left:18px;top:15px;font-family:var(--mono);font-size:13px;font-weight:600;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-#ab-readme .slist li strong{color:var(--tx)}
-
-/* ── 链接卡片 ─────────────────────── */
-#ab-readme .lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-#ab-readme .lcard{display:flex;flex-direction:column;border:1px solid var(--bd);background:var(--panel);border-radius:16px;padding:18px;color:var(--tx);transition:transform .18s,border-color .18s,box-shadow .18s}
-#ab-readme a.lcard:hover{text-decoration:none;transform:translateY(-3px);border-color:var(--bd2);box-shadow:var(--shadow)}
-#ab-readme .lcard .fic{margin-bottom:12px;color:var(--ac1);background:color-mix(in srgb,var(--ac1) 12%,transparent)}
-#ab-readme .lcard:nth-child(2) .fic{color:var(--ac2);background:color-mix(in srgb,var(--ac2) 13%,transparent)}
-#ab-readme .lcard:nth-child(3) .fic{color:var(--grn);background:color-mix(in srgb,var(--grn) 12%,transparent)}
-#ab-readme .lc-t{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;margin-bottom:4px}
-#ab-readme .lc-t .arr{color:var(--fnt);font-weight:400;transition:transform .18s,color .18s}
-#ab-readme a.lcard:hover .arr{transform:translateX(4px);color:var(--ac1)}
-#ab-readme .lc-d{font-size:13px;color:var(--mut);line-height:1.7}
-
-/* ── 页脚 ─────────────────────────── */
-#ab-readme .foot{border-top:1px solid var(--bd);position:relative;overflow:hidden}
-#ab-readme .foot::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(34,211,238,.55),rgba(129,140,248,.55),rgba(232,121,249,.5),transparent)}
-#ab-readme .foot-in{max-width:1200px;margin:0 auto;padding:34px 24px 44px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between}
-#ab-readme .foot-note{margin:10px 0 0;font-size:13px;color:var(--mut)}
-#ab-readme .foot-links{display:flex;gap:8px}
-#ab-readme .foot-links a{font-size:13px;color:var(--mut);border:1px solid var(--bd);border-radius:9px;padding:7px 13px}
-#ab-readme .foot-links a:hover{color:var(--tx);border-color:var(--bd2);text-decoration:none}
-
-/* ── 回到顶部 / 揭示动画 ────────────── */
-#ab-readme .totop{display:none;position:fixed;right:22px;bottom:22px;z-index:70;width:40px;height:40px;border-radius:12px;border:1px solid var(--bd2);background:var(--navbg);backdrop-filter:blur(10px);color:var(--mut);cursor:pointer;place-items:center}
-#ab-readme .totop.on{display:grid}
-#ab-readme .totop:hover{color:var(--tx);border-color:var(--ac2)}
-#ab-readme .totop .ic{width:16px;height:16px}
-#ab-readme.ab-js .rv{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s cubic-bezier(.22,.61,.36,1)}
-#ab-readme.ab-js .rv.in{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){
-  #ab-readme.ab-js .rv{opacity:1;transform:none;transition:none}
-  #ab-readme .cur{animation:none}
-  #ab-readme *{scroll-behavior:auto}
-}
-html.ab-page{scroll-behavior:smooth}
-html.ab-page body{margin:0;background:#070a12}
-html.ab-page.ab-light body{background:#f7f5ef}
-html.ab-page #ab-readme .skip{position:fixed}
-
-/* ── 文档页头 ─────────────────────── */
-#ab-readme .doc-hero{padding:58px 24px 44px}
-#ab-readme .crumb{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;letter-spacing:.05em;color:var(--fnt)}
-#ab-readme .crumb>*{flex:none;white-space:nowrap;min-width:max-content}
-#ab-readme .crumb a{color:var(--mut)}
-#ab-readme .crumb a:hover{color:var(--tx);text-decoration:none}
-#ab-readme .crumb .sep{color:var(--fnt)}
-#ab-readme .crumb .cur{color:var(--ac1)}
-#ab-readme .doc-title{margin:16px 0 0;font-family:var(--disp);font-size:clamp(34px,5vw,54px);font-weight:700;letter-spacing:-.015em;line-height:1.08;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-#ab-readme .doc-intro{margin:12px 0 0;font-size:15.5px;color:var(--mut)}
-#ab-readme .meta-panel{width:min(860px,100%);margin:26px 0 0;text-align:left;border:1px solid var(--bd);background:var(--panel);border-radius:16px;padding:18px 20px;backdrop-filter:blur(8px)}
-#ab-readme .meta-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 13px}
-#ab-readme .meta-panel > p{margin:0 0 10px;font-size:13.5px;color:var(--mut);line-height:1.8}
-#ab-readme .meta-panel > p:last-child{margin:0}
-#ab-readme .meta-panel strong{color:var(--tx)}
-#ab-readme .meta-panel code{white-space:normal}
-
-/* ── 正文 h3 / 文件清单 / FAQ ──────── */
-#ab-readme h3{margin:32px 0 14px;font-family:var(--disp);font-size:17.5px;font-weight:700;letter-spacing:-.01em;line-height:1.45;max-width:none;display:flex;align-items:center;gap:11px;scroll-margin-top:86px}
-#ab-readme h3::before{content:"";width:11px;height:11px;flex:none;border-radius:3.5px;background:linear-gradient(135deg,#22d3ee,#818cf8);transform:rotate(45deg);opacity:.85}
-#ab-readme h3 .ha{margin-left:2px}
-#ab-readme .filelist{display:flex;flex-direction:column;gap:8px;margin:4px 0 14px}
-#ab-readme .frow{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;border:1px solid var(--bd);background:var(--panel);border-radius:10px;padding:9px 14px;font-size:13px}
-#ab-readme .frow code{background:transparent;border:none;padding:0;color:var(--ac1);font-size:12.5px}
-#ab-readme .frow .fd{color:var(--mut)}
-#ab-readme .faq{display:flex;flex-direction:column;gap:12px}
-#ab-readme .qa{border:1px solid var(--bd);background:var(--panel);border-radius:14px;padding:15px 18px}
-#ab-readme .qa-t{display:flex;gap:10px;align-items:flex-start;font-weight:700;font-size:14.5px;color:var(--tx);margin:0 0 8px}
-#ab-readme .qa-a{display:flex;gap:10px;align-items:flex-start;margin:0;font-size:13.5px;color:var(--mut);line-height:1.8}
-#ab-readme .qa-a code{white-space:normal}
-#ab-readme .qmark{flex:none;width:21px;height:21px;border-radius:7px;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:600;color:#fff;background:linear-gradient(135deg,#06b6d4,#6366f1);margin-top:2px}
-#ab-readme .qmark.a{background:var(--panel2);color:var(--ac1);border:1px solid var(--bd2)}
-#ab-readme pre .ok{color:#34d399}
-#ab-readme pre .warn{color:#fbbf24}
-#ab-readme .toc-l a.sub{padding-left:28px;font-size:12.3px;color:var(--fnt)}
-#ab-readme .toc-l a.sub:hover{color:var(--tx)}
-#ab-readme .toc-l a.sub.on{color:var(--tx);background:var(--panel)}
-
-/* ── 导航 GitHub / 源文档块 ────────── */
-#ab-readme .nav-gh{width:34px;height:34px;border-radius:9px;border:1px solid var(--bd);background:var(--panel);color:var(--mut);display:grid;place-items:center;flex:none;min-width:34px}
-#ab-readme .nav-gh:hover{color:var(--tx);border-color:var(--bd2)}
-#ab-readme .nav-gh .ic{width:16px;height:16px}
-#ab-readme .src-note{display:flex;gap:12px;align-items:flex-start;margin-top:6px;padding:15px 18px;border:1px dashed var(--bd2);border-radius:14px;background:var(--panel)}
-#ab-readme .src-note .ic{width:17px;height:17px;color:var(--mut);margin-top:3px}
-#ab-readme .src-note p{margin:0;font-size:13px;color:var(--mut);line-height:1.85}
-#ab-readme .src-note a{color:var(--ac1)}
-#ab-readme .src-note strong{color:var(--tx)}
-
-/* ── 响应式 ───────────────────────── */
-@media (max-width:1023px){
-  #ab-readme .shell{grid-template-columns:minmax(0,1fr);gap:0}
-  #ab-readme .toc{display:none}
-}
-@media (max-width:860px){
-  #ab-readme .ab-grid{grid-template-columns:1fr}
-  #ab-readme .lgrid{grid-template-columns:1fr}
-  #ab-readme .duo{grid-template-columns:1fr}
-}
-@media (max-width:640px){
-  #ab-readme{font-size:15px}
-  #ab-readme .hero{padding:58px 16px 54px}
-  #ab-readme .nav-in{padding:0 14px;gap:8px}
-  #ab-readme .brand{font-size:16px}
-  #ab-readme .links{gap:2px}
-  #ab-readme .links a{padding:6px 7px;font-size:12px}
-  #ab-readme .layout{padding:20px 16px 24px}
-  #ab-readme h2{font-size:22px}
-  #ab-readme .tagline{letter-spacing:.08em}
-  #ab-readme .entries{font-size:12px}
-  #ab-readme .term-b{padding:13px 14px 15px;font-size:12px}
-}
-</style>
-<script>
-(function(){
-  var root=document.getElementById('ab-readme');
-  if(!root) return;
-  root.classList.add('ab-js');
-  var rm=false;
-  try{ rm=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
-  var isEn=/^en/i.test((document.documentElement&&document.documentElement.lang)||'');
-  var doneTxt=isEn?'Copied ✓':'已复制 ✓';
-  var skipEl=root.querySelector('.skip');
-  if(skipEl&&isEn) skipEl.textContent='Skip to content';
-
-  /* 主题 */
-  var saved=null; try{ saved=localStorage.getItem('ab-theme'); }catch(e){}
-  if(saved==='light'||saved==='dark'){ root.setAttribute('data-theme',saved); }
-  else{
-    var preferLight=false;
-    try{ preferLight=window.matchMedia('(prefers-color-scheme: light)').matches; }catch(e){}
-    root.setAttribute('data-theme', preferLight?'light':'dark');
-  }
-  function syncHtml(){ try{ document.documentElement.classList.toggle('ab-light', root.getAttribute('data-theme')==='light'); }catch(e){} }
-  syncHtml();
-  var tbtn=document.getElementById('ab-theme-btn');
-  if(tbtn) tbtn.addEventListener('click',function(){
-    var t=root.getAttribute('data-theme')==='dark'?'light':'dark';
-    root.setAttribute('data-theme',t);
-    try{ localStorage.setItem('ab-theme',t); }catch(e){}
-    syncHtml();
-  });
-
-  /* 复制 */
-  root.addEventListener('click',function(ev){
-    var b=ev.target.closest?ev.target.closest('.copy'):null;
-    if(!b) return;
-    var txt=b.getAttribute('data-copy');
-    if(!txt){
-      var box=b.closest('.code')||b.closest('.term');
-      var pre=box?box.querySelector('pre'):null;
-      if(!pre) return;
-      txt=(pre.innerText||pre.textContent||'').replace(/^\$\s/gm,'').replace(/^PS>\s/gm,'').replace(/\s+$/,'');
-    }
-    function ok(){ b.classList.add('done'); var old=b.innerHTML; b.innerHTML=doneTxt; setTimeout(function(){ b.classList.remove('done'); b.innerHTML=old; },1500); }
-    function fb(){
-      try{
-        var ta=document.createElement('textarea');
-        ta.value=txt; ta.style.position='absolute'; ta.style.left='-9999px';
-        document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta); ok();
-      }catch(e){}
-    }
-    try{
-      if(navigator.clipboard&&navigator.clipboard.writeText){ var _t=setTimeout(fb,900); navigator.clipboard.writeText(txt).then(function(){clearTimeout(_t);ok();},function(){clearTimeout(_t);fb();}); }
-      else fb();
-    }catch(e){ fb(); }
-  });
-
-  /* 标签页 */
-  var tabs=Array.prototype.slice.call(root.querySelectorAll('.tab'));
-  function activate(tab){
-    tabs.forEach(function(t){
-      var on=(t===tab);
-      t.classList.toggle('on',on);
-      t.setAttribute('aria-selected',on?'true':'false');
-      var p=document.getElementById(t.getAttribute('aria-controls'));
-      if(p){ if(on) p.removeAttribute('hidden'); else p.setAttribute('hidden',''); }
-    });
-  }
-  tabs.forEach(function(t,i){
-    t.addEventListener('click',function(){ activate(t); });
-    t.addEventListener('keydown',function(ev){
-      var n=null;
-      if(ev.key==='ArrowRight') n=tabs[(i+1)%tabs.length];
-      else if(ev.key==='ArrowLeft') n=tabs[(i-1+tabs.length)%tabs.length];
-      else if(ev.key==='Home') n=tabs[0];
-      else if(ev.key==='End') n=tabs[tabs.length-1];
-      if(n){ ev.preventDefault(); n.focus(); activate(n); }
-    });
-  });
-
-  /* 锚点平滑滚动 + 预览环境拦截 */
-  var emb=false; try{ emb=(window.self!==window.top); }catch(e){ emb=true; }
-  root.addEventListener('click',function(ev){
-    var a=ev.target.closest?ev.target.closest('a'):null;
-    if(!a) return;
-    var h=a.getAttribute('href')||'';
-    if(h.charAt(0)==='#'){
-      var id=h.slice(1), t=document.getElementById(id);
-      if(!t){ try{ t=document.getElementById(decodeURIComponent(id)); }catch(e){} }
-      if(t){ ev.preventDefault(); t.scrollIntoView({behavior:rm?'auto':'smooth',block:'start'}); }
-    }else if(emb && !/^https?:/i.test(h)){
-      ev.preventDefault();
-    }
-  });
-
-  /* 揭示动画 */
-  var rvs=Array.prototype.slice.call(root.querySelectorAll('.rv'));
-  if(rm||!('IntersectionObserver' in window)){
-    rvs.forEach(function(el){ el.classList.add('in'); });
-  }else{
-    var io=new IntersectionObserver(function(es){
-      es.forEach(function(en){
-        if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
-      });
-    },{threshold:.06,rootMargin:'0px 0px -4% 0px'});
-    rvs.forEach(function(el){ io.observe(el); });
-  }
-
-  /* 目录高亮 */
-  var links=Array.prototype.slice.call(root.querySelectorAll('.toc-l a'));
-  var secs=links.map(function(a){
-    var id=a.getAttribute('href').slice(1), s=document.getElementById(id);
-    if(!s){ try{ s=document.getElementById(decodeURIComponent(id)); }catch(e){} }
-    return s;
-  });
-  function mark(i){ links.forEach(function(a,j){ a.classList.toggle('on',j===i); }); }
-  if('IntersectionObserver' in window && secs.some(Boolean)){
-    mark(0);
-    var spy=new IntersectionObserver(function(es){
-      es.forEach(function(en){
-        if(en.isIntersecting){
-          var idx=secs.indexOf(en.target);
-          if(idx>-1) mark(idx); else mark(-1);
-        }
-      });
-    },{rootMargin:'-20% 0px -70% 0px',threshold:0});
-    secs.forEach(function(s){ if(s) spy.observe(s); });
-    var heroEl=root.querySelector('.hero');
-    if(heroEl) spy.observe(heroEl);
-  }
-
-  /* 回到顶部（仅独立页面） */
-  var top=document.getElementById('ab-totop');
-  var standalone=false;
-  try{ standalone=document.documentElement.classList.contains('ab-page'); }catch(e){}
-  if(top&&standalone&&!emb){
-    window.addEventListener('scroll',function(){
-      top.classList.toggle('on', (window.scrollY||0)>640);
-    },{passive:true});
-    top.addEventListener('click',function(){ window.scrollTo({top:0,behavior:rm?'auto':'smooth'}); });
-  }
-
-  /* 终端打字动画 */
-  var cmdEl=document.getElementById('ab-cmd');
-  var out=document.getElementById('ab-out');
-  var cur=document.getElementById('ab-cur');
-  var CMD='curl -fsSL https://boot.ide.pub/install.sh | sh';
-  var OUTHTML=out?out.innerHTML:'';
-  if(cmdEl&&out&&!rm&&('IntersectionObserver' in window)){
-    var played=false;
-    function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
-    async function play(){
-      for(;;){
-        cmdEl.textContent=''; out.innerHTML=''; out.style.opacity='0';
-        for(var i=0;i<CMD.length;i++){
-          cmdEl.textContent+=CMD.charAt(i);
-          await sleep(24+Math.random()*40);
-        }
-        await sleep(420);
-        out.innerHTML=OUTHTML; out.style.opacity='0.96';
-        await sleep(7000);
-      }
-    }
-    var tio=new IntersectionObserver(function(es){
-      es.forEach(function(en){
-        if(en.isIntersecting&&!played){
-          played=true; tio.disconnect();
-          play();
-        }
-      });
-    },{threshold:.3});
-    tio.observe(cmdEl);
-  }else if(cmdEl&&cur){
-    cmdEl.textContent=CMD;
-    if(out) out.innerHTML=OUTHTML;
-    if(cur&&!rm) { /* 保持光标闪烁 */ }
-  }
-})();
-</script>
-</div>
-</body>
+    </footer>
+  </body>
 </html>

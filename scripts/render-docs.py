@@ -44,7 +44,7 @@ NAV = {
            ("readme.html", "Project README"), ("../install-guide.html", "中文")],
 }
 
-CSS_VERSION = "1.7.5"
+CSS_VERSION = "1.8.0"
 
 
 def slugify(text: str) -> str:
