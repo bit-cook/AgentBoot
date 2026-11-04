@@ -8,9 +8,9 @@
     <meta name="color-scheme" content="light" />
     <title>安装指南 · AgentBoot</title>
     <link rel="canonical" href="https://osome.work/AgentBoot/docs/install-guide.html" />
-    <link rel="icon" href="assets/favicon.svg?v=1.8.1&b=9" type="image/svg+xml" />
-    <link rel="stylesheet" href="assets/site.css?v=1.8.1&b=9" />
-    <link rel="stylesheet" href="assets/docs.css?v=1.8.1" />
+    <link rel="icon" href="assets/favicon.svg?v=1.8.0&b=2" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/site.css?v=1.8.0&b=4" />
+    <link rel="stylesheet" href="assets/docs.css?v=1.8.0" />
   </head>
   <body>
     <a class="skip-link" href="#main">跳到主要内容</a>
@@ -32,7 +32,7 @@
 <aside class="doc-toc" aria-label="本页目录"><p class="toc-title">本页目录</p><ul><li class="toc-item toc-h2"><a href="#⚡-一键在线安装（推荐，机器需联网）">⚡ 一键在线安装（推荐，机器需联网）</a></li><li class="toc-item toc-h2"><a href="#📦-一键离线安装（目标机器无网络--网络受限）">📦 一键离线安装（目标机器无网络 / 网络受限）</a></li><li class="toc-item toc-h3"><a href="#第-1-步：获取离线安装包">第 1 步：获取离线安装包</a></li><li class="toc-item toc-h3"><a href="#第-2-步：解压离线包（目标机器没有解压软件也能做）">第 2 步：解压离线包（目标机器没有解压软件也能做）</a></li><li class="toc-item toc-h3"><a href="#第-3-步：运行离线安装脚本">第 3 步：运行离线安装脚本</a></li><li class="toc-item toc-h3"><a href="#离线安装脚本做了什么（透明化）">离线安装脚本做了什么（透明化）</a></li><li class="toc-item toc-h3"><a href="#离线包内容结构">离线包内容结构</a></li><li class="toc-item toc-h3"><a href="#离线安装常见问题">离线安装常见问题</a></li><li class="toc-item toc-h2"><a href="#🧩-自定义-agent（安装注册表之外的任意-agent）">🧩 自定义 Agent（安装注册表之外的任意 Agent）</a></li><li class="toc-item toc-h2"><a href="#📦-自定义离线安装包（按需瘦身）">📦 自定义离线安装包（按需瘦身）</a></li><li class="toc-item toc-h2"><a href="#🌏-中国网络环境自适应">🌏 中国网络环境自适应</a></li><li class="toc-item toc-h2"><a href="#🧠-模型配置（提供商管理器）">🧠 模型配置（提供商管理器）</a></li><li class="toc-item toc-h2"><a href="#🧰-内置最小-agent（ab）能力">🧰 内置最小 Agent（ab）能力</a></li><li class="toc-item toc-h2"><a href="#🔧-升级与卸载">🔧 升级与卸载</a></li><li class="toc-item toc-h2"><a href="#❓-在线安装故障排查">❓ 在线安装故障排查</a></li><li class="toc-item toc-h2"><a href="#❓-faq（常见问答）">❓ FAQ（常见问答）</a></li></ul></aside>
       <article class="doc-content">
 <h1 id="agentboot-安装指南">AgentBoot 安装指南</h1>
-<blockquote><strong>版本 v1.8.1</strong> · 支持 Linux / macOS / Windows · 界面默认中文（切换：<code>agentboot lang en</code>） 语言 / Language: 中文（本页） | <a href="docs/en/install-guide.md">English</a> ｜ 中文副本：<a href="docs/zh/安装指南.md">docs/zh/安装指南.md</a> AgentBoot 是一个极简、极速、开箱即用的 AI Agent 启动器：内置保底 Agent，其余 Agent（含 Cursor、OpenCode、Claude Code、Codex、FreeBuff 等）通过菜单自选安装。离线能力以注册表和目标平台构建验证为准；Cursor、Aider 与 FreeBuff 当前仅在线安装，OpenCode 使用固定官方 native binary 离线包，Hermes 必须在目标平台原生构建。</blockquote>
+<blockquote><strong>版本 v1.8.2</strong> · 支持 Linux / macOS / Windows · 界面默认中文（切换：<code>agentboot lang en</code>） 语言 / Language: 中文（本页） | <a href="docs/en/install-guide.md">English</a> ｜ 中文副本：<a href="docs/zh/安装指南.md">docs/zh/安装指南.md</a> AgentBoot 是一个极简、极速、开箱即用的 AI Agent 启动器：内置保底 Agent，其余 Agent（含 Cursor、OpenCode、Claude Code、Codex、FreeBuff 等）通过菜单自选安装。离线能力以注册表和目标平台构建验证为准；Cursor、Aider 与 FreeBuff 当前仅在线安装，OpenCode 使用固定官方 native binary 离线包，Hermes 必须在目标平台原生构建。</blockquote>
 <hr>
 <a id="install"></a>
 <h2 id="⚡-一键在线安装（推荐，机器需联网）">⚡ 一键在线安装（推荐，机器需联网）<a class="heading-anchor" href="#⚡-一键在线安装（推荐，机器需联网）" aria-label="Permalink">#</a></h2>
@@ -61,7 +61,7 @@ curl -fsSL https://raw.githubusercontent.com/bit-cook/AgentBoot/main/install.sh 
 <h2 id="📦-一键离线安装（目标机器无网络--网络受限）">📦 一键离线安装（目标机器无网络 / 网络受限）<a class="heading-anchor" href="#📦-一键离线安装（目标机器无网络--网络受限）" aria-label="Permalink">#</a></h2>
 <p>离线安装只需三步：<strong>① 拿到离线包 → ② 拷贝到目标机解压 → ③ 运行离线安装脚本</strong>。 全程不需要目标机器联网，也不需要安装任何解压软件（解压方案见下一节）。</p>
 <h3 id="第-1-步：获取离线安装包">第 1 步：获取离线安装包<a class="heading-anchor" href="#第-1-步：获取离线安装包" aria-label="Permalink">#</a></h3>
-<ul><li><strong>方式 A（推荐）</strong>：到 GitHub Releases 下载现成的离线包 <code>https://github.com/bit-cook/AgentBoot/releases</code> → 选择</li><li><code>AgentBoot-offline-v1.8.1-linux-x64-codex.tar.gz</code>（Linux x64 · Codex）</li><li><code>AgentBoot-offline-v1.8.1-linux-x64-codex-sfx.sh</code>（Linux x64 自解压单文件）</li><li><code>AgentBoot-offline-v1.8.1-linux-x64-opencode.tar.gz</code> / <code>-sfx.sh</code>（Linux x64 · OpenCode）</li></ul>
+<ul><li><strong>方式 A（推荐）</strong>：到 GitHub Releases 下载现成的离线包 <code>https://github.com/bit-cook/AgentBoot/releases</code> → 选择</li><li><code>AgentBoot-offline-v1.8.2-linux-x64-codex.tar.gz</code>（Linux x64 · Codex）</li><li><code>AgentBoot-offline-v1.8.2-linux-x64-codex-sfx.sh</code>（Linux x64 自解压单文件）</li><li><code>AgentBoot-offline-v1.8.2-linux-x64-opencode.tar.gz</code> / <code>-sfx.sh</code>（Linux x64 · OpenCode）</li></ul>
 <blockquote>Windows / macOS 离线包按需构建（release-platforms 工作流），不随每次发布上传； 也可随时用菜单 <code>[7]</code> 或 <code>build-offline win-x64 codex</code> 自建。</blockquote>
 <ul><li><strong>方式 B（自建）</strong>：在有网的 Linux/macOS 或 Windows 机器上运行项目自带的构建脚本， 自动从 npmmirror 镜像拉取全部 Agent 离线载荷并打包：</li></ul>
 <pre><code>  # Linux / macOS（可自定义平台与 Agent 列表）
@@ -72,7 +72,7 @@ curl -fsSL https://raw.githubusercontent.com/bit-cook/AgentBoot/main/install.sh 
   powershell -File scripts\build-offline.ps1</code></pre>
 <h3 id="第-2-步：解压离线包（目标机器没有解压软件也能做）">第 2 步：解压离线包（目标机器没有解压软件也能做）<a class="heading-anchor" href="#第-2-步：解压离线包（目标机器没有解压软件也能做）" aria-label="Permalink">#</a></h3>
 <p>离线包提供 <strong>4 种解压路径</strong>，按目标机器情况任选其一：</p>
-<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>目标机器情况</th><th>解压方法</th></tr></thead><tbody><tr><td><strong>Windows（任意版本）</strong></td><td>直接<strong>右键 ZIP → 全部解压缩</strong>。Windows 资源管理器自带 ZIP 支持，无需安装任何软件</td></tr><tr><td><strong>Windows 10/11（命令行党，自建 win 包）</strong></td><td>系统自带 <code>tar</code>：<code>tar -xf AgentBoot-offline-&lt;版本>-win-x64-codex.zip</code></td></tr><tr><td><strong>Linux x64</strong></td><td>系统自带 <code>tar</code>：<code>tar -xzf AgentBoot-offline-v1.8.1-linux-x64-codex.tar.gz -C ~</code></td></tr><tr><td><strong>Linux x64 极简环境</strong></td><td>用自解压单文件：<code>sh AgentBoot-offline-v1.8.1-linux-x64-codex-sfx.sh</code></td></tr></tbody></table></div>
+<div class="table-scroll" role="region" tabindex="0"><table class="agent-table"><thead><tr><th>目标机器情况</th><th>解压方法</th></tr></thead><tbody><tr><td><strong>Windows（任意版本）</strong></td><td>直接<strong>右键 ZIP → 全部解压缩</strong>。Windows 资源管理器自带 ZIP 支持，无需安装任何软件</td></tr><tr><td><strong>Windows 10/11（命令行党，自建 win 包）</strong></td><td>系统自带 <code>tar</code>：<code>tar -xf AgentBoot-offline-&lt;版本>-win-x64-codex.zip</code></td></tr><tr><td><strong>Linux x64</strong></td><td>系统自带 <code>tar</code>：<code>tar -xzf AgentBoot-offline-v1.8.2-linux-x64-codex.tar.gz -C ~</code></td></tr><tr><td><strong>Linux x64 极简环境</strong></td><td>用自解压单文件：<code>sh AgentBoot-offline-v1.8.2-linux-x64-codex-sfx.sh</code></td></tr></tbody></table></div>
 <blockquote>自解压包 <code>*-sfx.sh</code> 本身就是一个 shell 脚本 + 内嵌 base64 数据，<code>sh xxx-sfx.sh</code> 即自动解压并直接进入安装流程，非常适合只有最小化系统的服务器。</blockquote>
 <h3 id="第-3-步：运行离线安装脚本">第 3 步：运行离线安装脚本<a class="heading-anchor" href="#第-3-步：运行离线安装脚本" aria-label="Permalink">#</a></h3>
 <p><strong>Linux / macOS：</strong></p>
