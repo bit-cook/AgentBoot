@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Multi-mirror switching: npm registries, node mirrors, GitHub accelerators, persistence."""
 
+import json
+import tempfile
 import io
 import sys
 import unittest
@@ -12,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "core"))
 
 import menu  # noqa: E402
+import os
 
 
 class MirrorCatalogTests(unittest.TestCase):
@@ -195,3 +198,59 @@ class MirrorStatusSmokeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class MirrorModeGhProxyResetTests(unittest.TestCase):
+    """mirror off/auto 必须清掉固定的 gh 加速前缀（v1.8.2 实测修复）。
+
+    InstaBox 实测：`agentboot mirror gh https://ghfast.top/` 固定前缀后执行
+    `agentboot mirror off`（全球直连），gh_mirrors() 仍返回该前缀——GitHub
+    流量继续走加速代理，与「直连」语义相反。npm 侧早有同类处理
+    （off 清 npm_registry），gh 侧漏了。
+    """
+
+    def _fixed(self):
+        return {"gh_proxy": "https://ghfast.top/", "npm_registry": "https://registry.npmmirror.com"}
+
+    def test_off_clears_fixed_gh_proxy(self):
+        with mock.patch.object(menu, "load_env_json", return_value=dict(self._fixed())), \
+                mock.patch.object(menu, "save_env_json") as save, \
+                mock.patch.object(menu, "mirror_status"):
+            menu.set_mirror_mode("off")
+        saved = save.call_args.args[0]
+        self.assertNotIn("gh_proxy", saved)
+        self.assertNotIn("npm_registry", saved)
+
+    def test_auto_clears_fixed_gh_proxy(self):
+        with mock.patch.object(menu, "load_env_json", return_value=dict(self._fixed())), \
+                mock.patch.object(menu, "save_env_json") as save, \
+                mock.patch.object(menu, "mirror_status"):
+            menu.set_mirror_mode("auto")
+        self.assertNotIn("gh_proxy", save.call_args.args[0])
+
+    def test_cn_keeps_fixed_gh_proxy(self):
+        """cn 模式保留用户固定选择（状态栏诚实显示「固定 <前缀>」）。"""
+        with mock.patch.object(menu, "load_env_json", return_value=dict(self._fixed())), \
+                mock.patch.object(menu, "save_env_json") as save, \
+                mock.patch.object(menu, "mirror_status"):
+            menu.set_mirror_mode("cn")
+        saved = save.call_args.args[0]
+        self.assertEqual(saved.get("gh_proxy"), "https://ghfast.top/")
+
+    def test_gh_mirrors_empty_after_off_with_fixed_prefix(self):
+        """端到端：固定前缀 + off → gh_mirrors() 必须为空（真实直连）。"""
+        with tempfile.TemporaryDirectory() as d:
+            env_path = os.path.join(d, "env.json")
+            with open(env_path, "w", encoding="utf-8") as f:
+                json.dump(self._fixed(), f)
+            with mock.patch.object(menu, "load_env_json",
+                                   side_effect=lambda: json.load(open(env_path))), \
+                    mock.patch.object(menu, "save_env_json",
+                                      side_effect=lambda data: json.dump(data, open(env_path, "w"))), \
+                    mock.patch.object(menu, "mirror_status"), \
+                    mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("AGENTBOOT_GH_PROXY", None)
+                menu.set_gh_proxy("https://ghfast.top/")
+                self.assertTrue(menu.gh_mirrors(), "固定后应有前缀")
+                menu.set_mirror_mode("off")
+                self.assertEqual(menu.gh_mirrors(), [], "off 后必须直连")

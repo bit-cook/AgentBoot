@@ -264,6 +264,12 @@ def set_mirror_mode(mode):
         data["npm_registry"] = NPM_MIRROR
     else:
         data.pop("npm_registry", None)
+    # gh 加速同理：off=全球直连、auto=自动判定，都必须清掉固定前缀，
+    # 否则 mirror off 后 GitHub 流量仍经加速代理（实测 v1.8.2：off 后
+    # gh_mirrors() 仍返回固定前缀，状态栏却显示直连，言行不一）。
+    # cn 模式保留用户固定选择（状态栏会诚实显示「固定 <前缀>」）。
+    if mode != "cn":
+        data.pop("gh_proxy", None)
     save_env_json(data)
     os.environ.pop("AGENTBOOT_MIRROR", None)
     if npm_cmd():
