@@ -9,7 +9,7 @@
 set -eu
 
 REPO="bit-cook/AgentBoot"
-TAG="v1.8.0"
+TAG="v1.8.1"
 TARBALL="agentboot-online-${TAG}.tar.gz"
 BOOT_BASE="https://boot.ide.pub"
 GH="https://github.com/${REPO}/releases/download/${TAG}"
