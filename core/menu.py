@@ -1448,7 +1448,7 @@ def _kill_process_tree(process):
 def run_with_timeout(cmd, env=None, timeout=NPM_INSTALL_TIMEOUT, label=""):
     """带超时与进程树清理的子进程执行（网络类命令防无限挂起）。
 
-    背景（v1.8.0 排查）：hermes 安装流、npm/pip 卸载、官方脚本安装器等
+    背景（v1.8.1 排查）：hermes 安装流、npm/pip 卸载、官方脚本安装器等
     调用点此前用裸 subprocess.run——网络挂起时菜单无限等待，用户只能
     kill。npm_install 早就有 NPM_INSTALL_TIMEOUT + 进程树清理，其余
     网络类调用点一律补上同等保护。返回 returncode；超时返回 None
@@ -2317,7 +2317,7 @@ def coco_offline_install(a, payload, preset=None):
     preset = _resolve_preset(preset)
     import hashlib
     import tarfile
-    coco_version = str(a.get("coco_version") or "0.8.3")
+    coco_version = str(a.get("coco_version") or "1.1.0")
     tgz = os.path.join(payload, "coco-%s.tgz" % coco_version)
     side = tgz + ".sha256"
     key_file = os.path.join(payload, "agnes.key")

@@ -45,6 +45,37 @@ class VersionConsistencyTests(unittest.TestCase):
         mirror_sh = (ROOT / "pages" / "install.sh").read_text(encoding="utf-8")
         self.assertIn('TAG="%s"' % TAG, mirror_sh,
                       "pages/install.sh 与 install.sh 不同版本")
+        # 不只比版本号：副本必须与权威源逐字节一致。
+        # v1.8.0 的教训——ps1 加了 Assert-NoTraversal，版本号同步了但内容
+        # 没同步，Pages 镜像的 Windows 用户拿到缺越界检查的旧安装器，
+        # 纯版本号守卫看不见。CRLF 由发布流水线负责，仓库副本保持 LF。
+        self.assertEqual(mirror_ps1,
+                         (ROOT / "scripts" / "install.ps1").read_text(encoding="utf-8-sig"),
+                         "pages/install.ps1 与 scripts/install.ps1 内容不一致——"
+                         "Pages 镜像用户拿到的不是当前安装器")
+        self.assertEqual(mirror_sh,
+                         (ROOT / "install.sh").read_text(encoding="utf-8"),
+                         "pages/install.sh 与 install.sh 内容不一致——"
+                         "Pages 镜像用户拿到的不是当前安装器")
+
+    def test_pages_mirror_content_drift_is_caught(self):
+        """变异验证：副本内容被改旧（版本号不动）时守卫必须失败。
+
+        v1.8.0 真实发生过——scripts/install.ps1 新增 Assert-NoTraversal
+        后 pages/install.ps1 没同步，版本号一致所以纯字符串守卫放过，
+        Pages 镜像的 Windows 用户拿到无越界检查的安装器。
+        """
+        import unittest as _ut
+        mirror = (ROOT / "pages" / "install.ps1")
+        original = mirror.read_text(encoding="utf-8-sig")
+        try:
+            drifted = original.replace("function Assert-NoTraversal", "function Assert-NoTraversalUnused")
+            self.assertNotEqual(original, drifted, "v1.8.1 的 ps1 应含 Assert-NoTraversal")
+            mirror.write_text(drifted, encoding="utf-8-sig", newline="")
+            with self.assertRaises(AssertionError):
+                self.test_pages_mirror_copies_match_canonical_sources()
+        finally:
+            mirror.write_text(original, encoding="utf-8-sig", newline="")
 
     def test_web_and_guides_show_current_version(self):
         for relative in ("pages/index.html", "pages/en/index.html", "cloudflare/worker.js",

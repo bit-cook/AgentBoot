@@ -1,3 +1,15 @@
+## v1.8.1 (2026-11-04) — coco 上游同步 v1.1.0 + Pages 副本内容守卫
+
+- coco 注册表版本 0.8.3→1.1.0（registry coco_version + menu.py/validate_offline_payload.py
+  fallback + notes 文案同步 v1.1.0 特性：装完当前终端立即可用、卸载无残留）
+- coco v1.1.0 安装器落盘逻辑与 v1.7.5 的 ~/.local/bin 校验修复兼容（实测 v1.1.0
+  install.sh 仍为非 root 写 ~/.local/bin + rc 注册），无需再改
+- **修 Pages 镜像安装器内容漂移**：v1.8.0 给 scripts/install.ps1 加了
+  Assert-NoTraversal（归档越界检查），但 pages/install.ps1 副本没同步，
+  版本号一致导致纯字符串守卫放过——Pages 镜像的 Windows 用户拿到的是
+  缺越界检查的旧安装器。副本已同步，守卫从「比版本号」升级为
+  「比逐字节内容」，并加变异回归测试锁住
+
 # 更新日志
 
 ## v1.7.5 (2026-11-03) — 修复：官方脚本安装的 Agent 装后校验误报失败

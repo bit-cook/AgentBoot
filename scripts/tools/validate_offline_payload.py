@@ -71,7 +71,7 @@ def main():
                 errors.append("%s does not support %s" % (aid, platform_id))
             elif aid == "coco":
                 root = stage / "payloads" / "agents" / aid / platform_id
-                coco_version = str(agent.get("coco_version") or "0.8.1")
+                coco_version = str(agent.get("coco_version") or "1.1.0")
                 for name in ("coco-%s.tgz" % coco_version,
                              "coco-%s.tgz.sha256" % coco_version, "agnes.key"):
                     if not (root / name).is_file():
