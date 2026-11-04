@@ -429,3 +429,72 @@ class NpmPrefixResidueTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class OfficialInstallerShimRemovalTests(unittest.TestCase):
+    """官方脚本安装器（coco）落 ~/.local/bin 的软链/包装 shim 必须被卸干净。
+
+    实测（v1.8.1，InstaBox 新机，coco v1.1.0）：AgentBoot 调官方 install.sh
+    装 coco 1.1.0 成功，但卸载后 ~/.local/bin 下 coco/coweb/web 三个 shim
+    全残留——shim_bin_dirs() 不含 ~/.local/bin，且 coco v1.1.0 起 shim 是
+    指向 ~/.coco/bin 的软链（无 AgentBoot 字样，按内容判定漏删）。
+    """
+
+    def _agent(self):
+        return {"id": "coco", "bin": "coco", "name": "CoCo Agent"}
+
+    def test_shim_bin_dirs_include_user_local_bin(self):
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.object(menu.os.path, "expanduser",
+                                   side_effect=lambda p: p.replace("~", d)):
+                dirs = menu.shim_bin_dirs()
+            self.assertIn(os.path.join(d, ".local", "bin"), dirs)
+
+    def test_symlink_shim_owned_by_agent_root_is_removed(self):
+        with tempfile.TemporaryDirectory() as d:
+            home = Path(d)
+            coco_root = home / ".coco" / "bin"
+            coco_root.mkdir(parents=True)
+            (coco_root / "coco").write_text("#!/bin/sh\n")
+            shim_dir = home / ".local" / "bin"
+            shim_dir.mkdir(parents=True)
+            shim = shim_dir / "coco"
+            shim.symlink_to(coco_root / "coco")
+            self.assertTrue(menu._shim_link_owned(
+                str(shim), self._agent(),
+                {"install_root": str(home / ".coco")}))
+            menu._remove_owned_file(str(shim))
+            self.assertFalse(shim.exists())
+
+    def test_symlink_outside_agent_root_is_kept(self):
+        with tempfile.TemporaryDirectory() as d:
+            home = Path(d)
+            other = home / "elsewhere"
+            other.mkdir()
+            (other / "coco").write_text("#!/bin/sh\n")
+            shim_dir = home / ".local" / "bin"
+            shim_dir.mkdir(parents=True)
+            shim = shim_dir / "coco"
+            shim.symlink_to(other / "coco")
+            self.assertFalse(menu._shim_link_owned(str(shim), self._agent()))
+            self.assertTrue(shim.exists())
+
+    def test_remove_owned_shims_clears_local_bin_symlinks(self):
+        """端到端：~/.local/bin 下 coco/coweb/web 软链全清（不碰用户自有文件）。"""
+        with tempfile.TemporaryDirectory() as d:
+            home = Path(d)
+            for sub in (".coco/bin", ".local/bin"):
+                (home / sub).mkdir(parents=True)
+            for name in ("coco", "web", "coweb"):
+                (home / ".coco" / "bin" / name).write_text("#!/bin/sh\n")
+                (home / ".local" / "bin" / name).symlink_to(
+                    home / ".coco" / "bin" / name)
+            mine = home / ".local" / "bin" / "my-own-tool"
+            mine.write_text("#!/bin/sh\n")
+            with mock.patch.object(menu.os.path, "expanduser",
+                                   side_effect=lambda p: p.replace("~", str(home))):
+                menu._remove_owned_shims(self._agent(), {})
+            for name in ("coco", "web", "coweb"):
+                self.assertFalse((home / ".local" / "bin" / name).exists(),
+                                 "%s 软链应被删除" % name)
+            self.assertTrue(mine.exists(), "用户自有文件不能被误删")

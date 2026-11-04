@@ -1,5 +1,12 @@
 ## v1.8.1 (2026-11-04) — coco 上游同步 v1.1.0 + Pages 副本内容守卫
 
+- **修 coco 官方安装器的 shim 卸载残留**（InstaBox 新机实测）：coco v1.1.0
+  的 install.sh 把 coco/coweb/web 三个 shim 写进 ~/.local/bin 且改为软链
+  （无 AgentBoot 字样），卸载时 shim_bin_dirs() 不含 ~/.local/bin、
+  按内容判定也认不出软链 → 三残留。shim_bin_dirs() 纳入
+  user_local_bin_dirs()，新增软链归属判定（只认指向 agent 自己安装根的
+  链接，用户自有文件不碰）。4 个回归测试 + 变异验证
+
 - coco 注册表版本 0.8.3→1.1.0（registry coco_version + menu.py/validate_offline_payload.py
   fallback + notes 文案同步 v1.1.0 特性：装完当前终端立即可用、卸载无残留）
 - coco v1.1.0 安装器落盘逻辑与 v1.7.5 的 ~/.local/bin 校验修复兼容（实测 v1.1.0

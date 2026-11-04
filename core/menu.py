@@ -955,8 +955,9 @@ def _write_executable(path, content):
 
 
 def shim_bin_dirs():
-    """所有可能的 shim 目录（当前首选 + 历史回落位），供搜索/归属判定用。"""
+    """所有可能的 shim 目录（当前首选 + 历史回落位 + 官方安装器落盘点）。"""
     dirs = [shim_bin_dir(), os.path.join(AB_HOME, "bin")]
+    dirs += user_local_bin_dirs()
     return [d for d in dirs if d]
 
 
@@ -1191,6 +1192,25 @@ def _extract_tgz_fast(archive, destination):
         return False
 
 
+def _shim_link_owned(path, a, entry=None):
+    """软链 shim 是否指向该 agent 自己的安装根（官方安装器落点判定）。
+
+    官方脚本安装器（coco v1.1.0）在 PATH 目录放软链指向 ~/.coco/bin/<bin>，
+    软链本身不含 AgentBoot 字样，按内容判定会漏删。只认指向本 agent
+    安装根（registry roots / ~/.<id>）内的链接，其余一律视为用户文件。
+    """
+    roots = []
+    for source in (a, entry or {}):
+        for key in ("install_root", "prefix"):
+            val = source.get(key)
+            if val:
+                roots.append(os.path.realpath(os.path.expanduser(str(val))))
+    # 官方安装器的惯例：~/.<id>（coco → ~/.coco）
+    roots.append(os.path.realpath(os.path.expanduser("~/.%s" % (a.get("id") or ""))))
+    target = os.path.realpath(path)
+    return any(_inside(target, r) for r in roots if r)
+
+
 def _remove_owned_shims(a, entry):
     candidates = [entry.get("executable")]
     suffix = "" if POSIX else ".cmd"
@@ -1205,6 +1225,14 @@ def _remove_owned_shims(a, entry):
             continue
         seen.add(path)
         try:
+            if os.path.islink(path):
+                # 官方脚本安装器（coco v1.1.0 起）写的是指向 ~/.coco/bin 的软链，
+                # 没有 AgentBoot 字样——按软链目标是否在 agent 安装根内判定归属。
+                if not _shim_link_owned(path, a, entry):
+                    log_info(t("menu.uninstall_shim_changed") % path)
+                    continue
+                _remove_owned_file(path)
+                continue
             with open(path, "r", encoding="utf-8", errors="ignore") as f:
                 marker = f.read(512)
             if "AgentBoot" not in marker:
