@@ -29,10 +29,10 @@ class ScriptInstallTests(unittest.TestCase):
         with mock.patch.object(menu, "POSIX", True), \
                 mock.patch.object(menu, "cn_mode", return_value=False), \
                 mock.patch.object(menu, "_download_script", return_value="/tmp/agent;touch-pwned.sh"), \
-                mock.patch.object(menu.subprocess, "run", return_value=completed) as run, \
+                mock.patch.object(menu, "run_with_timeout", return_value=0) as script_run, \
                 mock.patch.object(menu.os, "remove"):
             self.assertTrue(menu.install_via_script(self.agent("https://example.test/install.sh")))
-        command = run.call_args.args[0]
+        command = script_run.call_args.args[0]
         # 安全意图：路径作为独立 argv 元素传递，不经 shell 字符串拼接
         # （解释器优先 bash、缺失回落 sh，v1.7.2 起不再一律 sh）
         self.assertEqual(len(command), 2)
@@ -45,10 +45,10 @@ class ScriptInstallTests(unittest.TestCase):
         with mock.patch.object(menu, "POSIX", False), \
                 mock.patch.object(menu, "cn_mode", return_value=False), \
                 mock.patch.object(menu, "_download_script", return_value="C:\\Temp\\agent.ps1"), \
-                mock.patch.object(menu.subprocess, "run", return_value=completed) as run, \
+                mock.patch.object(menu, "run_with_timeout", return_value=0) as script_run, \
                 mock.patch.object(menu.os, "remove"):
             self.assertTrue(menu.install_via_script(self.agent("https://example.test/install.ps1")))
-        command = run.call_args.args[0]
+        command = script_run.call_args.args[0]
         self.assertEqual(command[-2:], ["-File", "C:\\Temp\\agent.ps1"])
         self.assertNotIn("iex", " ".join(command).lower())
 

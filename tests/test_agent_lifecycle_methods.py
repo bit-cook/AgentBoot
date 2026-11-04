@@ -119,9 +119,12 @@ class AgentLifecycleTests(unittest.TestCase):
                 mock.patch.object(menu.os.path, "isdir", return_value=True), \
                 mock.patch.object(menu, "_seed_uv", return_value=True), \
                 mock.patch.object(menu, "_github_git_reachable", return_value=True), \
-                mock.patch.object(menu.subprocess, "run", return_value=completed) as run:
+                mock.patch.object(menu, "_run_npm_process", return_value=(0, "")), \
+                mock.patch.object(menu, "run_with_timeout", return_value=0) as post_run:
             self.assertTrue(menu.install_hermes_special(agent))
-        self.assertEqual(run.call_args_list[-1].args[0][0], runtime_node)
+        # v1.8.0 起 npm 安装走 _run_npm_process、postinstall 走 run_with_timeout；
+        # 断言意图不变：postinstall 必须用与所选 npm 同源的 node
+        self.assertEqual(post_run.call_args.args[0][0], runtime_node)
 
 
 if __name__ == "__main__": unittest.main(verbosity=2)

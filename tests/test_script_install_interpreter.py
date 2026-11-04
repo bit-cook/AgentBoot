@@ -32,11 +32,11 @@ class ScriptInterpreterTests(unittest.TestCase):
         agent = {"id": "demo", "script": "https://example.com/install.sh"}
         with mock.patch.object(menu, "_download_script", return_value="/tmp/x.sh"), \
                 mock.patch.object(menu, "_script_interpreter", return_value="bash"), \
-                mock.patch.object(menu.subprocess, "run", return_value=mock.Mock(returncode=0)) as run, \
+                mock.patch.object(menu, "run_with_timeout", return_value=0) as script_run, \
                 mock.patch("os.remove"):
             self.assertTrue(menu.install_via_script(agent))
-        run.assert_called_once()
-        self.assertEqual(run.call_args[0][0][0], "bash")
+        script_run.assert_called_once()
+        self.assertEqual(script_run.call_args[0][0][0], "bash")
 
     def test_install_via_script_rejects_non_https(self):
         self.assertFalse(menu.install_via_script({"script": "http://insecure/install.sh"}))

@@ -29,8 +29,33 @@ function Get-Sha256([string]$path) {
     finally { $stream.Dispose(); $sha.Dispose() }
 }
 
-function Expand-Pkg([string]$pkg, [string]$dest) {
+function Assert-NoTraversal([string]$pkg) {
+    # 归档成员越界检查（与 install.ps1 / install.sh 对等）：拒绝绝对路径
+    # 与 .. 组件。tar 路径用 tar -tf 列举，其余用 .NET 只读枚举。
+    $names = @()
     $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
+    if (Test-Path $tar) {
+        $listing = & $tar -tf $pkg 2>$null
+        if ($LASTEXITCODE -eq 0 -and $listing) { $names = @($listing) }
+        $global:LASTEXITCODE = 0
+    }
+    if (-not $names -or $names.Count -eq 0) {
+        try {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $archive = [IO.Compression.ZipFile]::OpenRead($pkg)
+            try { $names = @($archive.Entries | ForEach-Object { $_.FullName }) }
+            finally { $archive.Dispose() }
+        } catch { }
+    }
+    foreach ($n in $names) {
+        if ($n -match '^([A-Za-z]:)?[\\/]' -or ($n -split '[\\/]') -contains '..') {
+            throw "安装包包含越界路径：$n"
+        }
+    }
+}
+
+function Expand-Pkg([string]$pkg, [string]$dest) {
+    Assert-NoTraversal $pkg    $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
     if (Test-Path $tar) {
         & $tar -xf $pkg -C $dest
         if ($LASTEXITCODE -eq 0 -and (Get-ChildItem $dest -Force | Select-Object -First 1)) { return $true }

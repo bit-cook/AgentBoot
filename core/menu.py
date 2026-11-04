@@ -1327,7 +1327,8 @@ def uninstall_one(a, purge=False):
         if prefix and (_inside(prefix, AB_HOME) or prefix == NPM_PREFIX):
             cmd += ["--prefix", prefix]
         log_info("$ %s" % " ".join(cmd))
-        if subprocess.run(cmd, env=child_env()).returncode != 0:
+        code, _output = _run_npm_process(cmd, child_env())
+        if code != 0:
             return False, t("menu.uninstall_command_failed") % package
         # npm uninstall 对 @scope/pkg 只删包本身，会留下空的 scope 父目录
         # （实测 @qwen-code/、@anthropic-ai/ 残留，用户看 node_modules
@@ -1341,7 +1342,8 @@ def uninstall_one(a, purge=False):
             return False, t("menu.uninstall_no_tool") % "Python/pip"
         cmd = [py, "-m", "pip", "uninstall", "-y", package]
         log_info("$ %s" % " ".join(cmd))
-        if subprocess.run(cmd, env=child_env()).returncode != 0:
+        code = run_with_timeout(cmd, env=child_env(), timeout=PIP_TIMEOUT, label="pip 卸载 ")
+        if code != 0:
             return False, t("menu.uninstall_command_failed") % package
     elif method == "venv":
         pass
@@ -1399,6 +1401,10 @@ def uninstall_agents(ids, purge=False):
 # ---------------------------------------------------------------- 在线安装
 
 NPM_INSTALL_TIMEOUT = 900   # 单次 npm 安装整体超时（秒）
+SCRIPT_INSTALL_TIMEOUT = 1800   # 官方脚本安装器（coco/hermes 等）整体超时（秒）
+POSTINSTALL_TIMEOUT = 1800      # hermes postinstall（git/uv/pip 混合）超时（秒）
+PIP_TIMEOUT = 900               # pip 安装/卸载超时（秒）
+BUILD_TIMEOUT = 2400            # 离线包构建超时（秒）：构建含下载，10-20 分钟属正常
 NPM_FETCH_FLAGS = ["--fetch-timeout=120000", "--fetch-retries=4",
                    "--fetch-retry-mintimeout=10000", "--fetch-retry-maxtimeout=60000"]
 
@@ -1437,6 +1443,33 @@ def _kill_process_tree(process):
         process.kill()
     except Exception:
         pass
+
+
+def run_with_timeout(cmd, env=None, timeout=NPM_INSTALL_TIMEOUT, label=""):
+    """带超时与进程树清理的子进程执行（网络类命令防无限挂起）。
+
+    背景（v1.8.0 排查）：hermes 安装流、npm/pip 卸载、官方脚本安装器等
+    调用点此前用裸 subprocess.run——网络挂起时菜单无限等待，用户只能
+    kill。npm_install 早就有 NPM_INSTALL_TIMEOUT + 进程树清理，其余
+    网络类调用点一律补上同等保护。返回 returncode；超时返回 None
+    （调用方的 != 0 / == 0 判断天然把 None 当失败）。
+    """
+    try:
+        kwargs = {}
+        if not POSIX:
+            kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        else:
+            kwargs["start_new_session"] = True   # 独立进程组，超时能整树清理
+        process = subprocess.Popen(cmd, env=env, **kwargs)
+    except Exception as error:
+        log_err("%s启动失败：%s" % (label, error))
+        return 1
+    try:
+        return process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _kill_process_tree(process)
+        log_err("%s执行超时（超过 %d 秒），已终止进程树" % (label or "命令", timeout))
+        return None
 
 
 def _run_npm_process(cmd, env):
@@ -1692,7 +1725,9 @@ def install_via_script(a):
             cmd = ([_script_interpreter(), path] if POSIX else
                    ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path])
             log_info("执行已下载脚本：%s" % u)
-            if subprocess.run(cmd, env=child_env()).returncode == 0:
+            code = run_with_timeout(cmd, env=child_env(),
+                                     timeout=SCRIPT_INSTALL_TIMEOUT, label="安装脚本 ")
+            if code == 0:
                 return True
             log_err("安装脚本执行失败，尝试下一个源 …")
         except Exception as e:
@@ -2001,7 +2036,7 @@ def install_via_pip(a):
     if cn_mode():
         cmd += ["-i", PIP_MIRROR]
     log_info("$ %s" % " ".join(cmd))
-    return subprocess.run(cmd).returncode == 0
+    return run_with_timeout(cmd, timeout=PIP_TIMEOUT, label="pip ") == 0
 
 
 def aider_venv_executable():
@@ -2032,7 +2067,7 @@ def install_aider_venv(a):
     pip = os.path.join(candidate, "venv", "Scripts", "pip.exe") if not POSIX else os.path.join(candidate, "venv", "bin", "pip")
     cmd = [pip, "install", "--disable-pip-version-check", a["pip"]]
     if cn_mode(): cmd += ["-i", PIP_MIRROR]
-    if subprocess.run(cmd, env=child_env()).returncode:
+    if run_with_timeout(cmd, env=child_env(), timeout=PIP_TIMEOUT, label="pip "):
         shutil.rmtree(candidate, ignore_errors=True)
         return False
     if os.path.isdir(root): os.replace(root, backup)
@@ -2186,7 +2221,8 @@ def install_hermes_special(a):
         cmd += ["--registry", npm_registry()]
     log_info("$ %s" % " ".join(cmd))
     env = child_env()
-    if subprocess.run(cmd, env=env).returncode != 0:
+    code, _output = _run_npm_process(cmd, env)
+    if code != 0:
         return False
     root = _npm_global_root(env, npm)
     pkg_root = os.path.join(root, "hermes-agent")
@@ -2218,8 +2254,9 @@ def install_hermes_special(a):
         log_err("Hermes postinstall 未找到满足版本的 Node")
         return False
     script = os.path.join(pkg_root, "scripts", "postinstall.js")
-    r = subprocess.run([node, script], env=env)
-    return r.returncode == 0
+    code = run_with_timeout([node, script], env=env,
+                            timeout=POSTINSTALL_TIMEOUT, label="Hermes postinstall ")
+    return code == 0
 
 
 # ---------------------------------------------------------------- 离线安装
@@ -3114,8 +3151,8 @@ def build_offline_run(platforms, agents_ids):
         script = os.path.join(APP_DIR, "scripts", "build-offline.ps1")
         cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
                "-Tag", tag, "-Platforms", ",".join(platforms), "-Agents", ",".join(agents_ids)]
-    r = subprocess.run(cmd, env=env)
-    ok = r.returncode == 0
+    code = run_with_timeout(cmd, env=env, timeout=BUILD_TIMEOUT, label="离线构建 ")
+    ok = code == 0
     if ok:
         dist = os.path.join(APP_DIR, "dist")
         print("")

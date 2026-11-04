@@ -122,16 +122,14 @@ class UninstallAcceptanceTests(unittest.TestCase):
     def test_online_npm_uninstall_uses_exact_package_name(self):
         wrapper = self.write_wrapper()
         menu.record_install(self.npm_agent(), "online", str(wrapper))
-        completed = subprocess.CompletedProcess([], 0)
-
         with mock.patch.object(menu, "npm_cmd", return_value="npm"), \
-                mock.patch.object(menu.subprocess, "run", return_value=completed) as run:
+                mock.patch.object(menu, "_sudo_usable", return_value=False), \
+                mock.patch.object(menu, "_run_npm_process", return_value=(0, "")) as npm_run:
             ok, _message = menu.uninstall_one(self.npm_agent())
 
         self.assertTrue(ok)
-        # 断言「任意一次」subprocess 调用：卸载链路里可能有 sudo -n 探测
-        # （非 root 机器上 shim 目录选择会触发），不能只盯最后一次
-        commands = [call.args[0] for call in run.call_args_list]
+        # v1.8.0 起 npm 卸载走 _run_npm_process（超时+进程树保护），mock 层随执行原语适配
+        commands = [call.args[0] for call in npm_run.call_args_list]
         npm_calls = [c for c in commands if c and c[0] == "npm"]
         self.assertTrue(npm_calls, commands)
         self.assertEqual(npm_calls[0][:4], ["npm", "uninstall", "-g", "@openai/codex"])
@@ -142,12 +140,12 @@ class UninstallAcceptanceTests(unittest.TestCase):
         current = self.npm_agent(package="new-package@2.0.0")
         wrapper = self.write_wrapper()
         menu.record_install(installed, "online", str(wrapper))
-        completed = subprocess.CompletedProcess([], 0)
         with mock.patch.object(menu, "npm_cmd", return_value="npm"), \
-                mock.patch.object(menu.subprocess, "run", return_value=completed) as run:
+                mock.patch.object(menu, "_sudo_usable", return_value=False), \
+                mock.patch.object(menu, "_run_npm_process", return_value=(0, "")) as npm_run:
             ok, _message = menu.uninstall_one(current)
         self.assertTrue(ok)
-        commands = [str(call.args[0]) for call in run.call_args_list]
+        commands = [str(call.args[0]) for call in npm_run.call_args_list]
         npm_calls = [c for c in commands if "npm" in c]
         self.assertTrue(npm_calls, commands)
         self.assertIn("old-package", npm_calls[0])
@@ -158,14 +156,14 @@ class UninstallAcceptanceTests(unittest.TestCase):
                  "method": "pip", "pip": "aider-install"}
         wrapper = self.write_wrapper("aider")
         menu.record_install(agent, "online", str(wrapper))
-        completed = subprocess.CompletedProcess([], 0)
-
         with mock.patch.object(menu, "find_python", return_value="python3"), \
-                mock.patch.object(menu.subprocess, "run", return_value=completed) as run:
+                mock.patch.object(menu, "_sudo_usable", return_value=False), \
+                mock.patch.object(menu, "run_with_timeout", return_value=0) as pip_run:
             ok, _message = menu.uninstall_one(agent)
 
         self.assertTrue(ok)
-        commands = [call.args[0] for call in run.call_args_list]
+        # v1.8.0 起 pip 卸载走 run_with_timeout，mock 层随执行原语适配
+        commands = [call.args[0] for call in pip_run.call_args_list]
         pip_calls = [c for c in commands if c and "pip" in c]
         self.assertTrue(pip_calls, commands)
         self.assertEqual(pip_calls[0],

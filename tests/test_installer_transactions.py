@@ -83,6 +83,27 @@ class InstallerTransactionTests(unittest.TestCase):
         self.assertIn("20971520", shell)
         self.assertIn("20MB", powershell)
         self.assertIn("越界路径", shell)
+        self.assertIn("越界路径", powershell,
+                      "install.ps1 缺少归档越界路径检查——与 install.sh 的 awk "
+                      "拒绝绝对路径/.. 不对等，Windows 解压信任边界缺失")
+
+    def test_powershell_traversal_check_precedes_extraction(self):
+        """越界检查必须发生在解压/落盘之前（列成员 → 拒绝 → 才解压）。"""
+        for relative in ("scripts/install.ps1", "scripts/install-offline.ps1"):
+            powershell = (ROOT / relative).read_text(encoding="utf-8-sig")
+            self.assertIn("Assert-NoTraversal", powershell, relative)
+            self.assertIn("越界路径", powershell, relative)
+            # 检查要覆盖 tar 与 .NET 两条解压路径的成员列举
+            self.assertIn("tar -tf", powershell, relative)
+            self.assertIn("ZipFile]::OpenRead", powershell, relative)
+            # 调用点必须早于 Expand-Pkg 体内的实际解压动作
+            self.assertLess(powershell.index("Assert-NoTraversal $pkg"),
+                            powershell.index("& $tar -xf"),
+                            "%s：越界检查必须早于解压" % relative)
+        powershell = (ROOT / "scripts/install.ps1").read_text(encoding="utf-8-sig")
+        self.assertLess(powershell.index("Assert-NoTraversal"),
+                        powershell.index("Install-AppAtomic"),
+                        "越界检查必须早于应用目录提交")
 
     def test_online_installers_clean_temporary_directories(self):
         shell = (ROOT / "install.sh").read_text(encoding="utf-8")

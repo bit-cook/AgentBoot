@@ -2,6 +2,7 @@
 """Translation dictionaries have unique keys and visible format failures."""
 
 import ast
+import re
 from collections import Counter
 from pathlib import Path
 import sys
@@ -32,3 +33,37 @@ class I18nQualityTests(unittest.TestCase):
 
 
 if __name__ == "__main__": unittest.main(verbosity=2)
+
+
+class DoctorI18nTests(unittest.TestCase):
+    """回归：doctor/status 输出在英文模式不得漏中文（v1.8.0 排查实测 10/16 行漏中文后修复）。"""
+
+    def _doctor_output(self, lang):
+        import io
+        import contextlib
+        import re
+        old = i18n.get_lang()
+        try:
+            i18n.set_lang(lang)
+            import agent
+            buffer = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(buffer):
+                    agent.doctor(agent.load_config())
+            except Exception:
+                pass
+            return buffer.getvalue()
+        finally:
+            i18n.set_lang(old)
+
+    def test_english_doctor_has_no_chinese_leakage(self):
+        output = self._doctor_output("en")
+        self.assertTrue(output.strip(), "doctor 应有输出")
+        chinese = [line for line in output.splitlines()
+                   if re.search(r"[一-鿿]", line)]
+        self.assertEqual(chinese, [], "英文模式漏中文: %s" % chinese[:3])
+
+    def test_chinese_doctor_still_localized(self):
+        output = self._doctor_output("zh")
+        self.assertIn("环境体检", output)
+        self.assertIn("模型源", output)

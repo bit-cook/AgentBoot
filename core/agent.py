@@ -290,9 +290,9 @@ def _split_base(base_url):
         u += "/v1"
     s = urlsplit(u)
     if s.scheme not in ("http", "https"):
-        raise ApiError("模型接口仅支持 https；本地无密钥模型可使用回环 http。")
+        raise ApiError(i18n.t("agent.err_https_only_local"))
     if not s.hostname:
-        raise ApiError("模型接口地址缺少主机名。")
+        raise ApiError(i18n.t("agent.err_no_hostname"))
     port = s.port or (443 if s.scheme == "https" else 80)
     return s.scheme, s.hostname, port, (s.path or "") + "/chat/completions"
 
@@ -312,7 +312,7 @@ def _validate_model_transport(scheme, host, api_key):
         return
     if scheme == "http" and _is_literal_loopback(host) and not api_key:
         return
-    raise ApiError("拒绝不安全的模型接口：仅允许 HTTPS，或无 API Key 的 localhost/回环 HTTP。")
+    raise ApiError(i18n.t("agent.err_https_only"))
 
 
 # 连接池：复用 TLS 连接，砍掉每轮对话的握手开销（极限性能核心）
@@ -344,7 +344,7 @@ def _connect(scheme, host, port, timeout=180):
             proxy_url = None
     proxy = urlsplit(proxy_url) if proxy_url else None
     if proxy and (proxy.scheme not in ("http", "https") or not proxy.hostname):
-        raise ApiError("代理地址无效，仅支持 http/https。")
+        raise ApiError(i18n.t("agent.err_proxy_scheme") % (proxy_url or ""))
     key = (scheme, host, port, proxy_url or "")
     conn = _POOL.get(key)
     if conn is not None:
@@ -365,7 +365,7 @@ def _connect(scheme, host, port, timeout=180):
     elif scheme == "http":
         conn = http.client.HTTPConnection(host, port, timeout=timeout)
     else:
-        raise ApiError("不支持的模型接口协议：%s" % scheme)
+        raise ApiError(i18n.t("agent.err_bad_scheme") % scheme)
     _POOL[key] = conn
     return conn
 
@@ -413,7 +413,7 @@ def chat(cfg, messages, stream_cb=None, reasoning_cb=None, tools=None, max_token
     p = get_provider(cfg)
     scheme, host, port, path = _split_base(p.get("base_url", ""))
     if not host:
-        raise ApiError("模型接口地址为空，请先运行 `ab model` 或在菜单里配置模型。")
+        raise ApiError(i18n.t("agent.err_empty_endpoint"))
     _validate_model_transport(scheme, host, p.get("api_key"))
 
     body = {"model": p.get("model"), "messages": messages, "temperature": temperature}
@@ -482,7 +482,7 @@ def chat(cfg, messages, stream_cb=None, reasoning_cb=None, tools=None, max_token
             if attempt < 2:
                 time.sleep(1 + attempt)
                 continue
-            raise ApiError("模型流在完成前中断，请重试。")
+            raise ApiError(i18n.t("agent.err_stream_incomplete"))
         except ApiError:
             raise
         except Exception as e:   # 网络类错误：连接可能已坏，弃用后重建重试
@@ -490,9 +490,7 @@ def chat(cfg, messages, stream_cb=None, reasoning_cb=None, tools=None, max_token
             _drop_pool(scheme, host, port)
             if attempt < 2:
                 time.sleep(1 + attempt)
-    raise ApiError("无法连接模型接口：%s（若需代理，请先设置 HTTP_PROXY/HTTPS_PROXY；"
-                   "国内网络偶发瞬时波动也会报连接失败，稍候重试通常可恢复，"
-                   "也可改用备用源：ab model）" % last_err)
+    raise ApiError(i18n.t("agent.err_connect") % last_err)
 
 
 class _WaitIndicator:
@@ -1811,7 +1809,7 @@ def choose_model(cfg):
 
 def show_status(cfg):
     p = get_provider(cfg)
-    print("当前模型源: %s\n接口: %s\n模型: %s\n确认策略: %s\n配置文件: %s" % (
+    print(i18n.t("agent.status_lines") % (
         p["name"], p.get("base_url"), p.get("model"), cfg.get("confirm"), CONFIG_PATH))
 
 
@@ -1886,37 +1884,38 @@ def repl(cfg, resume=False):
 
 
 def doctor(cfg):
-    print("AgentBoot 环境体检 v%s" % VERSION)
+    print(i18n.t("agent.doctor_title") % VERSION)
     print("-" * 46)
     print("Python   : %s.%s.%s %s" % (*sys.version_info[:3], sys.executable))
     total_mem, _avail = _mem_bytes()
-    print("本机     : %s · %s 核 · 内存 %s" % (
+    print(i18n.t("agent.doctor_machine") % (
         platform_info(), os.cpu_count() or "?",
         _fmt_bytes(total_mem) if total_mem else "未知（可用 ab sys 查看完整配置）"))
     p = get_provider(cfg)
-    print("模型源   : %s（%s @ %s）" % (p["name"], p.get("model"), p.get("base_url")))
+    print(i18n.t("agent.doctor_provider") % (p["name"], p.get("model"), p.get("base_url")))
     ok, msg = test_provider(cfg)
-    print("模型连通 : %s %s" % ("✓" if ok else "✗", msg if not ok else ""))
+    print(i18n.t("agent.doctor_connect") % ("✓" if ok else "✗", msg if not ok else ""))
     n_kb = len(_kb_sections())
-    print("Linux知识库: %s（%d 个主题段落）" % ("✓" if n_kb else "✗ 缺失 tools/linux-kb", n_kb))
+    print(i18n.t("agent.doctor_kb") % ("✓" if n_kb else i18n.t("agent.doctor_kb_missing"), n_kb))
     for tool in ("node", "npm", "git"):
         import shutil
         path = shutil.which(tool)
-        print("%-8s : %s" % (tool, path or "未安装（可由菜单安装/自动下载运行时）"))
+        print("%-8s : %s" % (tool, path or i18n.t("agent.doctor_tool_missing")))
     # 探测列表跟随实际使用的模型源：默认源换成 Groq 后只盯 agnes 会误报
     from urllib.parse import urlsplit
     active_host = urlsplit(p.get("base_url") or "").hostname or ""
-    probe_list = [("npm镜像(registry.npmmirror.com)", "registry.npmmirror.com"),
-                  ("GitHub(api.github.com)", "api.github.com"),
-                  ("模型(%s)" % active_host, active_host)]
+    probe_list = [(i18n.t("agent.doctor_probe_npm"), "registry.npmmirror.com"),
+                  (i18n.t("agent.doctor_probe_github"), "api.github.com"),
+                  (i18n.t("agent.doctor_probe_model") % active_host, active_host)]
     if p["name"] != "agnes":
-        probe_list.append(("备选(agnes)", "apihub.agnes-ai.com"))
+        probe_list.append((i18n.t("agent.doctor_probe_fallback"), "apihub.agnes-ai.com"))
     probes = probe_hosts(tuple({h for _, h in probe_list}))
     for name, host in probe_list:
-        print("网络     : %s %s" % ("✓" if probes.get(host) else "✗", name if probes.get(host)
-                                    else "%s 不可达（模型源波动时稍候重试）" % name))
+        print(i18n.t("agent.doctor_network") % (
+            "✓" if probes.get(host) else "✗",
+            name if probes.get(host) else i18n.t("agent.doctor_unreachable") % name))
     print("-" * 46)
-    print("启动 Agent：ab   ·   打开控制台菜单：agentboot")
+    print(i18n.t("agent.doctor_footer"))
 
 
 # ---------------------------------------------------------------- 入口
@@ -1929,7 +1928,7 @@ def main():
     # 零配置命令优先：不加载模型配置，不触发 json/文件 IO，让一次性用法最快
     if cmd in ("help", "--help", "-h"):
         print(__doc__)
-        print("用法: ab [chat|run <任务>|sys|model|doctor|linux <关键词>|version]")
+        print(i18n.t("agent.usage_line"))
         return
     if cmd in ("version", "--version", "-v"):
         print("AgentBoot Agent v%s" % VERSION)
@@ -1947,7 +1946,7 @@ def main():
         cfg["lang"] = "en" if want.lower().startswith("en") else "zh"
         save_config(cfg)
         i18n.set_lang(cfg["lang"])
-        print("Language: %s" % ("English" if cfg["lang"] == "en" else "中文（默认）"))
+        print(i18n.t("agent.lang_line") % ("English" if cfg["lang"] == "en" else i18n.t("agent.lang_zh")))
         return
     if cmd == "doctor":
         doctor(cfg)
@@ -1958,11 +1957,11 @@ def main():
             show_status(cfg)
             choose_model(cfg)
         else:
-            print("请在交互终端运行：ab model")
+            print(i18n.t("agent.interactive_only"))
         return
     if cmd == "run":
         if not args:
-            print("用法: ab run \"你的任务\"")
+            print(i18n.t("agent.run_usage"))
             return
         final, history = agent_loop(cfg, " ".join(args), stream=False)
         save_session(history)   # 一次性任务也进会话：ab -c / /继续 可接着问
@@ -1996,6 +1995,6 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n（已退出）")
+        print(i18n.t("agent.exited"))
     except EOFError:
-        print("\n（输入已结束，已退出）")
+        print(i18n.t("agent.eof_exited"))
