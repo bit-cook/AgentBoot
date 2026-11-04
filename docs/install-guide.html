@@ -9,7 +9,7 @@
     <title>安装指南 · AgentBoot</title>
     <link rel="canonical" href="https://boot.ide.pub/docs/install-guide.html" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpath d='M18 22l10 10-10 10M34 44h12' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" type="image/svg+xml" />
-    <link rel="stylesheet" href="assets/site.css?v=1.7.4&b=5" />
+    <link rel="stylesheet" href="assets/site.css?v=1.7.5&b=6" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -74,7 +74,7 @@
     <p class="doc-intro rv">安装、配置与故障排查——你需要知道的一切都在这里。</p>
     <div class="meta-panel rv">
       <div class="meta-chips">
-        <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-spark"/></svg>版本 v1.7.4</span>
+        <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-spark"/></svg>版本 v1.7.5</span>
         <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-mon"/></svg>Linux · macOS · Windows</span>
         <span class="chip"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg>界面默认中文（切换：<code>agentboot lang en</code>）</span>
       </div>
@@ -181,9 +181,9 @@ curl -fsSL https://raw.githubusercontent.com/bit-cook/AgentBoot/main/install.sh 
       <h3 id="第-1-步：获取离线安装包">第 1 步：获取离线安装包<a class="ha" href="#第-1-步：获取离线安装包" aria-label="Permalink">#</a></h3>
       <p><strong>方式 A（推荐）</strong>：到 GitHub <a href="https://github.com/bit-cook/AgentBoot/releases">Releases</a> 下载现成的离线包 → 选择：</p>
       <div class="filelist rv">
-        <div class="frow"><code>AgentBoot-offline-v1.7.4-linux-x64-codex.tar.gz</code><span class="fd">（Linux x64 · Codex）</span></div>
-        <div class="frow"><code>AgentBoot-offline-v1.7.4-linux-x64-codex-sfx.sh</code><span class="fd">（Linux x64 自解压单文件）</span></div>
-        <div class="frow"><code>AgentBoot-offline-v1.7.4-linux-x64-opencode.tar.gz</code> / <code>-sfx.sh</code><span class="fd">（Linux x64 · OpenCode）</span></div>
+        <div class="frow"><code>AgentBoot-offline-v1.7.5-linux-x64-codex.tar.gz</code><span class="fd">（Linux x64 · Codex）</span></div>
+        <div class="frow"><code>AgentBoot-offline-v1.7.5-linux-x64-codex-sfx.sh</code><span class="fd">（Linux x64 自解压单文件）</span></div>
+        <div class="frow"><code>AgentBoot-offline-v1.7.5-linux-x64-opencode.tar.gz</code> / <code>-sfx.sh</code><span class="fd">（Linux x64 · OpenCode）</span></div>
       </div>
       <div class="note rv">
         <svg class="ic" aria-hidden="true"><use href="#i-drive"/></svg>
@@ -208,8 +208,8 @@ powershell -File scripts\build-offline.ps1</code></pre>
           <tbody>
             <tr><td><strong>Windows（任意版本）</strong></td><td>直接<strong>右键 ZIP → 全部解压缩</strong>。Windows 资源管理器自带 ZIP 支持，无需安装任何软件</td></tr>
             <tr><td><strong>Windows 10/11（命令行党，自建 win 包）</strong></td><td>系统自带 <code>tar</code>：<code>tar -xf AgentBoot-offline-&lt;版本&gt;-win-x64-codex.zip</code></td></tr>
-            <tr><td><strong>Linux x64</strong></td><td>系统自带 <code>tar</code>：<code>tar -xzf AgentBoot-offline-v1.7.4-linux-x64-codex.tar.gz -C ~</code></td></tr>
-            <tr><td><strong>Linux x64 极简环境</strong></td><td>用自解压单文件：<code>sh AgentBoot-offline-v1.7.4-linux-x64-codex-sfx.sh</code></td></tr>
+            <tr><td><strong>Linux x64</strong></td><td>系统自带 <code>tar</code>：<code>tar -xzf AgentBoot-offline-v1.7.5-linux-x64-codex.tar.gz -C ~</code></td></tr>
+            <tr><td><strong>Linux x64 极简环境</strong></td><td>用自解压单文件：<code>sh AgentBoot-offline-v1.7.5-linux-x64-codex-sfx.sh</code></td></tr>
           </tbody>
         </table>
       </div>
