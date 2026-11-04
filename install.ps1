@@ -9,7 +9,7 @@ $ProgressPreference = 'SilentlyContinue'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $Repo      = 'bit-cook/AgentBoot'
-$Tag       = 'v1.7.5'
+$Tag       = 'v1.8.0'
 $ZipName   = "agentboot-online-$Tag.zip"
 $BootBase  = 'https://boot.ide.pub'
 $GH        = "https://github.com/$Repo/releases/download/$Tag"
@@ -50,6 +50,31 @@ function Get-Sha256([string]$path) {
     finally { $stream.Dispose(); $sha.Dispose() }
 }
 
+function Assert-NoTraversal([string]$pkg) {
+    # 归档成员越界检查（与 install.sh 的 awk 检查对等）：拒绝绝对路径与 ..
+    # 路径组件。先列举成员、再解压——tar 路径用 tar -tf，其余用 .NET
+    # 只读枚举；列举失败的非常规归档放行，由后续结构校验兜底。
+    $names = @()
+    $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
+    if (Test-Path $tar) {
+        $listing = & $tar -tf $pkg 2>$null
+        if ($LASTEXITCODE -eq 0 -and $listing) { $names = @($listing) }
+        $global:LASTEXITCODE = 0
+    }
+    if (-not $names -or $names.Count -eq 0) {
+        try {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $archive = [IO.Compression.ZipFile]::OpenRead($pkg)
+            try { $names = @($archive.Entries | ForEach-Object { $_.FullName }) }
+            finally { $archive.Dispose() }
+        } catch { }
+    }
+    foreach ($n in $names) {
+        if ($n -match '^([A-Za-z]:)?[\\/]' -or ($n -split '[\\/]') -contains '..') {
+            throw "安装包包含越界路径：$n"
+        }
+    }
+}
 function Install-AppAtomic([string]$source, [string]$destination) {
     $suffix = [guid]::NewGuid().ToString('N').Substring(0, 8)
     $newApp = "$destination.new.$suffix"
@@ -116,6 +141,7 @@ function Set-LauncherAtomic([string]$path, [string]$content) {
 }
 
 function Expand-Pkg([string]$pkg, [string]$dest) {
+    Assert-NoTraversal $pkg
     # 优先系统自带 tar（Win10+ 可解 zip），其次 .NET，最后 Shell COM —— 免装解压软件
     $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
     if (Test-Path $tar) {
