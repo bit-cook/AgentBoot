@@ -1,5 +1,17 @@
 # 更新日志
 
+## v1.7.5 (2026-11-03) — 修复：官方脚本安装的 Agent 装后校验误报失败
+
+- 修复安装 coco（及任何官方脚本安装的 Agent）时「已执行安装，但未在 PATH
+  找到」的误报：用户 InstaBox 新机（非 root）实测，官方安装器退出码 0、
+  shim 落在 ~/.local/bin 且 rc 已写，但当前进程的 PATH 不含该目录
+  （rc 只对新终端生效），`resolve_shim_target` 搜不到 → 汇总判失败。
+  修复：校验顺序加入用户级标准 bin 目录 `~/.local/bin`（新增
+  `user_local_bin_dirs()`，HOME 限定；与 `ensure_path_registered`
+  本就注册的目录一致）。
+- 测试 380 全绿（新增 2 例回归：本地 bin 解析 + HOME 限定；变异验证——
+  还原 bug 后新测试精确复现误报路径）。
+
 ## v1.7.4 (2026-11-03) — 官网深度美化：交互层 + 数据带 + FAQ + 全站深色模式
 
 - 主页深度美化（pages/index.html 与英文页同步）：
