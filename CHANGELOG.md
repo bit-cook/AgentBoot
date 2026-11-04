@@ -6,6 +6,11 @@
   按内容判定也认不出软链 → 三残留。shim_bin_dirs() 纳入
   user_local_bin_dirs()，新增软链归属判定（只认指向 agent 自己安装根的
   链接，用户自有文件不碰）。4 个回归测试 + 变异验证
+- **补修 coco 官方包装脚本 shim 残留**（InstaBox 实测 v1.8.1 首版后发现）：
+  coco 软链删掉了，但 web/coweb 是 `exec <shim>/coco web "$@"` 包装脚本
+  （无 AgentBoot 字样），软链修复覆盖不到 → 仍残留。shim 内容判定扩展为
+  「引用本 agent bin 名 + 指向其安装根/自身 shim」，用户自有脚本不误删。
+  1 个回归测试 + 变异验证。394 全绿
 
 - coco 注册表版本 0.8.3→1.1.0（registry coco_version + menu.py/validate_offline_payload.py
   fallback + notes 文案同步 v1.1.0 特性：装完当前终端立即可用、卸载无残留）
