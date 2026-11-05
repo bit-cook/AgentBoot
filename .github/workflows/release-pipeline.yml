@@ -169,16 +169,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # deploy-pages 由 push-to-main 触发，本流水线由 tag 触发——两条时间线。
+          # 常见形态：tag 推送时该 SHA 的 Pages 部署早已完成（甚至在 limit 窗口外），
+          # 死等必然超时。因此：找到即确认（含历史运行，per_page=100），
+          # 超时或对方失败都只警告不失败——站点就绪由 deploy-pages 自身复验，
+          # Release 资产正确性不依赖它，publish 不应被它卡成 prerelease。
           for attempt in $(seq 1 30); do
-            row=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow deploy-pages --branch main --limit 10 \
-              --json headSha,conclusion,status -q ".[] | select(.headSha == \"$GITHUB_SHA\") | [.status,.conclusion] | @tsv" | head -n 1)
+            row=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/deploy-pages.yml/runs?per_page=100" \
+              -q ".workflow_runs[] | select(.head_sha == \"$GITHUB_SHA\") | [.status,.conclusion] | @tsv" | head -n 1)
             status=$(printf '%s' "$row" | cut -f1)
             conclusion=$(printf '%s' "$row" | cut -f2)
             [ "$status" = completed ] && [ "$conclusion" = success ] && exit 0
-            [ "$status" = completed ] && [ "$conclusion" = failure ] && exit 1
+            [ "$status" = completed ] && [ "$conclusion" = failure ] && { echo "::warning::deploy-pages 对本 SHA 失败——站点可能未刷新，请复验 deploy-pages 运行；Release 资产不受影响，继续晋升"; exit 0; }
             sleep 10
           done
-          exit 1
+          echo "::warning::Pages 部署未在 5 分钟内确认——deploy-pages 由 push-to-main 独立触发（本流水线由 tag 触发），站点就绪请复验 deploy-pages 运行；Release 资产不受影响"
+          exit 0
       - name: Wait for primary and mirror endpoints
         run: |
           for attempt in $(seq 1 60); do
