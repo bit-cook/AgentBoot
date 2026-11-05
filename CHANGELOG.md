@@ -1,3 +1,19 @@
+## v1.8.3 (2026-11-04) — 修 coco 装机必败（官方安装器真身被误判为自家 shim）
+
+- **修 coco 安装 100% 失败**（用户实测 + 全新 InstaBox 复现一致）：coco 官方
+  安装器把真身装进 ~/.local/bin，而 v1.7.5 起 shim_bin_dirs() 包含该目录，
+  同一集合又被用于死循环判定 → 真身被误判成「AgentBoot 自己的 shim」→
+  拒写 → 「拒绝写入 shim…exec 死循环」+ 汇总失败 coco
+- 拆分职责：shim_bin_dirs() 只管搜索（含官方安装器落点），新增
+  own_shim_dirs() 只管所有权/死循环；新增 _is_agentboot_shim() 按身份判定
+  （内容标记 AgentBoot wrapper——v1.0.0 首版起每台 shim 都有；或软链指向
+  自家目录），不再按目录一刀切
+- 真身本身就坐在 shim 目录里时（官方安装器选了 /usr/local/bin）：跳过包装
+  不覆盖真身，命令已在 PATH，直接放行
+- resolve_shim_target 的「绝不返回自家 shim」同步改用 own_shim_dirs()
+- 6 个回归测试（含复现用户崩溃场景的端到端 fixture）+ 变异验证：
+  还原任一处判定 → 测试精确失败。413 全绿
+
 ## v1.8.2 (2026-11-04) — 修 hermes 装机必败（uv 0.12.13 包内布局变更）
 
 - **修 hermes agent 安装崩溃**（用户实测）：uv 0.12.13 的发行包把包内目录

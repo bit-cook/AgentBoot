@@ -961,10 +961,42 @@ def _write_executable(path, content):
 
 
 def shim_bin_dirs():
-    """所有可能的 shim 目录（当前首选 + 历史回落位 + 官方安装器落盘点）。"""
+    """所有可能的 shim 目录（当前首选 + 历史回落位 + 官方安装器落盘点）。
+
+    仅供“搜索”（装没装/在哪/卸哪）：官方脚本安装器（coco）会把真身放进
+    ~/.local/bin，不搜就误判。所有权与死循环判定一律用 own_shim_dirs()。
+    """
     dirs = [shim_bin_dir(), os.path.join(AB_HOME, "bin")]
     dirs += user_local_bin_dirs()
     return [d for d in dirs if d]
+
+
+def own_shim_dirs():
+    """AgentBoot 自己写 shim 的目录——只有这两个，绝不含 ~/.local/bin。
+
+    v1.7.5 把 user_local_bin_dirs() 加进 shim_bin_dirs() 是为了让安装后校验
+    能搜到官方脚本安装器落在 ~/.local/bin 的真身；但同一集合当时也被用于
+    所有权/死循环判定，官方安装器的真身于是被误判成“AgentBoot 自己的 shim”，
+    装机必败（v1.8.2 用户实测：拒绝写入 shim → coco 安装失败，全新 InstaBox
+    复现一致）。搜索用 shim_bin_dirs()，所有权/死循环用本函数，不再混用。
+    """
+    return [d for d in (shim_bin_dir(), os.path.join(AB_HOME, "bin")) if d]
+
+
+def _is_agentboot_shim(path):
+    """path 是否是 AgentBoot 自己写的 shim（内容标记或软链指向自家目录）。
+
+    判定靠身份不靠目录：第三方安装器也会把真身装进 /usr/local/bin、
+    ~/.local/bin 等目录，按目录判会把真身误杀（拒写 shim）或把真身当我们
+    的 shim 删掉。自家 shim 内容首部带 "AgentBoot wrapper" 标记。
+    """
+    try:
+        if os.path.islink(path):
+            return any(_inside(os.path.realpath(path), d) for d in own_shim_dirs())
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            return "AgentBoot wrapper" in f.read(512)
+    except OSError:
+        return False
 
 
 def _shim_exec_target(path):
@@ -1011,7 +1043,7 @@ def resolve_shim_target(name):
       3) 旧 shim 的 exec 目标（带环保护，目标仍位于 shim 目录则放弃）
     """
     cands = [name + (".cmd" if not POSIX else "")] if not POSIX else [name]
-    my_dirs = shim_bin_dirs()
+    my_dirs = own_shim_dirs()
 
     def _not_mine(p):
         return bool(p) and not any(_inside(p, d) for d in my_dirs)
@@ -3367,11 +3399,17 @@ def write_online_shim(a, found, env_extra, args_prefix=None):
     """在线安装后写包装 shim（注入 Agnes 环境变量并转发到真实命令）。"""
     bin_ = a["bin"]
     args_prefix = args_prefix or []
-    if any(_inside(found, d) for d in shim_bin_dirs()):
+    if _is_agentboot_shim(found):
         log_err("拒绝写入 shim：解析目标 %s 是 AgentBoot 自己的 shim，"
                 "会形成 exec 死循环" % found)
         return False
     bin_dir = shim_bin_dir()
+    if os.path.realpath(os.path.dirname(found)) == os.path.realpath(bin_dir):
+        # 真身本身就坐在 shim 目录里（官方安装器选了 /usr/local/bin 等）：
+        # 再写包装会覆盖真身，而命令已在 PATH 上，无需 shim——直接放行，
+        # 调用方记录的 shim 路径即真身路径。
+        log_info("%s 真身位于 %s，已在 PATH，跳过包装 shim" % (a["bin"], bin_dir))
+        return True
     if not _ensure_bin_dir(bin_dir):
         log_err("无法创建 shim 目录：%s" % bin_dir)
         return False

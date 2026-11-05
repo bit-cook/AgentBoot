@@ -141,23 +141,92 @@ class UserLocalBinResolutionTests(unittest.TestCase):
 
 
 class WriteShimGuardTests(unittest.TestCase):
-    """write_online_shim 的兜底防御：目标在 shim 目录内一律拒绝。"""
+    """write_online_shim 的死循环防护：只拒“我们自己写的 shim”，不误杀真身。
+
+    v1.8.2 用户实测（全新 InstaBox 复现）：coco 官方安装器把真身装进
+    ~/.local/bin，v1.7.5 起 shim_bin_dirs() 含 ~/.local/bin，死循环判定
+    按目录一刀切 → 真身被误判成“AgentBoot 自己的 shim”→ 拒写 → 装机必败。
+    判定改为身份（内容标记/软链指向自家目录）：shim_bin_dirs() 只管搜索，
+    own_shim_dirs() 才管所有权。
+    """
 
     AGENT = {"id": "opencode", "name": "OpenCode", "bin": "opencode"}
 
     def test_refuses_shim_pointing_at_own_directory(self):
+        """目标确是我们自己写的 shim（带标记）→ 必须拒绝，防 exec 死循环。"""
         with tempfile.TemporaryDirectory() as tmp:
             bin_dir = Path(tmp) / "shim-bin"
             bin_dir.mkdir()
             me = bin_dir / BIN_NAME
-            me.write_text("#!/bin/sh\n")
+            me.write_text("#!/bin/sh\n# AgentBoot wrapper\nexec /real/opencode\n")
             with mock.patch.object(menu, "shim_bin_dir", return_value=str(bin_dir)), \
                     mock.patch.object(menu, "shim_bin_dirs",
                                       return_value=[str(bin_dir)]):
                 self.assertFalse(menu.write_online_shim(
                     self.AGENT, str(me), {}, []))
             # 什么都没写进去
-            self.assertEqual(me.read_text(encoding="utf-8"), "#!/bin/sh\n")
+            self.assertEqual(me.read_text(encoding="utf-8"),
+                             "#!/bin/sh\n# AgentBoot wrapper\nexec /real/opencode\n")
+
+    def test_foreign_binary_in_shim_dir_is_not_refused(self):
+        """shim 目录里的无标记外来文件 = 真身（官方安装器所选），
+        不是我们的 shim：不能拒写，也不能覆盖——跳过包装，命令已在 PATH。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_dir = Path(tmp) / "shim-bin"
+            bin_dir.mkdir()
+            real = bin_dir / BIN_NAME
+            real.write_text("#!/bin/sh\necho real\n")
+            with mock.patch.object(menu, "shim_bin_dir", return_value=str(bin_dir)), \
+                    mock.patch.object(menu, "shim_bin_dirs",
+                                      return_value=[str(bin_dir)]):
+                self.assertTrue(menu.write_online_shim(
+                    self.AGENT, str(real), {}, []))
+            # 真身未被覆盖
+            self.assertEqual(real.read_text(encoding="utf-8"),
+                             "#!/bin/sh\necho real\n")
+
+    def test_third_party_target_in_user_local_bin_gets_shim(self):
+        """v1.8.2 崩溃场景：真身在 ~/.local/bin（官方安装器落点）。
+        own_shim_dirs 不含该目录 → 不误判 → 正常写我们的 shim 并指向真身。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            local_bin = home / ".local" / "bin"
+            local_bin.mkdir(parents=True)
+            real = local_bin / "coco"
+            real.symlink_to(home / ".coco" / "bin" / "coco")
+            own = home / ".agentboot" / "bin"
+            own.mkdir(parents=True)
+            with mock.patch.object(menu, "shim_bin_dir", return_value=str(own)), \
+                    mock.patch.object(menu, "shim_bin_dirs",
+                                      return_value=[str(own), str(local_bin)]):
+                self.assertTrue(menu.write_online_shim(
+                    {"id": "coco", "name": "CoCo", "bin": "coco"},
+                    str(real), {}, []))
+            shim = own / "coco"
+            self.assertTrue(shim.exists())
+            body = shim.read_text(encoding="utf-8")
+            self.assertIn("# AgentBoot wrapper", body)
+            self.assertIn(str(real), body)
+
+    def test_is_agentboot_shim_detection(self):
+        """身份判定：标记文件/指向自家目录的软链=我们的；外来文件/软链=不是。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            mine = d / "mine"
+            mine.write_text("#!/bin/sh\n# AgentBoot wrapper\n")
+            foreign = d / "foreign"
+            foreign.write_text("#!/bin/sh\necho hi\n")
+            self.assertTrue(menu._is_agentboot_shim(str(mine)))
+            self.assertFalse(menu._is_agentboot_shim(str(foreign)))
+            self.assertFalse(menu._is_agentboot_shim(str(d / "missing")))
+            own = d / "own-bin"
+            own.mkdir()
+            target = own / "opencode"
+            target.write_text("#!/bin/sh\n# AgentBoot wrapper\n")
+            link = d / "link-to-ours"
+            link.symlink_to(target)
+            with mock.patch.object(menu, "own_shim_dirs", return_value=[str(own)]):
+                self.assertTrue(menu._is_agentboot_shim(str(link)))
 
     def test_writes_shim_for_real_target(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -180,3 +249,52 @@ class WriteShimGuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class ResolveNotMineOwnDirsTests(unittest.TestCase):
+    """resolve_shim_target 的“绝不返回自家 shim”必须只认 own_shim_dirs。
+
+    v1.8.2：my_dirs 误用含 ~/.local/bin 的 shim_bin_dirs()，官方安装器落在
+    ~/.local/bin 的真身被当成“我们的 shim”跳过 → 解析返回 None → 装机静默
+    无 shim 无记录。改为 own_shim_dirs() 后真身可被正确返回。
+    """
+
+    def test_returns_third_party_binary_in_user_local_bin(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            local_bin = home / ".local" / "bin"
+            local_bin.mkdir(parents=True)
+            real = local_bin / "coco"
+            real.write_text("#!/bin/sh\\nexec /data/home/.coco/bin/coco\\n")
+            own = home / ".agentboot" / "bin"
+            own.mkdir(parents=True)
+            with mock.patch.object(menu, "shim_bin_dir", return_value=str(own)), \
+                    mock.patch.object(menu, "shim_bin_dirs",
+                                      return_value=[str(own), str(local_bin)]), \
+                    mock.patch.object(menu, "user_local_bin_dirs",
+                                      return_value=[str(local_bin)]), \
+                    mock.patch.object(menu, "prefix_bin_dirs", return_value=[]), \
+                    mock.patch.object(menu.shutil, "which", return_value=None):
+                self.assertEqual(menu.resolve_shim_target("coco"), str(real))
+
+    def test_still_refuses_to_return_own_shim(self):
+        """自家 shim 仍绝不返回：which 命中也跳过，改走旧 shim exec 目标解包。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            own = home / ".agentboot" / "bin"
+            own.mkdir(parents=True)
+            shim = own / "opencode"
+            shim.write_text('#!/bin/sh\n# AgentBoot wrapper\nexec "%s"\n'
+                            % (home / ".local" / "bin" / "opencode"))
+            real_dir = home / ".local" / "bin"
+            real_dir.mkdir(parents=True)
+            (real_dir / "opencode").write_text("#!/bin/sh\\necho real\\n")
+            with mock.patch.object(menu, "shim_bin_dir", return_value=str(own)), \
+                    mock.patch.object(menu, "shim_bin_dirs",
+                                      return_value=[str(own), str(real_dir)]), \
+                    mock.patch.object(menu, "prefix_bin_dirs", return_value=[]), \
+                    mock.patch.object(menu.shutil, "which",
+                                      return_value=str(shim)):
+                got = menu.resolve_shim_target("opencode")
+            self.assertEqual(got, str(real_dir / "opencode"),
+                             "必须解包旧 shim 的 exec 目标，而不是返回 shim 本身")
