@@ -1204,7 +1204,7 @@ def _shim_body_owned(body, a, entry=None):
     coco v1.1.0 官方安装器在 PATH 目录写的 web/coweb 是包装脚本：
         #!/usr/bin/env bash
         exec "/home/u/.local/bin/coco" web "$@"
-    没有 AgentBoot 字样，只靠字样判定会残留（v1.8.2 InstaBox 实测）。
+    没有 AgentBoot 字样，只靠字样判定会残留（v1.8.1 InstaBox 实测）。
     认「内容引用本 agent 的 bin 名 + 指向本 agent 安装根/自己 shim」的脚本。
     """
     if not body:
@@ -1508,7 +1508,7 @@ def _kill_process_tree(process):
 def run_with_timeout(cmd, env=None, timeout=NPM_INSTALL_TIMEOUT, label=""):
     """带超时与进程树清理的子进程执行（网络类命令防无限挂起）。
 
-    背景（v1.8.2 排查）：hermes 安装流、npm/pip 卸载、官方脚本安装器等
+    背景（v1.8.0 排查）：hermes 安装流、npm/pip 卸载、官方脚本安装器等
     调用点此前用裸 subprocess.run——网络挂起时菜单无限等待，用户只能
     kill。npm_install 早就有 NPM_INSTALL_TIMEOUT + 进程树清理，其余
     网络类调用点一律补上同等保护。返回 returncode；超时返回 None
@@ -2164,7 +2164,7 @@ def _hermes_uv_meta(pkg_root):
     if sys.platform == "win32":
         target = "aarch64-pc-windows-msvc" if platform.machine().lower() in ("arm64", "aarch64") else "x86_64-pc-windows-msvc"
         asset = "uv-%s.zip" % target
-        member = "uv.exe"
+        want = "uv.exe"
     else:
         target = ("aarch64-apple-darwin" if platform.machine().lower() in ("arm64", "aarch64")
                   else "x86_64-apple-darwin") if sys.platform == "darwin" else (
@@ -2175,10 +2175,10 @@ def _hermes_uv_meta(pkg_root):
         # 0.12.13 起是 uv-<target>/uv（实测 KeyError: 'x86_64-unknown-linux-gnu/uv
         # not found'）。硬编码完整成员名一改布局就炸，交给 _extract_uv_binary 按
         # basename 找，同时兼容两种布局与根级平铺。
-        member = "uv"
+        want = "uv"
     m = _re.search(r'"%s":\s*"([0-9a-f]{64})"' % _re.escape(asset), text)
     sha = m.group(1) if m else None
-    return version, (asset, member), sha
+    return version, (asset, want), sha
 
 
 def _download_mirror(urls, dest):
@@ -2241,13 +2241,11 @@ def _extract_uv_binary(archive, asset, want):
 def _seed_uv(pkg_root):
     """预置 uv 二进制到 <pkg>/.uv_bin 并写入 marker，绕过 postinstall 的 GitHub 直连下载。"""
     import hashlib
-    import tarfile
-    import zipfile
     version, asset_info, sha = _hermes_uv_meta(pkg_root)
     if not (version and asset_info and sha):
         log_err("无法解析 hermes uv 安装参数（包结构变化？），回退官方流程")
         return False
-    asset, member = asset_info
+    asset, want = asset_info
     uv_dir = os.path.join(pkg_root, ".uv_bin")
     exe = os.path.join(uv_dir, "uv.exe" if sys.platform == "win32" else "uv")
     marker = os.path.join(uv_dir, "install.json")
@@ -2277,10 +2275,10 @@ def _seed_uv(pkg_root):
         except OSError:
             pass
         return False
-    data, sample = _extract_uv_binary(archive, asset, member)
+    data, sample = _extract_uv_binary(archive, asset, want)
     if data is None:
         log_err("uv 发行包内未找到 %s（uv 包内布局可能又变了；包内目录样本：%s）"
-                % (member, ", ".join(sample) if sample else "（空）"))
+                % (want, ", ".join(sample) if sample else "（空）"))
         try:
             os.remove(archive)
         except OSError:
